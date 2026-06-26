@@ -1,0 +1,137 @@
+.calendar-container {
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #eee;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    max-width: 800px;
+    margin: 0 auto;
+}
+/* arrows adjustment */
+.calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    font-weight: bold;
+    text-align: center;
+    padding: 10px 20px;
+    background: #ebf3ee;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.calendar-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #1e201e;
+}
+
+.calendar-header button {
+    background: #4da13a;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.calendar-header button:hover {
+    background-color: #4da13a;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.calendar-day-header {
+    font-weight: bold;
+    text-align: center;
+    padding: 8px 0;
+    background: #268c2e;
+    border-radius: 6px;
+    color: #f3ebeb;
+}
+
+.calendar-cell {
+    height: 80px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 6px;
+    font-weight: 600;
+    cursor: default;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.calendar-cell.clickable {
+    cursor: pointer;
+}
+
+.calendar-cell.clickable:hover {
+    background: #ffe5e5;
+    border-color: #4da13a;
+}
+
+.day-number {
+    font-weight: 600;
+    color: #1a1b1a;
+}
+
+.order-status-badges {
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.status-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: white;
+    width: fit-content;
+}
+
+/* Status colors */
+.status-pending { background: #ffb300; }
+.status-inprogress { background: #1976d2; }
+.status-completed { background: #2e7d32; }
+.status-cancelled { background: #d32f2f; }
+
+/* Highlight selected date */
+.calendar-cell.selected {
+    background-color: #ffe5e5;
+    border-color: #4da13a;
+    font-weight: 700;
+}
+
+/* Popup */
+.calendar-popup {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    z-index: 9999;
+}
+
+
+.calendar-close-btn {
+    background: #777;
+    color: white;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Inline Order Form Modal remains unchanged */

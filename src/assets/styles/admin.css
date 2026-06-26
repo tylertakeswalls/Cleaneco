@@ -1,0 +1,510 @@
+
+.navbar-cleaneco {
+    background-color: #0D8D1E;
+    padding: 0.8rem 1rem;
+}
+
+.navbar-cleaneco .navbar-brand {
+    color: white !important;
+    font-weight: bold;
+    font-size: 1.5rem;
+    margin-right: 2rem;
+    position: static !important;
+    left: auto !important;
+    transform: none !important;
+}
+
+.navbar-cleaneco .navbar-nav .nav-link {
+    color: white !important;
+    font-weight: 500;
+    margin: 0 0.5rem;
+}
+
+.navbar-cleaneco .navbar-nav .nav-link:hover {
+    color: #f8f9fa;
+    text-decoration: underline;
+}
+
+.footer-custom {
+    background-color: #0D8D1E;
+    color: #fff;
+    padding: 40px 20px 20px;
+    font-size: 14px;
+}
+
+.footer-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: auto;
+}
+
+.footer-section {
+    flex: 1 1 220px;
+    margin: 10px;
+}
+
+.footer-section h4 {
+    margin-bottom: 15px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.footer-section ul {
+    list-style: none;
+    padding: 0;
+}
+
+.footer-section ul li {
+    margin: 5px 0;
+}
+
+.footer-bottom {
+    text-align: center;
+    margin-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    padding-top: 10px;
+    font-size: 13px;
+}
+
+
+.hero-banner {
+    width: 100%;
+    height: 500px;
+    background: url('../styles/images/carousel4.png') no-repeat center center;
+    background-size: cover;
+    background-position: center;
+    margin-top: -1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    color: white;
+    text-align: center;
+    border-bottom: 5px solid #0A6F17;
+}
+
+.hero-banner::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 1;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    padding: 0 20px;
+}
+
+.hero-content .main-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    margin-bottom: 5px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.hero-content .sub-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+
+.dashboard-header {
+    background-color: #fff;
+    padding: 40px 0;
+    margin-bottom: 30px;
+    border-bottom: 3px solid #0D8D1E;
+}
+
+.dashboard-title {
+    color: #0D8D1E;
+    font-weight: 700;
+}
+
+.stat-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 5px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    align-items: center;
+    margin-top: 40px;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    color: #fff;
+}
+
+.bg-pending { background-color: #ffc107; }
+.bg-progress { background-color: #007bff; }
+.bg-completed { background-color: #0D8D1E; }
+.bg-revenue { background-color: #0D8D1E; }
+
+.stat-value {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.stat-label {
+    font-size: 1rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.chart-box {
+  background: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid #e0e0e0;
+  height: 100%;
+}
+
+.chart-box canvas {
+  max-width: 100%;
+}
+
+/* Additional styles for Admin Dashboard */
+.bg-cancelled {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+}
+
+.bg-services {
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
+}
+
+.bg-available {
+    background: linear-gradient(135deg, #20c997, #17a2b8);
+}
+
+.bg-total {
+    background: linear-gradient(135deg, #6610f2, #520dc2);
+}
+
+.chart-box {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.dashboard-title {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.demo-credentials {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    border-left: 4px solid #007bff;
+}
+
+/* Quick actions buttons */
+.btn-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border: none;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #0D8D1E, #0A6F17);
+       border: none;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    border: none;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #6c757d, #545b62);
+    border: none;
+}
+
+
+/* Form improvements */
+.form-check-input:checked {
+    background-color: #0D8D1E;
+    border-color: #0D8D1E; 
+}
+
+/* Loading spinner */
+.spinner-border {
+    vertical-align: middle;
+}
+
+.hero-banner .btn {
+    border-radius: 10px;         
+    padding: 12px 22px;           
+    min-height: 48px;            
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Quick Actions */
+.card-body .btn {
+    border-radius: 10px !important;         
+    padding: 12px 22px;           
+    min-height: 48px;             
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    
+}
+
+
+/* ADMIN USERS */
+
+
+.admin-users-title:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(40, 167, 69, 0.7);
+}
+/* Banner image for AdminUsers */
+.admin-users-header-image {
+    width: 100%;            
+    height: 270px;          
+    overflow: hidden;       
+    border-radius: 0 0 8px 8px;
+    margin-bottom: 20px;
+    position: relative;
+    background-color: #f0f0f0; 
+}
+
+.admin-users-header-image::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0 0 8px 8px;
+    background: linear-gradient(135deg, rgba(26,140,58,0.5), rgba(26,140,58,0.2));
+    pointer-events: none;
+}
+
+/* Banner image */
+.admin-users-header-image img {
+    width: 100%;            
+    height: 100%;           
+    object-fit: cover;      
+    object-position: center;
+    display: block;
+    transition: transform 0.4s ease, filter 0.4s ease; 
+}
+
+.admin-users-header-image img:hover {
+    transform: scale(1.05) rotate(0.3deg);
+    filter: brightness(1.1);
+}
+
+
+.admin-users-table th,
+.admin-users-table td {
+  padding: 12px 15px;
+  text-align: left;
+}
+
+.admin-users-table th {
+  background: linear-gradient(90deg, #0B7519, #0D8D1E);
+  color: #fff;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 13.5px;
+  letter-spacing: 0.5px;
+}
+
+.admin-users-table tbody tr {
+  transition: all 0.3s ease;
+}
+
+.admin-users-table tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.admin-users-table tbody tr:hover {
+  background: rgba(26,140,58,0.05);
+  transform: scale(1.01);
+}
+
+.admin-users-table td:last-child,
+.admin-users-table th:last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* Inputs for editing */
+.admin-users-table input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: #fcfcfc;
+  transition: 0.3s all ease;
+}
+
+.admin-users-table input:focus {
+  outline: none;
+  border-color: #0D8D1E;
+  box-shadow: 0 0 8px rgba(40,167,69,0.4);
+  background-color: #fff;
+}
+
+.edit-name input:last-child {
+  margin-bottom: 0;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-buttons button {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: none;
+  border-radius: 0.5rem !important;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.action-buttons button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  opacity: 0.95;
+}
+
+.btn-edit {
+  background: #0D8D1E !important;
+  color: #ffffff !important;
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+}
+
+.btn-delete:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  color: #fff;
+}
+
+.btn-cancel {
+  background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+  color: #fff;
+}
+
+/* Role icons */
+.admin-users-table td:nth-child(5) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-users-table td:nth-child(5)::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #0B7519; 
+}
+
+.admin-users-table td:nth-child(5):contains('admin')::before {
+    background-color: #e74c3c; 
+}
+
+/* Title spacing */
+.admin-users-title {
+    margin-bottom: 40px;
+}
+
+.admin-users-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+.admin-users-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.admin-users-table-wrapper::-webkit-scrollbar-thumb {
+  background: #0B7519;
+  border-radius: 4px;
+}
+.admin-users-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #0D8D1E;
+}
+
+
+.card-body .d-flex.gap-3 .btn {
+  border-radius: 12px;
+  padding: 12px 22px;
+  min-height: 48px;
+  font-weight: 600;
+  font-size: 0.95rem;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  border: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+
+.card-body .d-flex.gap-3 .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+  opacity: 0.95;
+}
+
+.card-body .d-flex.gap-3 .btn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+
+.card-body .d-flex.gap-3 .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.card-body .d-flex.gap-3 .btn i {
+  font-size: 1rem;
+  line-height: 1;
+}

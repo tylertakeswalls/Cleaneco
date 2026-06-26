@@ -1,0 +1,336 @@
+/* Service Management Styles */
+.service-management {
+    padding: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f9fafb;
+}
+
+/* Heading */
+.service-management h2 {
+    color: #1f2d3d;
+    margin-bottom: 40px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 2rem;
+    letter-spacing: 1px;
+}
+
+/* Card Styles */
+.service-management .card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 35px;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.service-management .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+}
+
+.service-management .card-header {
+    background: linear-gradient(135deg, #0D8D1E, #0D8D1E);
+    color: #fff;
+    border-bottom: none;
+    padding: 18px 25px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.service-management .card-header h4 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #ffffff !important;
+}
+
+/* Form Styles */
+.service-management .form-group {
+    margin-bottom: 1.75rem;
+}
+
+.service-management .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 10px;
+    display: block;
+    letter-spacing: 0.5px;
+}
+
+.service-management .form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    transition: all 0.3s;
+}
+
+.service-management .form-control:focus {
+    border-color: #0D8D1E;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.3);
+}
+
+.service-management textarea.form-control {
+    resize: vertical;
+    min-height: 90px;
+}
+
+/* Table Styles */
+.service-management .table-responsive {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.service-management .table {
+    margin-bottom: 0;
+    background: #fff;
+    border-radius: 10px;
+}
+
+.service-management .table thead th {
+    background-color: #f1f3f5;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 700;
+    color: #343a40;
+    padding: 16px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.service-management .table tbody td {
+    padding: 16px;
+    vertical-align: middle;
+    border-color: #e9ecef;
+    text-align: center;
+    transition: background-color 0.3s;
+}
+
+.service-management .table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Status Badge */
+.service-management .badge {
+    padding: 7px 14px;
+    font-weight: 600;
+    border-radius: 0.5rem !important;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.service-management .bg-success {
+    background-color: #0D8D1E !important;
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.service-management .bg-danger {
+    background-color: #dc3545 !important;
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Button Styles */
+.service-management .btn {
+    padding: 9px 18px;
+    border-radius: 0.5rem !important;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.3s;
+    border: none;
+    letter-spacing: 0.5px;
+}
+
+.service-management .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.service-management .btn-primary {
+    background: #0D8D1E !important;
+    color: #fff !important;
+}
+
+.service-management .btn-success {
+    background: linear-gradient(135deg, #0D8D1E, #0D8D1E);
+    color: #fff;
+}
+
+.service-management .btn-warning {
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    color: #212529;
+}
+
+.service-management .btn-danger {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: #fff;
+}
+
+.service-management .btn-secondary {
+    background: linear-gradient(135deg, #6c757d, #545b62);
+    color: #fff;
+}
+
+.service-management .btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+/* Inline Form Controls in Table */
+.service-management .table input.form-control,
+.service-management .table textarea.form-control {
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+/* Price Display */
+.service-management .price-display {
+    font-weight: 700;
+    color: #0D8D1E;
+}
+
+/* Action Buttons Container */
+.service-management .action-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 5px 0;
+    font-size: 0.85rem;
+}
+
+/* Empty State */
+.service-management .empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: #6c757d;
+    font-size: 1rem;
+}
+
+.service-management .empty-state i {
+    font-size: 3.5rem;
+    margin-bottom: 18px;
+    color: #dee2e6;
+}
+
+/* Loading State */
+.service-management .loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 50px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .service-management {
+        padding: 20px;
+    }
+
+    .service-management .card-header h4 {
+        font-size: 1.2rem;
+    }
+
+    .service-management .table thead {
+        display: none;
+    }
+
+    .service-management .table tbody tr {
+        display: block;
+        margin-bottom: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+    .service-management .table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border: none;
+        text-align: left;
+    }
+
+    .service-management .table tbody td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #495057;
+        margin-right: 10px;
+        flex: 1;
+    }
+
+    .service-management .table tbody td>* {
+        flex: 2;
+    }
+
+    .service-management .action-buttons {
+        justify-content: flex-start;
+    }
+}
+
+/* Action buttons alignment (Edit/Make Unavailable/Delete) */
+.service-management table td:nth-child(6) {
+    width: 320px;
+}
+
+.service-management .action-buttons .btn-sm {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+/* Animation for Add/Remove */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.service-management .table tbody tr {
+    animation: fadeIn 0.35s ease-out;
+}
+
+/* Confirmation Dialog */
+.service-management .confirmation-dialog {
+    background: #fff;
+    padding: 22px;
+    border-radius: 10px;
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.18);
+    max-width: 420px;
+    margin: 25px auto;
+}
+
+.service-management .confirmation-dialog p {
+    margin-bottom: 22px;
+    color: #495057;
+}
+
+/* Success/Error Messages */
+.service-management .alert {
+    border-radius: 8px;
+    border: none;
+    padding: 14px 22px;
+    margin-bottom: 22px;
+}
+
+.service-management .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.service-management .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
