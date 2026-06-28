@@ -1,5 +1,6 @@
 <?php
 require_once "config.php";
+require_once "email_helper.php";
 
 // Add CORS headers
 header("Access-Control-Allow-Origin: *");
@@ -29,6 +30,9 @@ switch ($input['type']) {
     case 'user':
         updateUser($input, $conn);
         break;
+    case 'notifications_read':
+        markNotificationsRead($input, $conn);
+        break;
     default:
         echo json_encode(["success" => false, "message" => "Invalid update type"]);
 }
@@ -43,41 +47,64 @@ function updateOrder($data, $conn) {
     $status = $data['status'] ?? null;
     $price = $data['price'] ?? null;
     
-    $updates = [];
-    $params = [];
-    $types = "";
-    
-    if ($status !== null) {
-        $updates[] = "status = ?";
-        $params[] = $status;
-        $types .= "s";
-    }
-    
-    if ($price !== null) {
-        $updates[] = "price = ?";
-        $params[] = $price;
-        $types .= "d";
-    }
-    
-    if (empty($updates)) {
-        echo json_encode(["success" => false, "message" => "No fields to update"]);
+    // Find the order_id for this row
+    $findOrder = $conn->prepare("SELECT order_id FROM orders WHERE id = ?");
+    $findOrder->bind_param("i", $id);
+    $findOrder->execute();
+    $orderResult = $findOrder->get_result();
+    if ($orderResult->num_rows === 0) {
+        echo json_encode(["success" => false, "message" => "Order item not found"]);
+        $findOrder->close();
         return;
     }
+    $orderRow = $orderResult->fetch_assoc();
+    $orderId = $orderRow['order_id'];
+    $findOrder->close();
     
-    $params[] = $id;
-    $types .= "i";
-    
-    $sql = "UPDATE orders SET " . implode(", ", $updates) . " WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param($types, ...$params);
-    
-    if ($stmt->execute()) {
+    $success = true;
+    $statusUpdated = false;
+
+    // Begin transaction for safe updates
+    $conn->begin_transaction();
+
+    if ($status !== null) {
+        $stmt = $conn->prepare("UPDATE orders SET status = ? WHERE order_id = ?");
+        $stmt->bind_param("ss", $status, $orderId);
+        if (!$stmt->execute()) {
+            $success = false;
+        }
+        $stmt->close();
+        $statusUpdated = true;
+    }
+
+    if ($price !== null && $success) {
+        // Handle empty price string as null
+        if ($price === '') {
+            $stmt = $conn->prepare("UPDATE orders SET price = NULL WHERE id = ?");
+            $stmt->bind_param("i", $id);
+        } else {
+            $stmt = $conn->prepare("UPDATE orders SET price = ? WHERE id = ?");
+            $stmt->bind_param("di", $price, $id);
+        }
+        if (!$stmt->execute()) {
+            $success = false;
+        }
+        $stmt->close();
+    }
+
+    if ($success) {
+        $conn->commit();
+        
+        // If status was changed, send email confirmation to client
+        if ($statusUpdated) {
+            sendConfirmationEmail($orderId, $conn, true);
+        }
+        
         echo json_encode(["success" => true, "message" => "Order updated successfully"]);
     } else {
+        $conn->rollback();
         echo json_encode(["success" => false, "message" => "Failed to update order"]);
     }
-    
-    $stmt->close();
 }
 
 function updateService($data, $conn) {
@@ -206,6 +233,23 @@ function updateUser($data, $conn) {
         echo json_encode(["success" => false, "message" => "Failed to update user"]);
     }
     
+    $stmt->close();
+}
+
+function markNotificationsRead($data, $conn) {
+    $id = $data['id'] ?? null;
+    if ($id !== null) {
+        $stmt = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ?");
+        $stmt->bind_param("i", $id);
+    } else {
+        $stmt = $conn->prepare("UPDATE notifications SET is_read = 1");
+    }
+    
+    if ($stmt->execute()) {
+        echo json_encode(["success" => true, "message" => "Notifications marked as read"]);
+    } else {
+        echo json_encode(["success" => false, "message" => "Failed to update notifications"]);
+    }
     $stmt->close();
 }
 

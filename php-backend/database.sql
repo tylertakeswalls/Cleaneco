@@ -47,7 +47,7 @@ INSERT INTO services (name, description, base_price, status) VALUES
 -- Orders table
 CREATE TABLE orders (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    order_id VARCHAR(50) UNIQUE NOT NULL,
+    order_id VARCHAR(50) NOT NULL,
     user_id INT NOT NULL,
     service_id INT NOT NULL,
     first_name VARCHAR(50) NOT NULL,
@@ -67,3 +67,23 @@ CREATE TABLE orders (
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (service_id) REFERENCES services(id)
 );
+
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id VARCHAR(50) NOT NULL,
+    message VARCHAR(255) NOT NULL,
+    details TEXT,
+    is_read TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Settings table
+CREATE TABLE IF NOT EXISTS settings (
+    key_name VARCHAR(50) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Insert default Terms and Conditions
+INSERT IGNORE INTO settings (key_name, value) VALUES ('terms_and_conditions', '1. These are the default terms and conditions. Please update them in the admin dashboard.\n2. Users must agree to these terms before registering.');

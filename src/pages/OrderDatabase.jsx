@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
+import AlertModal from '../components/AlertModal';
 
 function OrderDatabase() {
   const [orders, setOrders] = useState([]);
@@ -10,8 +11,21 @@ function OrderDatabase() {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [editModal, setEditModal] = useState({ show: false, order: null });
   const [editForm, setEditForm] = useState({ status: '', price: '' });
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+  
+  const [filterType, setFilterType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterDate, setFilterDate] = useState('');
   
   const navigate = useNavigate();
+
+  const showAlert = (title, message, type = 'info') => {
+      setModalConfig({ isOpen: true, title, message, type });
+  };
+
+  const closeAlert = () => {
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -48,13 +62,13 @@ function OrderDatabase() {
       const updatedOrders = orders.filter(order => order.id !== id);
       setOrders(updatedOrders);
       calculateRevenue(updatedOrders);
-      alert("✅ Order deleted successfully!");
+      showAlert("Success", "Order deleted successfully!", "success");
     } else {
-      alert("⚠️ " + response.data.message);
+      showAlert("Warning", response.data.message, "warning");
     }
   } catch (error) {
     console.error("Error deleting order:", error);
-    alert("⚠️ Failed to delete order.");
+    showAlert("Error", "Failed to delete order.", "error");
   }
 };
 
@@ -71,8 +85,25 @@ function OrderDatabase() {
     const loadOrders = async () => {
       try {
         const response = await api.get('/read.php?type=orders');
-        setOrders(response.data);
-        calculateRevenue(response.data);
+        
+        const grouped = response.data.reduce((acc, order) => {
+          if (!acc[order.order_id]) {
+            acc[order.order_id] = { ...order, service_names: [], total_price: 0, first_id: order.id };
+          }
+          acc[order.order_id].service_names.push(order.service_name || order.service_type);
+          acc[order.order_id].total_price += parseFloat(order.price || 0);
+          return acc;
+        }, {});
+        
+        const groupedOrders = Object.values(grouped).map(o => ({
+          ...o,
+          id: o.first_id,
+          service_name: o.service_names.join(', '),
+          price: o.total_price > 0 ? o.total_price.toFixed(2) : ''
+        }));
+
+        setOrders(groupedOrders);
+        calculateRevenue(groupedOrders);
         setLoading(false);
       } catch (error) {
         console.error("Error loading orders:", error);
@@ -132,19 +163,26 @@ function OrderDatabase() {
         setOrders(updatedOrders);
         calculateRevenue(updatedOrders);
         closeEditModal();
-        alert("✅ Order updated successfully!");
+        showAlert("Success", "Order updated successfully!", "success");
       } else {
-        alert("⚠️ Error updating order.");
+        showAlert("Error", "Error updating order.", "error");
       }
     } catch (error) {
       console.error("Error updating order:", error);
-      alert("⚠️ Error updating order.");
+      showAlert("Error", "Error updating order.", "error");
     }
   };
 
   if (loading) {
     return (
       <div>
+        <AlertModal 
+            isOpen={modalConfig.isOpen} 
+            title={modalConfig.title} 
+            message={modalConfig.message} 
+            type={modalConfig.type} 
+            onClose={closeAlert} 
+        />
         <img className="img-fluid banner-img" src={carousel7} alt="Banner" />
         <section className="section-bg">
           <div className="table-box">
@@ -165,7 +203,7 @@ function OrderDatabase() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td colSpan="8" className="text-center">Loading orders...</td></tr>
+                  <tr><td colSpan="9" className="text-center">Loading orders...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -175,13 +213,58 @@ function OrderDatabase() {
     );
   }
 
+  const filteredOrders = orders.filter(order => {
+    const matchType = filterType === '' || (order.service_name && order.service_name.toLowerCase().includes(filterType.toLowerCase()));
+    const matchStatus = filterStatus === '' || order.status === filterStatus;
+    const matchDate = filterDate === '' || order.date === filterDate;
+    return matchType && matchStatus && matchDate;
+  });
+
   return (
     <div>
+      <AlertModal 
+          isOpen={modalConfig.isOpen} 
+          title={modalConfig.title} 
+          message={modalConfig.message} 
+          type={modalConfig.type} 
+          onClose={closeAlert} 
+      />
       <img className="img-fluid banner-img" src={carousel7} alt="Banner" />
     
       <section className="section-bg">
         <div className="table-box">
           <h3 className="text-center mb-4">Order Database</h3>
+          
+          <div className="filters-container mb-3 d-flex gap-3 justify-content-center flex-wrap">
+            <input 
+              type="text" 
+              className="form-control" 
+              style={{ width: '200px' }}
+              placeholder="Filter by Service" 
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            />
+            <select 
+              className="form-control" 
+              style={{ width: '200px' }}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <input 
+              type="date" 
+              className="form-control" 
+              style={{ width: '200px' }}
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+            />
+            <button className="btn btn-secondary" onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
+          </div>
           
           <div className="table-container">
             <table className="table table-bordered text-center mb-0">
@@ -199,10 +282,10 @@ function OrderDatabase() {
                 </tr>
               </thead>
               <tbody>
-                {orders.length === 0 ? (
-                  <tr><td colSpan="8" className="text-center">No orders found.</td></tr>
+                {filteredOrders.length === 0 ? (
+                  <tr><td colSpan="9" className="text-center">No orders found.</td></tr>
                 ) : (
-                  orders.map((order) => (
+                  filteredOrders.map((order) => (
                     <tr key={order.id}>
                       <td>{order.order_id}</td>
                       <td>{order.first_name} {order.last_name}</td>

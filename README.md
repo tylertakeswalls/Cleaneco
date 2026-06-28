@@ -1,70 +1,35 @@
-# Getting Started with Create React App
+# Cleaneco - Recent Revisions & Updates
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This document summarizes the recent features and structural updates implemented in the Cleaneco project.
 
-## Available Scripts
+## 1. Address Field Decomposition
+- **Forms Updated**: Registration Form (`Register.jsx`) and Order Forms (`OrderForm.jsx`).
+- **Changes**: Transitioned from a single "Full Address" input to granular address components:
+  - Address Line 1 (Street, House No.)
+  - Address Line 2 (Subdivision - Optional)
+  - Barangay
+  - City/Municipality
+  - Province
+- **Backend & Database**: Updated `submit.php`, `update.php`, `read.php`, and `database.sql` to parse, store, and retrieve the new granular address fields correctly.
 
-In the project directory, you can run:
+## 2. Password Visibility Toggle
+- **Enhancement**: Added an interactive "eye" icon to the Password and Confirm Password fields in `Register.jsx`.
+- **Functionality**: Users can now toggle the visibility of their passwords while typing to prevent errors during account creation.
 
-### `npm start`
+## 3. Email Notification System
+- **New Utility**: Introduced `php-backend/api/email_helper.php` to handle outbound email logic.
+- **Integration**: 
+  - Wired into `submit.php` to send welcome/confirmation emails upon successful user registration and new order placement.
+  - Wired into `update.php` to notify users when their order status is updated by administrators.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## 4. UI/UX Component Additions
+- **Modals**: Created reusable `AlertModal.jsx` and `ConfirmModal.jsx` to replace native browser alerts with stylized, branded popup dialogues.
+- **Client Scheduling**: Added `ClientCalendar.jsx` to improve appointment and date selection for client-side interactions.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 5. Administrative Dashboard Enhancements
+- **Admin Landing & Users**: Updated `AdminLanding.jsx` and `AdminUsers.jsx` to support the new data structures and UI components.
+- **Service Management**: Refactored `ServiceManagement.jsx` to integrate the custom confirm and alert modals.
+- **Order Database**: Improved `OrderDatabase.jsx` to display the newly separated address strings and integrate the latest order status workflows.
 
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## 6. Styling Updates
+- **CSS**: Minor layout and styling tweaks in `orderform.css` to accommodate the new side-by-side address fields.

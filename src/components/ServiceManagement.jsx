@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/axiosConfig';
 import '../assets/styles/servicemanagement.css';
+import '../assets/styles/orderdatabase.css';
+import carousel7 from '../assets/styles/images/carousell7.png';
+import AlertModal from './AlertModal';
+import ConfirmModal from './ConfirmModal';
 
 function ServiceManagement() {
     const [services, setServices] = useState([]);
@@ -11,267 +15,363 @@ function ServiceManagement() {
         base_price: 0,
         status: 'available'
     });
+    const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+    const [confirmModalConfig, setConfirmModalConfig] = useState({ isOpen: false, serviceId: null });
 
-    // Fetch services on component mount
-    useEffect(() => {
-        fetchServices();
-    }, []);
+    const showAlert = (title, message, type = 'info') => {
+        setModalConfig({ isOpen: true, title, message, type });
+    };
 
-    const fetchServices = async () => {
+    const closeAlert = () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+    };
+
+    const promptDelete = (id) => {
+        setConfirmModalConfig({ isOpen: true, serviceId: id });
+    };
+
+    const closeConfirm = () => {
+        setConfirmModalConfig({ isOpen: false, serviceId: null });
+    };
+
+    const [filterName, setFilterName] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+
+    const fetchServices = useCallback(async () => {
         try {
             const response = await api.get('/services.php');
             setServices(response.data);
         } catch (error) {
             console.error('Error fetching services:', error);
-            alert('Failed to load services');
+            showAlert("Error", "Failed to load services", "error");
         }
-    };
+    }, []);
+
+    // Fetch services on component mount
+    useEffect(() => {
+        fetchServices();
+    }, [fetchServices]);
 
     const handleAddService = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/submit.php', {
+            const response = await api.post('/submit.php', {
                 type: 'service',
                 ...newService
             });
-            alert('Service added successfully');
-            setNewService({ name: '', description: '', base_price: 0, status: 'available' });
-            fetchServices();
+            if (response.data.success) {
+                showAlert("Success", "Service added successfully", "success");
+                setNewService({ name: '', description: '', base_price: 0, status: 'available' });
+                fetchServices();
+            } else {
+                showAlert("Warning", response.data.message || "Failed to add service", "warning");
+            }
         } catch (error) {
             console.error('Error adding service:', error);
-            alert('Failed to add service');
+            showAlert("Error", "Failed to add service", "error");
         }
     };
 
     const handleUpdateService = async (e) => {
         e.preventDefault();
         try {
-            await api.put('/update.php', {
+            const response = await api.put('/update.php', {
                 type: 'service',
                 id: editingService.id,
                 ...editingService
             });
-            alert('Service updated successfully');
-            setEditingService(null);
-            fetchServices();
+            if (response.data.success) {
+                showAlert("Success", "Service updated successfully", "success");
+                setEditingService(null);
+                fetchServices();
+            } else {
+                showAlert("Warning", response.data.message || "Failed to update service", "warning");
+            }
         } catch (error) {
             console.error('Error updating service:', error);
-            alert('Failed to update service');
+            showAlert("Error", "Failed to update service", "error");
         }
     };
 
-    const handleDeleteService = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this service?')) return;
-        
+    const executeDeleteService = async () => {
+        if (!confirmModalConfig.serviceId) return;
+        const id = confirmModalConfig.serviceId;
+        closeConfirm();
+
         try {
-            await api.delete('/delete.php', { 
-                data: { 
+            const response = await api.delete('/delete.php', {
+                data: {
                     type: 'service',
-                    id 
+                    id
                 }
             });
-            alert('Service deleted successfully');
-            fetchServices();
+            if (response.data.success) {
+                showAlert("Success", "Service deleted successfully", "success");
+                fetchServices();
+            } else {
+                showAlert("Warning", response.data.message || "Failed to delete service", "warning");
+            }
         } catch (error) {
             console.error('Error deleting service:', error);
-            alert(error.response?.data?.message || 'Failed to delete service');
+            showAlert("Error", error.response?.data?.message || "Failed to delete service", "error");
         }
     };
 
     const toggleServiceStatus = async (service) => {
         const newStatus = service.status === 'available' ? 'unavailable' : 'available';
         try {
-            await api.put('/update.php', {
+            const response = await api.put('/update.php', {
                 type: 'service',
                 id: service.id,
                 status: newStatus
             });
-            alert(`Service marked as ${newStatus}`);
-            fetchServices();
+            if (response.data.success) {
+                showAlert("Success", `Service marked as ${newStatus}`, "success");
+                fetchServices();
+            } else {
+                showAlert("Warning", response.data.message || "Failed to update service status", "warning");
+            }
         } catch (error) {
             console.error('Error updating service status:', error);
-            alert('Failed to update service status');
+            showAlert("Error", "Failed to update service status", "error");
         }
     };
 
-    return (
-        <div className="service-management">
-            <h2>Service Management</h2>
-            
-            {/* Add New Service Form */}
-            <div className="card mb-4">
-                <div className="card-header">
-                    <h4>Add New Service</h4>
-                </div>
-                <div className="card-body">
-                    <form onSubmit={handleAddService}>
-                        <div className="row">
-                            <div className="col-md-4">
-                                <div className="form-group">
-                                    <label>Service Name *</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        value={newService.name}
-                                        onChange={(e) => setNewService({...newService, name: e.target.value})}
-                                        required
-                                    />
-                                </div>
-                            </div>
-                            <div className="col-md-4">
-                                <div className="form-group">
-                                    <label>Base Price (₱)</label>
-                                    <input
-                                        type="number"
-                                        className="form-control"
-                                        value={newService.base_price}
-                                        onChange={(e) => setNewService({...newService, base_price: parseFloat(e.target.value) || 0})}
-                                        step="0.01"
-                                    />
-                                </div>
-                            </div>
-                            <div className="col-md-4">
-                                <div className="form-group">
-                                    <label>Status</label>
-                                    <select
-                                        className="form-control"
-                                        value={newService.status}
-                                        onChange={(e) => setNewService({...newService, status: e.target.value})}
-                                    >
-                                        <option value="available">Available</option>
-                                        <option value="unavailable">Unavailable</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="form-group">
-                            <label>Description</label>
-                            <textarea
-                                className="form-control"
-                                rows="2"
-                                value={newService.description}
-                                onChange={(e) => setNewService({...newService, description: e.target.value})}
-                            />
-                        </div>
-                        <button type="submit" className="btn btn-success">
-                            Add Service
-                        </button>
-                    </form>
-                </div>
-            </div>
+    const filteredServices = services.filter(service => {
+        const matchName = filterName === '' || service.name.toLowerCase().includes(filterName.toLowerCase());
+        const matchStatus = filterStatus === '' || service.status === filterStatus;
+        return matchName && matchStatus;
+    });
 
-            {/* Services List */}
-            <div className="card">
-                <div className="card-header">
-                    <h4>Services List</h4>
-                </div>
-                <div className="card-body">
-                    <div className="table-responsive">
-                        <table className="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Name</th>
-                                    <th>Description</th>
-                                    <th>Base Price</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {services.map(service => (
-                                    <tr key={service.id}>
-                                        <td>{service.id}</td>
-                                        <td>
-                                            {editingService?.id === service.id ? (
+    return (
+        <>
+            <AlertModal
+                isOpen={modalConfig.isOpen}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                type={modalConfig.type}
+                onClose={closeAlert}
+            />
+            <ConfirmModal
+                isOpen={confirmModalConfig.isOpen}
+                title="Confirm Deletion"
+                message="Are you sure you want to delete this service?"
+                onConfirm={executeDeleteService}
+                onCancel={closeConfirm}
+            />
+            <div>
+                <img className="img-fluid banner-img" src={carousel7} alt="Banner" />
+
+                <section className="section-bg">
+                    <div className="table-box">
+                        <h3 className="text-center mb-4">Service Management</h3>
+
+                        {/* Add New Service Form */}
+                        <div className="card mb-4">
+                            <div className="card-header">
+                                <h4>Add New Service</h4>
+                            </div>
+                            <div className="card-body">
+                                <form onSubmit={handleAddService}>
+                                    <div className="row">
+                                        <div className="col-md-4">
+                                            <div className="form-group">
+                                                <label>Service Name *</label>
                                                 <input
                                                     type="text"
                                                     className="form-control"
-                                                    value={editingService.name}
-                                                    onChange={(e) => setEditingService({...editingService, name: e.target.value})}
+                                                    value={newService.name}
+                                                    onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+                                                    required
                                                 />
-                                            ) : (
-                                                service.name
-                                            )}
-                                        </td>
-                                        <td>
-                                            {editingService?.id === service.id ? (
-                                                <textarea
-                                                    className="form-control"
-                                                    value={editingService.description}
-                                                    onChange={(e) => setEditingService({...editingService, description: e.target.value})}
-                                                />
-                                            ) : (
-                                                service.description || '-'
-                                            )}
-                                        </td>
-                                        <td>
-                                            {editingService?.id === service.id ? (
+                                            </div>
+                                        </div>
+                                        <div className="col-md-4">
+                                            <div className="form-group">
+                                                <label>Base Price (₱)</label>
                                                 <input
                                                     type="number"
                                                     className="form-control"
-                                                    value={editingService.base_price}
-                                                    onChange={(e) => setEditingService({...editingService, base_price: parseFloat(e.target.value) || 0})}
+                                                    value={newService.base_price}
+                                                    onChange={(e) => setNewService({ ...newService, base_price: parseFloat(e.target.value) || 0 })}
                                                     step="0.01"
                                                 />
-                                            ) : (
-                                                `₱${parseFloat(service.base_price).toFixed(2)}`
-                                            )}
-                                        </td>
-                                        <td>
-                                            <span className={`badge ${service.status === 'available' ? 'bg-success' : 'bg-danger'}`}>
-                                                {service.status}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {editingService?.id === service.id ? (
-                                                <>
-                                                    <button 
-                                                        className="btn btn-sm btn-success me-2"
-                                                        onClick={handleUpdateService}
-                                                    >
-                                                        Save
-                                                    </button>
-                                                    <button 
-                                                        className="btn btn-sm btn-secondary"
-                                                        onClick={() => setEditingService(null)}
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <div className="action-buttons">
-                                                    <button 
-                                                        className="btn btn-sm btn-primary"
-                                                        onClick={() => setEditingService(service)}
-                                                    >
-                                                        Edit
-                                                    </button>
+                                            </div>
+                                        </div>
+                                        <div className="col-md-4">
+                                            <div className="form-group">
+                                                <label>Status</label>
+                                                <select
+                                                    className="form-control"
+                                                    value={newService.status}
+                                                    onChange={(e) => setNewService({ ...newService, status: e.target.value })}
+                                                >
+                                                    <option value="available">Available</option>
+                                                    <option value="unavailable">Unavailable</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Description</label>
+                                        <textarea
+                                            className="form-control"
+                                            rows="2"
+                                            value={newService.description}
+                                            onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                                        />
+                                    </div>
+                                    <button type="submit" className="btn btn-success">
+                                        Add Service
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
 
-                                                    <button 
-                                                        className={`btn btn-sm ${service.status === 'available' ? 'btn-warning' : 'btn-success'}`}
-                                                        onClick={() => toggleServiceStatus(service)}
-                                                    >
-                                                        {service.status === 'available' ? 'Make Unavailable' : 'Make Available'}
-                                                    </button>
+                        {/* Services List */}
+                        <div className="card">
+                            <div className="card-header">
+                                <h4>Services List</h4>
+                            </div>
+                            <div className="card-body">
+                                <div className="filters-container mb-3 d-flex gap-3 align-items-center">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        style={{ width: '250px' }}
+                                        placeholder="Filter by Service Name"
+                                        value={filterName}
+                                        onChange={(e) => setFilterName(e.target.value)}
+                                    />
+                                    <select
+                                        className="form-control"
+                                        style={{ width: '200px' }}
+                                        value={filterStatus}
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                    >
+                                        <option value="">All Statuses</option>
+                                        <option value="available">Available</option>
+                                        <option value="unavailable">Unavailable</option>
+                                    </select>
+                                    <button className="btn btn-secondary d-flex align-items-center justify-content-center" style={{ height: '38px' }} onClick={() => { setFilterName(''); setFilterStatus(''); }}>
+                                        Clear Filters
+                                    </button>
+                                </div>
+                                <div className="table-responsive">
+                                    <table className="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Name</th>
+                                                <th>Description</th>
+                                                <th>Base Price</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredServices.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="6" className="text-center">No services found.</td>
+                                                </tr>
+                                            ) : (
+                                                filteredServices.map(service => (
+                                                    <tr key={service.id}>
+                                                        <td>{service.id}</td>
+                                                        <td>
+                                                            {editingService?.id === service.id ? (
+                                                                <input
+                                                                    type="text"
+                                                                    className="form-control"
+                                                                    value={editingService.name}
+                                                                    onChange={(e) => setEditingService({ ...editingService, name: e.target.value })}
+                                                                />
+                                                            ) : (
+                                                                service.name
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            {editingService?.id === service.id ? (
+                                                                <textarea
+                                                                    className="form-control"
+                                                                    value={editingService.description}
+                                                                    onChange={(e) => setEditingService({ ...editingService, description: e.target.value })}
+                                                                />
+                                                            ) : (
+                                                                service.description || '-'
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            {editingService?.id === service.id ? (
+                                                                <input
+                                                                    type="number"
+                                                                    className="form-control"
+                                                                    value={editingService.base_price}
+                                                                    onChange={(e) => setEditingService({ ...editingService, base_price: parseFloat(e.target.value) || 0 })}
+                                                                    step="0.01"
+                                                                />
+                                                            ) : (
+                                                                `₱${parseFloat(service.base_price).toFixed(2)}`
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            <span className={`badge ${service.status === 'available' ? 'bg-success' : 'bg-danger'}`}>
+                                                                {service.status}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            {editingService?.id === service.id ? (
+                                                                <div className="d-flex gap-2 justify-content-center">
+                                                                    <button
+                                                                        className="btn btn-sm btn-success"
+                                                                        onClick={handleUpdateService}
+                                                                    >
+                                                                        Save
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn btn-sm btn-secondary"
+                                                                        onClick={() => setEditingService(null)}
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="d-flex gap-2 justify-content-center">
+                                                                    <button
+                                                                        className="btn btn-sm btn-primary"
+                                                                        onClick={() => setEditingService(service)}
+                                                                    >
+                                                                        Edit
+                                                                    </button>
 
-                                                    <button 
-                                                        className="btn btn-sm btn-danger"
-                                                        onClick={() => handleDeleteService(service.id)}
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
+                                                                    <button
+                                                                        className={`btn btn-sm ${service.status === 'available' ? 'btn-warning' : 'btn-success'}`}
+                                                                        onClick={() => toggleServiceStatus(service)}
+                                                                    >
+                                                                        {service.status === 'available' ? 'Make Unavailable' : 'Make Available'}
+                                                                    </button>
+
+                                                                    <button
+                                                                        className="btn btn-sm btn-danger"
+                                                                        onClick={() => promptDelete(service.id)}
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
                                             )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </section>
             </div>
-        </div>
+        </>
     );
 }
 

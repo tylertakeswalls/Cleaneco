@@ -20,15 +20,20 @@ function AdminLanding() {
 
   // state to store all orders data from the database
   const [allOrders, setAllOrders] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifTray, setShowNotifTray] = useState(false);
   const navigate = useNavigate();
 
   // chart canvas references
   const statusChartRef = useRef(null);
   const serviceChartRef = useRef(null);
+  const lineChartRef = useRef(null);
 
   // chart instances for cleanup
   const statusChartInstance = useRef(null);
   const serviceChartInstance = useRef(null);
+  const lineChartInstance = useRef(null);
 
   // check admin authentication on component mount
   useEffect(() => {
@@ -41,7 +46,45 @@ function AdminLanding() {
     }
 
     loadDashboardData();
+    loadNotifications();
   }, [navigate]);
+
+  const loadNotifications = async () => {
+    try {
+      const response = await api.get('/read.php?type=notifications');
+      const data = response.data || [];
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.is_read).length);
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+    }
+  };
+
+  const handleNotificationClick = async (notif) => {
+    if (!notif.is_read) {
+      try {
+        await api.put('/update.php', {
+          type: 'notifications_read',
+          id: notif.id
+        });
+        loadNotifications();
+      } catch (error) {
+        console.error("Error marking notification read:", error);
+      }
+    }
+    setShowNotifTray(false);
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await api.put('/update.php', {
+        type: 'notifications_read'
+      });
+      loadNotifications();
+    } catch (error) {
+      console.error("Error marking all notifications read:", error);
+    }
+  };
 
   // handle chart rendering when orders data changes
   useEffect(() => {
@@ -58,12 +101,28 @@ function AdminLanding() {
         return acc;
       }, {});
 
+      // calculate daily revenue for completed orders
+      const dailyRevenue = allOrders.reduce((acc, order) => {
+        if (order.status === "Completed") {
+          const d = order.date;
+          const price = parseFloat(String(order.price || '').replace(/[₱,]/g, '').trim()) || 0;
+          acc[d] = (acc[d] || 0) + price;
+        }
+        return acc;
+      }, {});
+
+      const sortedDates = Object.keys(dailyRevenue).sort();
+      const revenueValues = sortedDates.map(date => dailyRevenue[date]);
+
       // clean up existing chart instances before creating new ones
       if (statusChartInstance.current) {
         statusChartInstance.current.destroy();
       }
       if (serviceChartInstance.current) {
         serviceChartInstance.current.destroy();
+      }
+      if (lineChartInstance.current) {
+        lineChartInstance.current.destroy();
       }
 
       // create orders status doughnut chart
@@ -181,6 +240,63 @@ function AdminLanding() {
           }
         });
       }
+
+      // create revenue trend line chart
+      const lineCtx = lineChartRef.current?.getContext('2d');
+      if (lineCtx) {
+        lineChartInstance.current = new Chart(lineCtx, {
+          type: 'line',
+          data: {
+            labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+            datasets: [{
+              label: 'Completed Revenue',
+              data: revenueValues,
+              borderColor: '#0D8D1E',
+              backgroundColor: 'rgba(13, 141, 30, 0.05)',
+              fill: true,
+              tension: 0.3,
+              borderWidth: 3,
+              pointBackgroundColor: '#0D8D1E',
+              pointRadius: 4,
+              pointHoverRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return `Revenue: ₱${parseFloat(context.raw).toFixed(2)}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function (value) {
+                    return '₱' + value;
+                  }
+                },
+                grid: {
+                  drawBorder: false
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        });
+      }
     };
 
     // render charts only when we have order data
@@ -195,6 +311,9 @@ function AdminLanding() {
       }
       if (serviceChartInstance.current) {
         serviceChartInstance.current.destroy();
+      }
+      if (lineChartInstance.current) {
+        lineChartInstance.current.destroy();
       }
     };
   }, [allOrders]);
@@ -283,7 +402,66 @@ function AdminLanding() {
           <h2 className="fw-bolder mb-1 text-dark" style={{ letterSpacing: '-0.5px' }}>Overview Dashboard</h2>
           <p className="text-muted mb-0 fw-medium">Real-time control panel for Cleaneco operations.</p>
         </div>
-        <div className="d-flex gap-2 mt-3 mt-md-0">
+        <div className="d-flex gap-2 mt-3 mt-md-0 align-items-center position-relative">
+          {/* Facebook-like Notification Bell */}
+          <div className="position-relative me-1" style={{ cursor: 'pointer' }} onClick={() => setShowNotifTray(!showNotifTray)}>
+            <div className="btn btn-light shadow-sm border d-flex align-items-center justify-content-center rounded-circle" style={{ width: '45px', height: '45px' }}>
+              <i className="fas fa-bell fs-5" style={{ color: '#0D8D1E' }}></i>
+            </div>
+            {unreadCount > 0 && (
+              <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.7rem' }}>
+                {unreadCount}
+              </span>
+            )}
+          </div>
+
+          {/* Notification Tray Dropdown */}
+          {showNotifTray && (
+            <div className="card shadow-lg border position-absolute" style={{
+              top: '55px',
+              right: '0',
+              width: '320px',
+              zIndex: 1050,
+              borderRadius: '0.75rem',
+              maxHeight: '400px',
+              overflowY: 'auto'
+            }}>
+              <div className="card-header bg-white d-flex justify-content-between align-items-center border-bottom py-2">
+                <span className="fw-bold text-dark">Recent Bookings</span>
+                {unreadCount > 0 && (
+                  <button className="btn btn-link text-success p-0 fw-bold small text-decoration-none" style={{ fontSize: '0.8rem', color: '#0D8D1E' }} onClick={handleMarkAllNotificationsRead}>
+                    Mark all as read
+                  </button>
+                )}
+              </div>
+              <div className="list-group list-group-flush">
+                {notifications.length === 0 ? (
+                  <div className="text-center p-3 text-secondary small">No notifications yet.</div>
+                ) : (
+                  notifications.map(notif => (
+                    <div
+                      key={notif.id}
+                      className={`list-group-item list-group-item-action p-3 border-bottom d-flex align-items-start gap-2 ${notif.is_read ? '' : 'bg-light'}`}
+                      style={{ cursor: 'pointer', borderLeft: notif.is_read ? 'none' : '4px solid #0D8D1E' }}
+                      onClick={() => handleNotificationClick(notif)}
+                    >
+                      <div className="flex-grow-1">
+                        <div className={`small ${notif.is_read ? 'text-secondary' : 'fw-bold text-dark'}`}>{notif.message}</div>
+                        <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '2px' }}>{notif.details}</div>
+                        <div className="text-secondary" style={{ fontSize: '0.65rem', marginTop: '4px' }}>
+                          {new Date(notif.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                      {!notif.is_read && (
+                        <span className="rounded-circle bg-success mt-1" style={{ width: '8px', height: '8px', flexShrink: 0 }}></span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           <button onClick={handleRefresh} className="btn btn-light shadow-sm border fw-bold d-inline-flex align-items-center justify-content-center" style={{ borderRadius: '0.5rem', padding: '0.625rem 1.25rem' }}>
             <i className="fas fa-sync-alt me-2" style={{ color: '#0D8D1E' }}></i> Refresh
           </button>
@@ -297,8 +475,8 @@ function AdminLanding() {
       <div className="row g-4 mb-5">
 
         {/* Left Col: Calendar */}
-        <div className="col-xl-4 col-lg-12">
-          <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '1.25rem' }}>
+        <div className="col-xl-4 col-lg-12 d-flex flex-column">
+          <div className="card shadow-sm border-0 flex-grow-1" style={{ borderRadius: '1.25rem' }}>
             <div className="card-body p-4 d-flex flex-column">
               <h5 className="fw-bold mb-4 text-dark" style={{ letterSpacing: '-0.5px' }}>
                 <i className="far fa-calendar-alt me-2" style={{ color: '#0D8D1E' }}></i> Delivery Schedule
@@ -311,28 +489,28 @@ function AdminLanding() {
         </div>
 
         {/* Middle Col: Charts */}
-        <div className="col-xl-6 col-lg-8">
+        <div className="col-xl-4 col-lg-6 d-flex flex-column">
           <div className="card shadow-sm border-0 mb-4" style={{ borderRadius: '1.25rem' }}>
             <div className="card-body p-4">
               <h5 className="fw-bold mb-4 text-dark" style={{ letterSpacing: '-0.5px' }}>
-                <i className="fas fa-chart-pie me-2" style={{ color: '#0D8D1E' }}></i> Order Status Distribution
+                <i className="fas fa-chart-line me-2" style={{ color: '#0D8D1E' }}></i> Revenue Trend (Completed Orders)
               </h5>
-              <div style={{ height: '240px' }}><canvas ref={statusChartRef}></canvas></div>
+              <div style={{ height: '220px' }}><canvas ref={lineChartRef}></canvas></div>
             </div>
           </div>
-          <div className="card shadow-sm border-0" style={{ borderRadius: '1.25rem' }}>
-            <div className="card-body p-4">
+          <div className="card shadow-sm border-0 flex-grow-1" style={{ borderRadius: '1.25rem' }}>
+            <div className="card-body p-4 d-flex flex-column">
               <h5 className="fw-bold mb-4 text-dark" style={{ letterSpacing: '-0.5px' }}>
                 <i className="fas fa-chart-bar me-2" style={{ color: '#0D8D1E' }}></i> Services Breakdown
               </h5>
-              <div style={{ height: '200px' }}><canvas ref={serviceChartRef}></canvas></div>
+              <div style={{ height: '180px' }}><canvas ref={serviceChartRef}></canvas></div>
             </div>
           </div>
         </div>
 
         {/* Right Col: Quick Actions */}
-        <div className="col-xl-2 col-lg-4">
-          <div className="card shadow-lg border-0 h-100 position-relative overflow-hidden"
+        <div className="col-xl-4 col-lg-6 d-flex flex-column">
+          <div className="card shadow-lg border-0 mb-4 position-relative overflow-hidden"
             style={{ borderRadius: '1.25rem', background: 'linear-gradient(145deg, #0D8D1E 0%, #085a13 100%)' }}>
 
             {/* Background design ring */}
@@ -340,7 +518,7 @@ function AdminLanding() {
 
             <div className="card-body p-4 d-flex flex-column position-relative z-1 text-white">
               <h5 className="fw-bold mb-4">
-                <i className="fas fa-bolt me-2 text-warning"></i> Quick Links
+                <i className="fas fa-bolt me-2 text-warning"></i>Quick Links
               </h5>
 
               <div className="d-flex flex-column gap-3">
@@ -353,6 +531,9 @@ function AdminLanding() {
                 <Link to="/admin/users" className="btn btn-light shadow-sm text-start fw-bold w-100 px-3 py-3 d-flex align-items-center" style={{ borderRadius: '0.85rem', color: '#0D8D1E' }}>
                   <i className="fas fa-users me-3 fs-5"></i> Users Setup
                 </Link>
+                <Link to="/admin/settings" className="btn btn-light shadow-sm text-start fw-bold w-100 px-3 py-3 d-flex align-items-center" style={{ borderRadius: '0.85rem', color: '#0D8D1E' }}>
+                  <i className="fas fa-cog me-3 fs-5"></i> Site Settings
+                </Link>
               </div>
 
               <div className="mt-auto pt-4">
@@ -361,6 +542,15 @@ function AdminLanding() {
                   <small className="text-secondary fw-bold" style={{ fontSize: '0.75rem' }}>SYSTEM ONLINE</small>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="card shadow-sm border-0 flex-grow-1" style={{ borderRadius: '1.25rem' }}>
+            <div className="card-body p-4 d-flex flex-column">
+              <h5 className="fw-bold mb-4 text-dark" style={{ letterSpacing: '-0.5px' }}>
+                <i className="fas fa-chart-pie me-2" style={{ color: '#0D8D1E' }}></i> Order Status Distribution
+              </h5>
+              <div style={{ height: '200px' }}><canvas ref={statusChartRef}></canvas></div>
             </div>
           </div>
         </div>

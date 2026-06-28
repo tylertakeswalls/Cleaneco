@@ -10,13 +10,19 @@ function Register() {
     lastName: '',
     email: '',
     phone: '',
-    address: '',
+    addressLine1: '',
+    addressLine2: '',
+    barangay: '',
+    city: '',
+    province: '',
     gender: '',
     dateOfBirth: '',
     username: '',
     password: '',
     confirmPassword: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -53,6 +59,52 @@ function Register() {
     setLoading(true);
     setMessage('');
 
+    // Validations: Name must be string only
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    if (!nameRegex.test(formData.firstName)) {
+      setMessage("First name must contain letters and spaces only.");
+      setLoading(false);
+      return;
+    }
+    if (!nameRegex.test(formData.lastName)) {
+      setMessage("Last name must contain letters and spaces only.");
+      setLoading(false);
+      return;
+    }
+
+    // Validations: Phone number must be int only (digits only)
+    const phoneRegex = /^[0-9]+$/;
+    if (!phoneRegex.test(formData.phone)) {
+      setMessage("Phone number must contain digits only.");
+      setLoading(false);
+      return;
+    }
+
+    // Validations: Birthday cannot be in the future
+    if (formData.dateOfBirth) {
+      const dobDate = new Date(formData.dateOfBirth);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // reset time
+
+      let age = today.getFullYear() - dobDate.getFullYear();
+      const m = today.getMonth() - dobDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+        age--;
+      }
+
+      if (dobDate > today) {
+        setMessage("Date of birth cannot be in the future.");
+        setLoading(false);
+        return;
+      }
+      
+      if (age < 18) {
+        setMessage("You must be at least 18 years old to register.");
+        setLoading(false);
+        return;
+      }
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setMessage("Passwords do not match.");
       setLoading(false);
@@ -72,11 +124,18 @@ function Register() {
     }
 
     try {
-      const response = await api.post('/submit.php', {
+      // Concatenate address categories
+      const fullAddress = `${formData.addressLine1}${formData.addressLine2 ? ', ' + formData.addressLine2 : ''}, Barangay ${formData.barangay}, ${formData.city}, ${formData.province}`;
+
+      // Create payload with combined address
+      const { addressLine1, addressLine2, barangay, city, province, ...otherData } = formData;
+      const payload = {
         type: 'register',
-        ...formData
-      });
-      
+        address: fullAddress,
+        ...otherData
+      };
+
+      const response = await api.post('/submit.php', payload);
       const data = response.data;
       
       if (data.success) {
@@ -164,16 +223,74 @@ function Register() {
           </div>
         </div>
 
-        <div className="form-group">
-          <input
-            type="text"
-            name="address"
-            className="form-control"
-            placeholder="Full Address"
-            value={formData.address}
-            onChange={handleChange}
-            required
-          />
+        <div className="row">
+          <div className="col-md-6">
+            <div className="form-group">
+              <input
+                type="text"
+                name="addressLine1"
+                className="form-control"
+                placeholder="Address Line 1 (Street, House No.)"
+                value={formData.addressLine1}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+          <div className="col-md-6">
+            <div className="form-group">
+              <input
+                type="text"
+                name="addressLine2"
+                className="form-control"
+                placeholder="Address Line 2 (Subdivision - Optional)"
+                value={formData.addressLine2}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="row">
+          <div className="col-md-4">
+            <div className="form-group">
+              <input
+                type="text"
+                name="barangay"
+                className="form-control"
+                placeholder="Barangay"
+                value={formData.barangay}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+          <div className="col-md-4">
+            <div className="form-group">
+              <input
+                type="text"
+                name="city"
+                className="form-control"
+                placeholder="City/Municipality"
+                value={formData.city}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+          <div className="col-md-4">
+            <div className="form-group">
+              <input
+                type="text"
+                name="province"
+                className="form-control"
+                placeholder="Province"
+                value={formData.province}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
         </div>
 
         <div className="row">
@@ -208,46 +325,65 @@ function Register() {
           </div>
         </div>
 
+        <div className="form-group">
+          <input
+            type="text"
+            name="username"
+            className="form-control"
+            placeholder="Create Username"
+            value={formData.username}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
         <div className="row">
           <div className="col-md-6">
             <div className="form-group">
-              <input
-                type="text"
-                name="username"
-                className="form-control"
-                placeholder="Create Username"
-                value={formData.username}
-                onChange={handleChange}
-                required
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  className="form-control"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  minLength="6"
+                  style={{ paddingRight: '2.5rem' }}
+                />
+                <span 
+                  style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 10 }}
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"} style={{ color: '#0D8D1E' }}></i>
+                </span>
+              </div>
             </div>
           </div>
           <div className="col-md-6">
             <div className="form-group">
-              <input
-                type="password"
-                name="password"
-                className="form-control"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                minLength="6"
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  className="form-control"
+                  placeholder="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  minLength="6"
+                  style={{ paddingRight: '2.5rem' }}
+                />
+                <span 
+                  style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 10 }}
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <i className={showConfirmPassword ? "fas fa-eye-slash" : "fas fa-eye"} style={{ color: '#0D8D1E' }}></i>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="form-group">
-          <input
-            type="password"
-            name="confirmPassword"
-            className="form-control"
-            placeholder="Confirm Password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            required
-            minLength="6"
-          />
         </div>
 
         {/* Terms of Service Section */}

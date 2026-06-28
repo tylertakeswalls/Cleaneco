@@ -20,6 +20,12 @@ switch ($type) {
     case 'user':
         readUser($conn, $id);
         break;
+    case 'availability':
+        readAvailability($conn);
+        break;
+    case 'notifications':
+        readNotifications($conn);
+        break;
     default:
         echo json_encode(["message" => "Invalid read type"]);
 }
@@ -122,6 +128,38 @@ function readUserOrders($conn, $userId) {
     }
     
     echo json_encode($orders);
+}
+
+function readAvailability($conn) {
+    $sql = "SELECT date, time_slot, COUNT(DISTINCT order_id) as booking_count 
+            FROM orders 
+            GROUP BY date, time_slot";
+    $result = $conn->query($sql);
+    $availability = [];
+    while ($row = $result->fetch_assoc()) {
+        $availability[] = [
+            'date' => $row['date'],
+            'time_slot' => $row['time_slot'],
+            'booking_count' => intval($row['booking_count'])
+        ];
+    }
+    echo json_encode($availability);
+}
+
+function readNotifications($conn) {
+    $result = $conn->query("SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50");
+    $notifications = [];
+    while ($row = $result->fetch_assoc()) {
+        $notifications[] = [
+            'id' => intval($row['id']),
+            'order_id' => $row['order_id'],
+            'message' => $row['message'],
+            'details' => $row['details'],
+            'is_read' => intval($row['is_read']),
+            'created_at' => $row['created_at']
+        ];
+    }
+    echo json_encode($notifications);
 }
 
 $conn->close();

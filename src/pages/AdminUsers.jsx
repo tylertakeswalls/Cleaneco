@@ -2,11 +2,21 @@ import { useEffect, useState } from 'react';
 import api from '../api/axiosConfig';
 import '../assets/styles/orderdatabase.css'; 
 import carousel4 from '../assets/styles/images/carousel4.png';
+import AlertModal from '../components/AlertModal';
 
 function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({});
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+
+  const showAlert = (title, message, type = 'info') => {
+      setModalConfig({ isOpen: true, title, message, type });
+  };
+
+  const closeAlert = () => {
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     loadUsers();
@@ -43,9 +53,9 @@ function AdminUsers() {
 
       setEditingUser(null);
       loadUsers();
-      alert("✅ User updated successfully");
+      showAlert("Success", "User updated successfully", "success");
     } catch (err) {
-      alert("❌ Failed to update user");
+      showAlert("Error", "Failed to update user", "error");
     }
   };
 
@@ -60,17 +70,25 @@ function AdminUsers() {
       });
 
       if (res.data.success) {
-        alert("🗑 User deleted successfully");
+        showAlert("Success", "User deleted successfully", "success");
         loadUsers();
       } else {
-        alert(`❌ ${res.data.message}`);
+        showAlert("Warning", res.data.message, "warning");
       }
     } catch (err) {
-      alert("❌ Cannot delete user with existing orders");
+      showAlert("Error", "Cannot delete user with existing orders", "error");
     }
   };
 
   return (
+    <>
+    <AlertModal 
+        isOpen={modalConfig.isOpen} 
+        title={modalConfig.title} 
+        message={modalConfig.message} 
+        type={modalConfig.type} 
+        onClose={closeAlert} 
+    />
     <div>
       <img className="img-fluid banner-img" src={carousel4} alt="Banner" />
 
@@ -186,6 +204,7 @@ function AdminUsers() {
         </div>
       </section>
     </div>
+    </>
   );
 }
 

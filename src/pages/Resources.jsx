@@ -5,10 +5,6 @@ import { Accordion } from 'react-bootstrap';
 import doh from '../assets/styles/images/doh.png';
 import denr from '../assets/styles/images/denr.png';
 import lgu from '../assets/styles/images/lgu.png';
-import permit1 from '../assets/styles/images/permit1.png';
-import permit2 from '../assets/styles/images/permit2.png';
-import permit3 from '../assets/styles/images/permit3.png';
-import permit4 from '../assets/styles/images/permit4.png';
 import faq from '../assets/styles/images/faq3.png';
 
 function Resources() {
@@ -49,7 +45,7 @@ function Resources() {
     <main className="container my-5">
       {/* page header section */}
       <header className="page-hero text-center mb-5">
-        <h2 className="intro-title">FAQs, Compliance & Permits</h2>
+        <h2 className="intro-title">FAQs & Compliance</h2>
         <p className="lead text-secondary">
           Find quick answers to your questions and view the government compliance that keeps our services trusted and reliable.
         </p>
@@ -95,33 +91,7 @@ function Resources() {
         </div>
       </section>
 
-      {/* permits and licenses section */}
-      <section id="permits" className="mb-5 text-center">
-        <h2 className="section-title">Permits and Licenses</h2>
-        <p className="lead text-center text-muted mb-4">
-          View our official permits and licenses demonstrating our legal authority to operate and manage various types of waste across the region.
-        </p>
-        
-        {/* permits image grid */}
-        <div className="permits-grid">
-          <div className="permit-item">
-            <img src={permit1} alt="DENR Permit" className="img-fluid mb-2" />
-            <p className="font-weight-bold small mb-0 text-success">Business Operating Permit</p>
-          </div>
-          <div className="permit-item">
-            <img src={permit2} alt="DOH Accreditation" className="img-fluid mb-2" />
-            <p className="font-weight-bold small mb-0 text-success">Certificate of Business Name Registration</p>
-          </div>
-          <div className="permit-item">
-            <img src={permit3} alt="LGU Business Permit" className="img-fluid mb-2" />
-            <p className="font-weight-bold small mb-0 text-success">Sanitary Permit</p>
-          </div>
-          <div className="permit-item">
-            <img src={permit4} alt="Septage Hauling Permit" className="img-fluid mb-2" />
-            <p className="font-weight-bold small mb-0 text-success">Environmental Sanitation Clearance</p>
-          </div>
-        </div>
-      </section>
+
 
       <hr className="my-5" />
 
@@ -132,14 +102,14 @@ function Resources() {
           <div className="faq-content-left">
             <p className="text-muted">CONTACT US</p>
             <h2 className="intro-title">Frequently Asked Questions</h2>
-            
+
             {/* search bar component */}
             <div className="search-container">
               <div className="search-bar-wrapper">
-                <input 
-                  type="text" 
-                  className="form-control search-bar-custom" 
-                  placeholder="Search question here" 
+                <input
+                  type="text"
+                  className="form-control search-bar-custom"
+                  placeholder="Search question here"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -149,13 +119,13 @@ function Resources() {
                 </button>
               </div>
             </div>
-            
+
             <p className="contact-support">
               Didn't find what you're looking for?
             </p>
 
             {/* contact email display */}
-            <p className="contact-support" style={{color: '#0D8D1E'  }}>
+            <p className="contact-support" style={{ color: '#0D8D1E' }}>
               cleaneco-it@cwms.com.ph
             </p>
           </div>
@@ -168,8 +138,8 @@ function Resources() {
 
         {/* general information faq category */}
         <h3 className="faq-question-category" id="tips">General Information</h3>
-        
-        <Accordion defaultActiveKey="0">
+
+        <Accordion>
           <Accordion.Item eventKey="0">
             <Accordion.Header>
               <i className="fas fa-info-circle mr-2 text-muted"></i> How often should I schedule a Desludging/Siphoning service?
@@ -201,7 +171,7 @@ function Resources() {
               Our team will locate your septic tank, open the manhole, and use a specialized vacuum truck to completely remove the accumulated sludge (septage) from the tank. The waste is securely contained and transported to a DENR-accredited treatment facility, ensuring zero improper disposal and full compliance with environmental regulations.
             </Accordion.Body>
           </Accordion.Item>
-          
+
           <Accordion.Item eventKey="3">
             <Accordion.Header>
               <i className="fas fa-broom mr-2 text-muted"></i> What does Deep Cleaning service cover?

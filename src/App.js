@@ -22,7 +22,7 @@ import AdminLanding from './pages/AdminLanding';
 import OrderDatabase from './pages/OrderDatabase';
 import ServiceManagement from './components/ServiceManagement';
 import AdminUsers from './pages/AdminUsers';
-
+import AdminSettings from './pages/AdminSettings';
 
 function App() {
   return (
@@ -49,6 +49,7 @@ function App() {
         <Route path="/admin/services" element={<ServiceManagement />} />
         <Route path="/admin/order-form" element={<OrderForm />} />
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
 
       </Routes>
       <Footer />

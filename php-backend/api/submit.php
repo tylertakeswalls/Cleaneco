@@ -1,5 +1,6 @@
 <?php
 require_once "config.php";
+require_once "email_helper.php";
 
 // Add CORS headers
 header("Access-Control-Allow-Origin: *");
@@ -57,6 +58,39 @@ function handleRegistration($data, $conn) {
     $gender = $data['gender'] ?? '';
     $dob = $data['dateOfBirth'] ?? null;
 
+    // Backend Validations
+    if (!empty($firstName) && !preg_match("/^[a-zA-Z\s]+$/", $firstName)) {
+        echo json_encode(["success" => false, "message" => "First name must contain letters and spaces only."]);
+        return;
+    }
+    if (!empty($lastName) && !preg_match("/^[a-zA-Z\s]+$/", $lastName)) {
+        echo json_encode(["success" => false, "message" => "Last name must contain letters and spaces only."]);
+        return;
+    }
+    if (!empty($phone) && !preg_match("/^[0-9]+$/", $phone)) {
+        echo json_encode(["success" => false, "message" => "Phone number must contain digits only."]);
+        return;
+    }
+    if (!empty($dob)) {
+        $birthTime = strtotime($dob);
+        $todayTime = strtotime(date("Y-m-d"));
+        
+        $age = date('Y', $todayTime) - date('Y', $birthTime);
+        if (date('md', $todayTime) < date('md', $birthTime)) {
+            $age--;
+        }
+
+        if ($birthTime > $todayTime) {
+            echo json_encode(["success" => false, "message" => "Date of birth cannot be in the future."]);
+            return;
+        }
+        
+        if ($age < 18) {
+            echo json_encode(["success" => false, "message" => "You must be at least 18 years old to register."]);
+            return;
+        }
+    }
+
     // Check if username or email already exists
     $checkStmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
     $checkStmt->bind_param("ss", $username, $email);
@@ -94,41 +128,135 @@ function handleRegistration($data, $conn) {
 }
 
 function handleOrder($data, $conn) {
-    // Check if service is available
-    $serviceId = $data['service_id'] ?? 0;
-    $checkService = $conn->prepare("SELECT status FROM services WHERE id = ?");
-    $checkService->bind_param("i", $serviceId);
-    $checkService->execute();
-    $serviceResult = $checkService->get_result();
-    
-    if ($serviceResult->num_rows === 0) {
-        echo json_encode(["success" => false, "message" => "Service not found"]);
-        $checkService->close();
-        return;
+    // 1. Parse service IDs (can be single service_id, array, or comma separated list)
+    $serviceIds = [];
+    if (isset($data['service_ids'])) {
+        if (is_array($data['service_ids'])) {
+            $serviceIds = $data['service_ids'];
+        } else {
+            $decoded = json_decode($data['service_ids'], true);
+            if (is_array($decoded)) {
+                $serviceIds = $decoded;
+            } else {
+                $serviceIds = array_filter(array_map('intval', explode(',', $data['service_ids'])));
+            }
+        }
+    } else {
+        $serviceId = intval($data['service_id'] ?? 0);
+        if ($serviceId > 0) {
+            $serviceIds[] = $serviceId;
+        }
     }
-    
-    $service = $serviceResult->fetch_assoc();
-    if ($service['status'] !== 'available') {
-        echo json_encode(["success" => false, "message" => "This service is currently unavailable"]);
-        $checkService->close();
-        return;
-    }
-    
-    $checkService->close();
 
+    if (empty($serviceIds)) {
+        echo json_encode(["success" => false, "message" => "At least one service must be selected."]);
+        return;
+    }
+
+    // Ensure unique services
+    $serviceIds = array_unique($serviceIds);
+
+    // 2. Fetch service details and verify availability
+    $idList = implode(',', array_map('intval', $serviceIds));
+    $checkServices = $conn->query("SELECT id, name, status, base_price FROM services WHERE id IN ($idList)");
+
+    $servicesMap = [];
+    if ($checkServices) {
+        while ($row = $checkServices->fetch_assoc()) {
+            $servicesMap[$row['id']] = $row;
+        }
+        $checkServices->close();
+    } else {
+        echo json_encode(["success" => false, "message" => "Database error fetching services: " . $conn->error]);
+        return;
+    }
+
+    foreach ($serviceIds as $sId) {
+        if (!isset($servicesMap[$sId])) {
+            $debugMapKeys = implode(',', array_keys($servicesMap));
+            $debugRawInput = $data['service_ids'] ?? 'none';
+            echo json_encode(["success" => false, "message" => "Service ID '$sId' not found. Raw input: $debugRawInput. Parsed list: $idList. Available map keys: $debugMapKeys."]);
+            return;
+        }
+        if ($servicesMap[$sId]['status'] !== 'available') {
+            echo json_encode(["success" => false, "message" => "Service '" . $servicesMap[$sId]['name'] . "' is currently unavailable."]);
+            return;
+        }
+    }
+
+    // 3. Validate Preferred Inspection Date
+    $date = $data['date'] ?? '';
+    if (empty($date)) {
+        echo json_encode(["success" => false, "message" => "Preferred inspection date is required."]);
+        return;
+    }
+
+    $bookingTime = strtotime($date);
+    $todayTime = strtotime(date("Y-m-d"));
+    $minBookingTime = $todayTime + (3 * 24 * 60 * 60); // 3 days in advance
+    $maxBookingTime = $todayTime + (30 * 24 * 60 * 60); // 30 days rolling
+
+    if ($bookingTime < $minBookingTime) {
+        echo json_encode(["success" => false, "message" => "Preferred inspection date must be at least 3 days in advance."]);
+        return;
+    }
+    if ($bookingTime > $maxBookingTime) {
+        echo json_encode(["success" => false, "message" => "Preferred inspection date must be within a rolling 30 days from today (up to " . date("F j, Y", $maxBookingTime) . ")."]);
+        return;
+    }
+
+    // 4. Validate Booking Limits (Max 3 bookings per day)
+    $checkBookings = $conn->prepare("SELECT COUNT(DISTINCT order_id) as count FROM orders WHERE date = ?");
+    $checkBookings->bind_param("s", $date);
+    $checkBookings->execute();
+    $bookingsResult = $checkBookings->get_result()->fetch_assoc();
+    $bookingsCount = intval($bookingsResult['count'] ?? 0);
+    $checkBookings->close();
+
+    if ($bookingsCount >= 3) {
+        echo json_encode(["success" => false, "message" => "Sorry, this date is fully booked. Cleaneco only accepts up to 3 bookings per day."]);
+        return;
+    }
+
+    $userId = intval($data['user_id'] ?? 0);
+    $email = $data['email'] ?? '';
+
+    // 4.5 Validate against booking the same service on the same date
+    if (!empty($serviceIds)) {
+        $idList = implode(',', array_map('intval', $serviceIds));
+        $checkDuplicate = null;
+        
+        if ($userId > 0) {
+            $checkDuplicate = $conn->prepare("SELECT s.name FROM orders o JOIN services s ON o.service_id = s.id WHERE o.user_id = ? AND o.date = ? AND o.service_id IN ($idList) AND o.status != 'Cancelled' LIMIT 1");
+            $checkDuplicate->bind_param("is", $userId, $date);
+        } else if (!empty($email)) {
+            $checkDuplicate = $conn->prepare("SELECT s.name FROM orders o JOIN services s ON o.service_id = s.id WHERE o.email = ? AND o.date = ? AND o.service_id IN ($idList) AND o.status != 'Cancelled' LIMIT 1");
+            $checkDuplicate->bind_param("ss", $email, $date);
+        }
+        
+        if ($checkDuplicate) {
+            $checkDuplicate->execute();
+            $dupResult = $checkDuplicate->get_result();
+            if ($dupResult->num_rows > 0) {
+                $dupRow = $dupResult->fetch_assoc();
+                $checkDuplicate->close();
+                echo json_encode(["success" => false, "message" => "You have already booked '" . $dupRow['name'] . "' for this date. If you need it again, please select a different date."]);
+                return;
+            }
+            $checkDuplicate->close();
+        }
+    }
+
+    // 5. Submit Order Group
     $orderId = 'ORD' . time() . rand(1000, 9999);
-    $userId = $data['user_id'] ?? 0;
-    $firstName = $data['firstName'];
-    $lastName = $data['lastName'];
-    $email = $data['email'];
-    $phone = $data['phone'];
-    $address = $data['address'];
-    $serviceType = $data['serviceType'];
-    $date = $data['date'];
-    $timeSlot = $data['timeSlot'];
+    $firstName = $data['firstName'] ?? '';
+    $lastName = $data['lastName'] ?? '';
+    $phone = $data['phone'] ?? '';
+    $address = $data['address'] ?? '';
+    $timeSlot = $data['timeSlot'] ?? '';
     $notes = $data['notes'] ?? '';
+    $applySeniorDiscount = isset($data['applySeniorDiscount']) && ($data['applySeniorDiscount'] === 'true' || $data['applySeniorDiscount'] === true || $data['applySeniorDiscount'] === 1);
     
-    $discountAmount = isset($data['discountAmount']) ? floatval($data['discountAmount']) : 0;
     $seniorCardImage = null;
 
     // Handle file upload if present
@@ -147,15 +275,51 @@ function handleOrder($data, $conn) {
     }
 
     $stmt = $conn->prepare("INSERT INTO orders (order_id, user_id, service_id, first_name, last_name, email, phone, address, service_type, date, time_slot, notes, discount_amount, senior_card_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("siisssssssssds", $orderId, $userId, $serviceId, $firstName, $lastName, $email, $phone, $address, $serviceType, $date, $timeSlot, $notes, $discountAmount, $seniorCardImage);
+    
+    $insertSuccess = true;
+    $insertedCount = 0;
 
-    if ($stmt->execute()) {
+    foreach ($serviceIds as $sId) {
+        $sName = $servicesMap[$sId]['name'];
+        $basePrice = floatval($servicesMap[$sId]['base_price'] ?? 0);
+        $discountAmount = 0;
+        if ($applySeniorDiscount && $basePrice > 0) {
+            $discountAmount = round($basePrice * 0.20, 2);
+        }
+        
+        $stmt->bind_param("siisssssssssds", $orderId, $userId, $sId, $firstName, $lastName, $email, $phone, $address, $sName, $date, $timeSlot, $notes, $discountAmount, $seniorCardImage);
+        
+        if (!$stmt->execute()) {
+            $insertSuccess = false;
+            break;
+        }
+        $insertedCount++;
+    }
+    $stmt->close();
+
+    if ($insertSuccess && $insertedCount > 0) {
+        // Create Admin Notification
+        $serviceNames = [];
+        foreach ($serviceIds as $sId) {
+            $serviceNames[] = $servicesMap[$sId]['name'];
+        }
+        $servicesStr = implode(", ", $serviceNames);
+        
+        $notifMsg = "New booking from {$firstName} {$lastName} (#{$orderId})";
+        $notifDetails = "Services: {$servicesStr} on " . date("M d, Y", strtotime($date)) . " ({$timeSlot})";
+        
+        $notifStmt = $conn->prepare("INSERT INTO notifications (order_id, message, details) VALUES (?, ?, ?)");
+        $notifStmt->bind_param("sss", $orderId, $notifMsg, $notifDetails);
+        $notifStmt->execute();
+        $notifStmt->close();
+
+        // Send Confirmation Email
+        sendConfirmationEmail($orderId, $conn);
+
         echo json_encode(["success" => true, "message" => "Order submitted successfully", "order_id" => $orderId]);
     } else {
         echo json_encode(["success" => false, "message" => "Order submission failed: " . $conn->error]);
     }
-    
-    $stmt->close();
 }
 
 // ADDED: Service handling function
@@ -182,4 +346,3 @@ function handleService($data, $conn) {
 }
 
 $conn->close();
-?>

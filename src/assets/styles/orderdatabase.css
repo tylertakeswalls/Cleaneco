@@ -28,10 +28,13 @@
     background-color: #0D8D1E !important;
     color: white !important;
     border: none;
-    padding: 5px 12px;
+    padding: 6px 12px;
     border-radius: 0.5rem !important;
     cursor: pointer;
     font-size: 0.85rem;
+    min-width: 75px;
+    display: block;
+    margin: 0 auto 6px auto;
     transition: background-color 0.3s ease;
 }
 
@@ -292,11 +295,13 @@
     background-color: #dc3545;
     color: white;
     border: none;
-    padding: 5px 12px;
+    padding: 6px 12px;
     border-radius: 0.5rem !important;
     cursor: pointer;
     font-size: 0.85rem;
-    margin-left: 5px;
+    min-width: 75px;
+    display: block;
+    margin: 0 auto;
     transition: background-color 0.3s ease;
 }
 
