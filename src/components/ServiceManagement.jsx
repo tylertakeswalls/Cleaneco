@@ -137,8 +137,10 @@ function ServiceManagement() {
         }
     };
 
+    const uniqueServiceNames = [...new Set(services.map(s => s.name))].sort();
+
     const filteredServices = services.filter(service => {
-        const matchName = filterName === '' || service.name.toLowerCase().includes(filterName.toLowerCase());
+        const matchName = filterName === '' || service.name === filterName;
         const matchStatus = filterStatus === '' || service.status === filterStatus;
         return matchName && matchStatus;
     });
@@ -235,14 +237,17 @@ function ServiceManagement() {
                             </div>
                             <div className="card-body">
                                 <div className="filters-container mb-3 d-flex gap-3 align-items-center">
-                                    <input
-                                        type="text"
+                                    <select
                                         className="form-control"
                                         style={{ width: '250px' }}
-                                        placeholder="Filter by Service Name"
                                         value={filterName}
                                         onChange={(e) => setFilterName(e.target.value)}
-                                    />
+                                    >
+                                        <option value="">Filter by Service Name</option>
+                                        {uniqueServiceNames.map(name => (
+                                            <option key={name} value={name}>{name}</option>
+                                        ))}
+                                    </select>
                                     <select
                                         className="form-control"
                                         style={{ width: '200px' }}

@@ -67,8 +67,8 @@ function handleRegistration($data, $conn) {
         echo json_encode(["success" => false, "message" => "Last name must contain letters and spaces only."]);
         return;
     }
-    if (!empty($phone) && !preg_match("/^[0-9]+$/", $phone)) {
-        echo json_encode(["success" => false, "message" => "Phone number must contain digits only."]);
+    if (!empty($phone) && !preg_match("/^\(\+63\) [0-9]{3}-[0-9]{3}-[0-9]{4}$/", $phone)) {
+        echo json_encode(["success" => false, "message" => "Phone number must be in the format (+63) xxx-xxx-xxxx."]);
         return;
     }
     if (!empty($dob)) {
@@ -274,7 +274,7 @@ function handleOrder($data, $conn) {
         }
     }
 
-    $stmt = $conn->prepare("INSERT INTO orders (order_id, user_id, service_id, first_name, last_name, email, phone, address, service_type, date, time_slot, notes, discount_amount, senior_card_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO orders (order_id, user_id, service_id, first_name, last_name, email, phone, address, service_type, date, time_slot, notes, discount_amount, senior_card_image, tax_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     
     $insertSuccess = true;
     $insertedCount = 0;
@@ -286,8 +286,9 @@ function handleOrder($data, $conn) {
         if ($applySeniorDiscount && $basePrice > 0) {
             $discountAmount = round($basePrice * 0.20, 2);
         }
+        $taxAmount = round($basePrice * 0.10, 2);
         
-        $stmt->bind_param("siisssssssssds", $orderId, $userId, $sId, $firstName, $lastName, $email, $phone, $address, $sName, $date, $timeSlot, $notes, $discountAmount, $seniorCardImage);
+        $stmt->bind_param("siisssssssssdsd", $orderId, $userId, $sId, $firstName, $lastName, $email, $phone, $address, $sName, $date, $timeSlot, $notes, $discountAmount, $seniorCardImage, $taxAmount);
         
         if (!$stmt->execute()) {
             $insertSuccess = false;

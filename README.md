@@ -33,3 +33,14 @@ This document summarizes the recent features and structural updates implemented 
 
 ## 6. Styling Updates
 - **CSS**: Minor layout and styling tweaks in `orderform.css` to accommodate the new side-by-side address fields.
+
+## 7. Registration & User Onboarding Updates
+- **Mobile Number Formatting**: Enforced the `xxx-xxx-xxxx` format on the mobile number in the registration text field.
+- **Terms of Service**: Added a short notice upon registration and a Terms of Service "Agree" checkbox.
+
+## 8. Order & Service Management Enhancements
+- **Service Tax Placeholder**: Implemented a service tax computation feature placeholder (currently set at 10%).
+- **Reschedule & Cancellation Workflow**: Added a feature for reschedule and cancellation requiring admin approval, including status approval charging depending on cancelled or rescheduled reason filtering.
+- **Filtering Improvements**: 
+  - Updated order filtering to use a dropdown of services instead of manual typing.
+  - Updated service filtering to use a dropdown of services instead of manual typing.

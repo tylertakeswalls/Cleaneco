@@ -4,14 +4,16 @@ import api from '../api/axiosConfig';
 import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
 import AlertModal from '../components/AlertModal';
+import ConfirmModal from '../components/ConfirmModal';
 
 function OrderDatabase() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [editModal, setEditModal] = useState({ show: false, order: null });
-  const [editForm, setEditForm] = useState({ status: '', price: '' });
+  const [editForm, setEditForm] = useState({ status: '', price: '', request_type: '', approval_fee: '' });
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+  const [confirmModalConfig, setConfirmModalConfig] = useState({ isOpen: false, title: '', message: '', orderId: null });
   
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -50,27 +52,41 @@ function OrderDatabase() {
     setTotalRevenue(total);
   };
   
-  const handleDeleteOrder = async (id) => {
-  if (!window.confirm("⚠️ Are you sure you want to delete this order?")) return;
-
-  try {
-    const response = await api.delete('/delete.php', {
-      data: { type: 'order', id }
+  const requestDeleteOrder = (id) => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title: "Confirm Deletion",
+      message: "⚠️ Are you sure you want to delete this order?",
+      orderId: id
     });
+  };
 
-    if (response.data.success) {
-      const updatedOrders = orders.filter(order => order.id !== id);
-      setOrders(updatedOrders);
-      calculateRevenue(updatedOrders);
-      showAlert("Success", "Order deleted successfully!", "success");
-    } else {
-      showAlert("Warning", response.data.message, "warning");
+  const confirmDeleteOrder = async () => {
+    const id = confirmModalConfig.orderId;
+    setConfirmModalConfig({ isOpen: false, title: '', message: '', orderId: null });
+
+    try {
+      const response = await api.delete('/delete.php', {
+        data: { type: 'order', id }
+      });
+
+      if (response.data.success) {
+        const updatedOrders = orders.filter(order => order.id !== id);
+        setOrders(updatedOrders);
+        calculateRevenue(updatedOrders);
+        showAlert("Success", "Order deleted successfully!", "success");
+      } else {
+        showAlert("Warning", response.data.message, "warning");
+      }
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      showAlert("Error", "Failed to delete order.", "error");
     }
-  } catch (error) {
-    console.error("Error deleting order:", error);
-    showAlert("Error", "Failed to delete order.", "error");
-  }
-};
+  };
+
+  const cancelDeleteOrder = () => {
+    setConfirmModalConfig({ isOpen: false, title: '', message: '', orderId: null });
+  };
 
 
   useEffect(() => {
@@ -127,13 +143,15 @@ function OrderDatabase() {
     setEditModal({ show: true, order });
     setEditForm({
       status: order.status || '',
-      price: order.price || ''
+      price: order.price || '',
+      request_type: order.request_type || '',
+      approval_fee: order.approval_fee || ''
     });
   };
 
   const closeEditModal = () => {
     setEditModal({ show: false, order: null });
-    setEditForm({ status: '', price: '' });
+    setEditForm({ status: '', price: '', request_type: '', approval_fee: '' });
   };
 
   const handleEditChange = (e) => {
@@ -151,13 +169,15 @@ function OrderDatabase() {
         type: 'order',
         id: editModal.order.id,
         status: editForm.status,
-        price: editForm.price
+        price: editForm.price,
+        request_type: editForm.request_type,
+        approval_fee: editForm.approval_fee
       });
 
       if (response.data && response.data.message) {
         const updatedOrders = orders.map(order => 
           order.id === editModal.order.id 
-            ? { ...order, status: editForm.status, price: editForm.price }
+            ? { ...order, status: editForm.status, price: editForm.price, request_type: editForm.request_type, approval_fee: editForm.approval_fee }
             : order
         );
         setOrders(updatedOrders);
@@ -213,8 +233,10 @@ function OrderDatabase() {
     );
   }
 
+  const uniqueServices = [...new Set(orders.map(o => o.service_name || o.service_type).filter(Boolean))].sort();
+
   const filteredOrders = orders.filter(order => {
-    const matchType = filterType === '' || (order.service_name && order.service_name.toLowerCase().includes(filterType.toLowerCase()));
+    const matchType = filterType === '' || (order.service_name && order.service_name === filterType);
     const matchStatus = filterStatus === '' || order.status === filterStatus;
     const matchDate = filterDate === '' || order.date === filterDate;
     return matchType && matchStatus && matchDate;
@@ -229,6 +251,13 @@ function OrderDatabase() {
           type={modalConfig.type} 
           onClose={closeAlert} 
       />
+      <ConfirmModal
+          isOpen={confirmModalConfig.isOpen}
+          title={confirmModalConfig.title}
+          message={confirmModalConfig.message}
+          onConfirm={confirmDeleteOrder}
+          onCancel={cancelDeleteOrder}
+      />
       <img className="img-fluid banner-img" src={carousel7} alt="Banner" />
     
       <section className="section-bg">
@@ -236,14 +265,17 @@ function OrderDatabase() {
           <h3 className="text-center mb-4">Order Database</h3>
           
           <div className="filters-container mb-3 d-flex gap-3 justify-content-center flex-wrap">
-            <input 
-              type="text" 
+            <select 
               className="form-control" 
               style={{ width: '200px' }}
-              placeholder="Filter by Service" 
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-            />
+            >
+              <option value="">Filter by Service</option>
+              {uniqueServices.map(service => (
+                <option key={service} value={service}>{service}</option>
+              ))}
+            </select>
             <select 
               className="form-control" 
               style={{ width: '200px' }}
@@ -294,6 +326,12 @@ function OrderDatabase() {
                       <td>{order.time_slot}</td>
                       <td className={`status-cell ${getStatusClass(order.status)}`}>
                         {order.status}
+                        {order.request_type && (
+                          <div className="small text-warning fw-bold mt-1">{order.request_type}</div>
+                        )}
+                        {order.approval_fee > 0 && (
+                          <div className="small text-danger fw-bold mt-1">Fee: ₱{parseFloat(order.approval_fee).toFixed(2)}</div>
+                        )}
                       </td>
                       <td>{order.price ? '₱' + order.price : "-"}</td>
                       <td>
@@ -317,7 +355,7 @@ function OrderDatabase() {
                       </button>
                       <button 
                         className="btn-delete" 
-                        onClick={() => handleDeleteOrder(order.id)}
+                        onClick={() => requestDeleteOrder(order.id)}
                       >
                         Delete
                       </button>
@@ -370,6 +408,31 @@ function OrderDatabase() {
                         className="form-control" 
                         placeholder="Enter price"
                         value={editForm.price}
+                        onChange={handleEditChange}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Request Type</label>
+                      <select 
+                        name="request_type"
+                        className="form-control"
+                        value={editForm.request_type}
+                        onChange={handleEditChange}
+                      >
+                        <option value="">None</option>
+                        <option value="Cancel Requested">Cancel Requested</option>
+                        <option value="Reschedule Requested">Reschedule Requested</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Approval Fee (₱)</label>
+                      <input 
+                        type="number" 
+                        name="approval_fee"
+                        className="form-control" 
+                        placeholder="Enter approval fee"
+                        value={editForm.approval_fee}
                         onChange={handleEditChange}
                       />
                     </div>

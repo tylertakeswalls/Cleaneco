@@ -46,6 +46,8 @@ function updateOrder($data, $conn) {
     $id = $data['id'];
     $status = $data['status'] ?? null;
     $price = $data['price'] ?? null;
+    $request_type = $data['request_type'] ?? null;
+    $approval_fee = $data['approval_fee'] ?? null;
     
     // Find the order_id for this row
     $findOrder = $conn->prepare("SELECT order_id FROM orders WHERE id = ?");
@@ -85,6 +87,34 @@ function updateOrder($data, $conn) {
         } else {
             $stmt = $conn->prepare("UPDATE orders SET price = ? WHERE id = ?");
             $stmt->bind_param("di", $price, $id);
+        }
+        if (!$stmt->execute()) {
+            $success = false;
+        }
+        $stmt->close();
+    }
+
+    if ($request_type !== null && $success) {
+        if ($request_type === '') {
+            $stmt = $conn->prepare("UPDATE orders SET request_type = NULL WHERE order_id = ?");
+            $stmt->bind_param("s", $orderId);
+        } else {
+            $stmt = $conn->prepare("UPDATE orders SET request_type = ? WHERE order_id = ?");
+            $stmt->bind_param("ss", $request_type, $orderId);
+        }
+        if (!$stmt->execute()) {
+            $success = false;
+        }
+        $stmt->close();
+    }
+
+    if ($approval_fee !== null && $success) {
+        if ($approval_fee === '') {
+            $stmt = $conn->prepare("UPDATE orders SET approval_fee = 0 WHERE id = ?");
+            $stmt->bind_param("i", $id);
+        } else {
+            $stmt = $conn->prepare("UPDATE orders SET approval_fee = ? WHERE id = ?");
+            $stmt->bind_param("di", $approval_fee, $id);
         }
         if (!$stmt->execute()) {
             $success = false;

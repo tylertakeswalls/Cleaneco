@@ -25,6 +25,7 @@ function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const navigate = useNavigate();
 
   // Terms of Service state
@@ -48,9 +49,29 @@ function Register() {
   }, []);
 
   const handleChange = (e) => {
+    let { name, value } = e.target;
+    
+    if (name === 'phone') {
+      let digits = value.replace(/\D/g, '');
+      if (digits.startsWith('63')) digits = digits.substring(2);
+      else if (digits.startsWith('0')) digits = digits.substring(1);
+
+      if (digits.length > 0) {
+        if (digits.length <= 3) {
+          value = `(+63) ${digits}`;
+        } else if (digits.length <= 6) {
+          value = `(+63) ${digits.slice(0, 3)}-${digits.slice(3)}`;
+        } else {
+          value = `(+63) ${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+        }
+      } else {
+        value = '';
+      }
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
   };
 
@@ -72,10 +93,10 @@ function Register() {
       return;
     }
 
-    // Validations: Phone number must be int only (digits only)
-    const phoneRegex = /^[0-9]+$/;
+    // Validations: Phone number must match (+63) xxx-xxx-xxxx
+    const phoneRegex = /^\(\+63\) \d{3}-\d{3}-\d{4}$/;
     if (!phoneRegex.test(formData.phone)) {
-      setMessage("Phone number must contain digits only.");
+      setMessage("Phone number must be in the format (+63) xxx-xxx-xxxx.");
       setLoading(false);
       return;
     }
@@ -139,10 +160,10 @@ function Register() {
       const data = response.data;
       
       if (data.success) {
-        setMessage("Registration successful! Redirecting to login...");
+        setShowSuccessModal(true);
         setTimeout(() => {
           navigate('/login');
-        }, 2000);
+        }, 3000);
       } else {
         setMessage(data.message || "Registration failed");
       }
@@ -387,26 +408,15 @@ function Register() {
         </div>
 
         {/* Terms of Service Section */}
-        <div className="form-group d-flex align-items-center justify-content-center mb-3">
-          <input
-            type="checkbox"
-            id="tosCheckbox"
-            checked={isTosAccepted}
-            onChange={(e) => setIsTosAccepted(e.target.checked)}
-            disabled={!hasOpenedTos}
-            className="form-check-input mt-0 me-2"
-            style={{ width: '1.2rem', height: '1.2rem', cursor: hasOpenedTos ? 'pointer' : 'not-allowed' }}
-          />
-          <label htmlFor="tosCheckbox" className="form-check-label d-flex align-items-center m-0" style={{ color: hasOpenedTos ? '#333' : '#888' }}>
-            Have you read the&nbsp;
-            <span 
-              className="fw-bold" 
-              style={{ cursor: 'pointer', color: '#0D8D1E', textDecoration: 'none' }} 
-              onClick={() => { setIsTosModalOpen(true); setHasOpenedTos(true); }}
-            >
-              Terms and Conditions
-            </span>?
-          </label>
+        <div className="form-group text-center mb-3">
+          <button 
+            type="button" 
+            className={`btn rounded-pill fw-bold ${isTosAccepted ? 'btn-success' : 'btn-outline-success'}`}
+            onClick={() => { setIsTosModalOpen(true); setHasOpenedTos(true); }}
+            style={{ transition: 'all 0.3s ease', minWidth: '250px' }}
+          >
+            {isTosAccepted ? <><i className="fas fa-check-circle me-2"></i>Terms of Service Accepted</> : <><i className="fas fa-file-contract me-2"></i>Review & Accept Terms of Service</>}
+          </button>
         </div>
 
         {message && (
@@ -448,8 +458,65 @@ function Register() {
                 {tosContent || "Loading Terms and Conditions..."}
               </div>
             </div>
-            <div className="modal-footer bg-light" style={{ borderTop: 'none' }}>
-              <button type="button" className="btn text-white fw-bold px-4" style={{ backgroundColor: '#0D8D1E', borderRadius: '0.5rem' }} onClick={() => setIsTosModalOpen(false)}>I have read the terms</button>
+            <div className="modal-footer bg-light d-flex flex-column align-items-stretch" style={{ borderTop: 'none', gap: '1rem' }}>
+              <div className="d-flex justify-content-center gap-4 py-2 border rounded" style={{ backgroundColor: '#fff', borderColor: '#e2e8f0' }}>
+                <div className="form-check form-check-inline m-0">
+                  <input 
+                    className="form-check-input" 
+                    type="radio" 
+                    name="tosAgreement" 
+                    id="tosAgreeYes" 
+                    value="yes"
+                    checked={isTosAccepted === true}
+                    onChange={() => setIsTosAccepted(true)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <label className="form-check-label fw-bold text-success" htmlFor="tosAgreeYes" style={{ cursor: 'pointer' }}>
+                    Yes, I agree
+                  </label>
+                </div>
+                <div className="form-check form-check-inline m-0">
+                  <input 
+                    className="form-check-input" 
+                    type="radio" 
+                    name="tosAgreement" 
+                    id="tosAgreeNo" 
+                    value="no"
+                    checked={isTosAccepted === false}
+                    onChange={() => setIsTosAccepted(false)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <label className="form-check-label fw-bold text-danger" htmlFor="tosAgreeNo" style={{ cursor: 'pointer' }}>
+                    No, I do not agree
+                  </label>
+                </div>
+              </div>
+              <div className="d-flex justify-content-end">
+                <button type="button" className="btn text-white fw-bold px-4" style={{ backgroundColor: '#0D8D1E', borderRadius: '0.5rem' }} onClick={() => setIsTosModalOpen(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Success Modal */}
+      <div 
+        className={`modal fade ${showSuccessModal ? 'show d-block' : ''}`} 
+        style={{ zIndex: 1050, backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }} 
+        tabIndex="-1"
+      >
+        <div className="modal-dialog modal-dialog-centered" role="document">
+          <div className="modal-content shadow-lg" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ backgroundColor: '#0D8D1E', borderBottom: 'none' }}>
+              <h5 className="modal-title fw-bold text-white">Registration Successful!</h5>
+            </div>
+            <div className="modal-body p-4 bg-light text-center">
+              <i className="fas fa-check-circle text-success mb-3" style={{ fontSize: '4rem' }}></i>
+              <p className="fs-5 text-dark">Welcome to Cleaneco.</p>
+              <p className="text-muted">You can now log in to schedule and manage your services.</p>
+              <p className="text-muted small mt-3">Redirecting to login...</p>
             </div>
           </div>
         </div>

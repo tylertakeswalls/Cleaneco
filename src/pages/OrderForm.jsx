@@ -411,10 +411,14 @@ function OrderForm() {
                                     <span>-₱{calculateDiscount().toFixed(2)}</span>
                                 </div>
                             )}
+                            <div className="d-flex justify-content-between align-items-center mb-1 text-muted small">
+                                <span>Service Tax (10%):</span>
+                                <span>₱{(calculateSubtotal() * 0.10).toFixed(2)}</span>
+                            </div>
                             <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                                 <span className="fw-bolder fs-5 text-dark">Estimated Total:</span>
                                 <span className="fw-bolder fs-5 text-success" style={{ color: '#0D8D1E' }}>
-                                    ₱{(calculateSubtotal() - calculateDiscount()).toFixed(2)}
+                                    ₱{(calculateSubtotal() - calculateDiscount() + (calculateSubtotal() * 0.10)).toFixed(2)}
                                 </span>
                             </div>
                         </div>
