@@ -79,7 +79,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="d-flex" style={{ minHeight: '100vh', backgroundColor: '#f2edf3' }}>
+    <div className="d-flex" style={{ height: '100vh', overflow: 'hidden', backgroundColor: '#f2edf3' }}>
       
       {/* SIDEBAR */}
       <div 
@@ -103,7 +103,7 @@ export default function AdminLayout() {
           />
           <div className="ms-3">
             <h6 className="mb-0 fw-bold text-white">{userName}</h6>
-            <small style={{ fontSize: '0.75rem', opacity: 0.8 }}>Project Manager</small>
+            <small className="text-white" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Company Admin</small>
           </div>
           <i className="fas fa-check-circle ms-auto text-white" style={{ fontSize: '0.8rem' }}></i>
         </div>
@@ -138,7 +138,7 @@ export default function AdminLayout() {
       <div className="flex-grow-1 d-flex flex-column" style={{ marginLeft: '260px' }}>
         
         {/* TOP NAVBAR */}
-        <nav className="navbar navbar-expand-lg navbar-cleaneco shadow-sm">
+        <nav className="navbar navbar-expand-lg navbar-cleaneco shadow-sm" style={{ minHeight: '84px' }}>
           <div className="container-fluid d-flex justify-content-end">
             <ul className="navbar-nav align-items-center">
               

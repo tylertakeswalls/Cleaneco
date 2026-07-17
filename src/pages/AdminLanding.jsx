@@ -4,7 +4,6 @@ import Chart from 'chart.js/auto';
 import api from '../api/axiosConfig';
 import '../assets/styles/admin.css';
 import AdminCalendar from '../components/AdminCalendar';
-import logo from '../assets/styles/images/logo_fixed.png';
 import carousel5 from '../assets/styles/images/carousel5.png';
 
 // Removing gradient styles as we move to clean white cards
@@ -135,6 +134,22 @@ function AdminLanding() {
     };
   }, [allOrders]);
 
+  const handleGenerateReport = async (period) => {
+    try {
+      const response = await api.get(`/reports/generate?period=${period}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Cleaneco_Report_${period}_${new Date().getFullYear()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Error downloading report:", error);
+      alert("Failed to generate report. Please try again later.");
+    }
+  };
+
   const loadDashboardData = async () => {
     try {
       const ordersResponse = await api.get('/orders');
@@ -189,9 +204,17 @@ function AdminLanding() {
             </span>
             Dashboard
           </h4>
-          <div className="d-flex align-items-center text-muted" style={{ fontSize: '0.85rem' }}>
-            <span>Overview</span>
-            <i className="fas fa-info-circle ms-2" style={{ color: '#0D8D1E' }}></i>
+          <div className="d-flex align-items-center gap-2">
+            <span className="text-muted fw-bold me-2" style={{ fontSize: '0.85rem' }}>Reports:</span>
+            <button className="btn btn-success btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('monthly')} style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}>
+              <i className="fas fa-file-pdf me-1"></i>Monthly
+            </button>
+            <button className="btn btn-success btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('quarterly')} style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}>
+              <i className="fas fa-file-pdf me-1"></i>Quarterly
+            </button>
+            <button className="btn btn-success btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('yearly')} style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}>
+              <i className="fas fa-file-pdf me-1"></i>Yearly
+            </button>
           </div>
         </div>
 

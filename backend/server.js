@@ -18,6 +18,7 @@ const ordersRoutes = require('./routes/orders');
 const notificationsRoutes = require('./routes/notifications');
 const settingsRoutes = require('./routes/settings');
 const usersRoutes = require('./routes/users');
+const reportsRoutes = require('./routes/reports');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/services', servicesRoutes);
@@ -25,6 +26,7 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

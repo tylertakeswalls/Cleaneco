@@ -222,9 +222,9 @@ function ServiceManagement() {
                                 <h4>Services List</h4>
                             </div>
                             <div className="card-body">
-                                <div className="filters-container mb-3 d-flex gap-3 align-items-stretch">
+                                <div className="filters-container mb-3 d-flex gap-3 align-items-center">
                                     <select
-                                        className="form-control"
+                                        className="form-select"
                                         style={{ width: '250px' }}
                                         value={filterName}
                                         onChange={(e) => setFilterName(e.target.value)}
@@ -235,7 +235,7 @@ function ServiceManagement() {
                                         ))}
                                     </select>
                                     <select
-                                        className="form-control"
+                                        className="form-select"
                                         style={{ width: '200px' }}
                                         value={filterStatus}
                                         onChange={(e) => setFilterStatus(e.target.value)}
@@ -244,7 +244,7 @@ function ServiceManagement() {
                                         <option value="available">Available</option>
                                         <option value="unavailable">Unavailable</option>
                                     </select>
-                                    <button className="btn btn-secondary d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px' }} onClick={() => { setFilterName(''); setFilterStatus(''); }}>
+                                    <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '38px' }} onClick={() => { setFilterName(''); setFilterStatus(''); }}>
                                         Clear Filters
                                     </button>
                                 </div>

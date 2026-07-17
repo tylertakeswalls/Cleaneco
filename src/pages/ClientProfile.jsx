@@ -12,6 +12,7 @@ function ClientProfile() {
     gsap.fromTo('.card, .table-box, .glass-panel, .thankyou-section, .thankyou-image, .admin-card', { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: 'power3.out' });
   }, { scope: container });
   const [profile, setProfile] = useState({
+    username: '',
     first_name: '',
     middle_name: '',
     last_name: '',
@@ -85,7 +86,7 @@ function ClientProfile() {
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
       }
     } catch (error) {
-      setMessage({ type: 'danger', text: 'Failed to update profile.' });
+      setMessage({ type: 'danger', text: error.response?.data?.message || 'Failed to update profile.' });
     } finally {
       setSaving(false);
     }
@@ -176,11 +177,15 @@ function ClientProfile() {
                 </div>
 
                 <div className="row g-3 mb-3">
-                  <div className="col-md-6">
+                  <div className="col-md-4">
+                    <label className="form-label">Username</label>
+                    <input type="text" className="form-control" name="username" value={profile.username || ''} onChange={handleChange} required />
+                  </div>
+                  <div className="col-md-4">
                     <label className="form-label">Email</label>
                     <input type="email" className="form-control bg-light" name="email" value={profile.email || ''} readOnly />
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <label className="form-label">Phone</label>
                     <input type="text" className="form-control" name="phone" value={profile.phone || ''} onChange={handleChange} />
                   </div>

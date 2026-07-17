@@ -266,9 +266,9 @@ function OrderDatabase() {
         <div className="table-box">
           <h3 className="text-center mb-4">Order Database</h3>
           
-          <div className="filters-container mb-3 d-flex gap-3 justify-content-center flex-wrap align-items-stretch">
+          <div className="filters-container mb-3 d-flex gap-3 align-items-center flex-wrap">
             <select 
-              className="form-control" 
+              className="form-select" 
               style={{ width: '200px' }}
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
@@ -279,7 +279,7 @@ function OrderDatabase() {
               ))}
             </select>
             <select 
-              className="form-control" 
+              className="form-select" 
               style={{ width: '200px' }}
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -297,7 +297,7 @@ function OrderDatabase() {
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
             />
-            <button className="btn btn-secondary d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px' }} onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
+            <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '38px' }} onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
           </div>
           
           <div className="table-container">

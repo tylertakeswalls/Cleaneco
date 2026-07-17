@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const path = require('path');
 
 const transporter = nodemailer.createTransport({
   service: 'gmail', // You can change this to your email service provider
@@ -130,7 +131,7 @@ const sendConfirmationEmail = async (orderId, clientInfo, orderItems, statusChan
           </div>
           
           <div class='footer'>
-              <p>&copy; ${new Date().getFullYear()} Cleaneco Septic Tank Services. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} Cleaneco Waste Management Services. All rights reserved.</p>
               <p>For inquiries, please contact us at support@cleaneco.com or +63 9216214712.</p>
           </div>
       </div>
@@ -139,7 +140,7 @@ const sendConfirmationEmail = async (orderId, clientInfo, orderItems, statusChan
   `;
 
   const mailOptions = {
-    from: '"Cleaneco Services" <noreply@cleaneco.com>',
+    from: '"Cleaneco Waste Management Services" <noreply@cleaneco.com>',
     to: clientInfo.email,
     subject: subject,
     html: htmlMessage
@@ -168,11 +169,13 @@ const sendVerificationEmail = async (email, token, firstName) => {
   <head>
       <meta charset='utf-8'>
       <title>${subject}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
       <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #333333; margin: 0; padding: 0; }
+          body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #333333; margin: 0; padding: 0; }
           .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
           .header { background: linear-gradient(135deg, ${primaryColor} 0%, #085a13 100%); padding: 30px; text-align: center; color: #ffffff; }
-          .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+          .header img { height: 60px; margin-bottom: 10px; }
+          .header p { margin: 5px 0 0 0; font-size: 16px; opacity: 0.9; }
           .content { padding: 30px; text-align: center; }
           .content p { font-size: 16px; line-height: 1.6; color: #475569; }
           .btn-verify { display: inline-block; background-color: ${primaryColor}; color: #ffffff; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin: 25px 0; }
@@ -182,17 +185,17 @@ const sendVerificationEmail = async (email, token, firstName) => {
   <body>
       <div class='container'>
           <div class='header'>
-              <h1>CLEANECO</h1>
-              <p>Account Verification</p>
+              <img src="cid:cleanecologo" alt="Cleaneco Logo" style="height: 60px; margin-bottom: 10px;" />
+              <p style="margin: 5px 0 0 0; font-size: 16px; opacity: 0.9; font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 500;">Account Verification</p>
           </div>
           <div class='content'>
-              <h2>Welcome to Cleaneco, ${firstName}!</h2>
+              <h2>Welcome to Cleaneco Waste Management Services, ${firstName}!</h2>
               <p>Thank you for registering. Please confirm your email address to activate your account and start booking our services.</p>
               <a href='${verificationLink}' class='btn-verify' style='color: white;'>Verify Email Address</a>
               <p style="font-size: 14px; margin-top: 20px;">If the button above does not work, copy and paste the following link into your browser:<br><br><a href='${verificationLink}' style='color: ${primaryColor}; word-break: break-all;'>${verificationLink}</a></p>
           </div>
           <div class='footer'>
-              <p>&copy; ${new Date().getFullYear()} Cleaneco Septic Tank Services. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} Cleaneco Waste Management Services. All rights reserved.</p>
               <p>If you did not request this account, please ignore this email.</p>
           </div>
       </div>
@@ -201,10 +204,15 @@ const sendVerificationEmail = async (email, token, firstName) => {
   `;
 
   const mailOptions = {
-    from: '"Cleaneco Services" <noreply@cleaneco.com>',
+    from: '"Cleaneco Waste Management Services" <noreply@cleaneco.com>',
     to: email,
     subject: subject,
-    html: htmlMessage
+    html: htmlMessage,
+    attachments: [{
+      filename: 'logo_fixed.png',
+      path: path.join(__dirname, '../../src/assets/styles/images/logo_fixed.png'),
+      cid: 'cleanecologo'
+    }]
   };
 
   try {

@@ -26,7 +26,10 @@ router.put('/:id', async (req, res) => {
     await User.findByIdAndUpdate(req.params.id, req.body);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ success: false });
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.username) {
+      return res.status(400).json({ success: false, message: 'Username is already taken.' });
+    }
+    res.status(500).json({ success: false, message: 'Failed to update profile.' });
   }
 });
 

@@ -54,3 +54,36 @@ This document summarizes the recent features and structural updates implemented 
   - Introduced profile management pages (`AdminProfile.jsx`, `ClientProfile.jsx`).
   - Implemented an email verification page (`VerifyEmail.jsx`) to enhance user security.
   - Removed standard React boilerplate files (`App.test.js`, `logo.svg`, `reportWebVitals.js`, `setupTests.js`) to clean up the codebase.
+
+## 10. Dashboard & UI Polish
+- **PDF Report Generation**: Built a dynamic PDF generation engine using `pdfkit` for the Admin Dashboard to generate structured Monthly, Quarterly, and Yearly reports.
+- **Profile Enhancements**: Added the ability for both clients and administrators to view and edit their `username` from their profile settings, protected by backend uniqueness validation.
+- **Email Templating Polish**: Embedded the official `logo_fixed.png` securely in outbound Verification Emails, injected inline font styling, and corrected the system sender name to the official "Cleaneco Waste Management Services".
+- **Responsive Alignment**: Fixed a flexbox rendering discrepancy affecting the "Clear Filters" button in the Service Management and Order Database admin views by implementing strict cross-axis alignment parameters.
+
+## How to Run Locally
+
+### Backend (Node.js/Express)
+1. Open a terminal and navigate to the `backend/` folder:
+   ```bash
+   cd backend
+   ```
+2. Install the required Node dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the backend server in development mode (defaults to port `5000`):
+   ```bash
+   npm run dev
+   ```
+
+### Frontend (React)
+1. Open a separate terminal in the root directory of the project (`firstapp/`).
+2. Install the required React dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the frontend React app (defaults to port `3000`):
+   ```bash
+   npm start
+   ```
