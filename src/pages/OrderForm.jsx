@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
-import axios from 'axios';
 import '../assets/styles/orderform.css';
 import carousel4 from '../assets/styles/images/carousel4.png';
 import ClientCalendar from '../components/ClientCalendar';
@@ -17,14 +16,11 @@ function OrderForm() {
         service_ids: [],
         date: '',
         timeSlot: '',
-        notes: '',
-        applySeniorDiscount: false,
-        seniorCardImage: null
+        notes: ''
     });
 
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [userAge, setUserAge] = useState(0);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
     const navigate = useNavigate();
 
@@ -39,19 +35,6 @@ function OrderForm() {
     const loggedInUser = sessionStorage.getItem("loggedInUser");
     const userId = sessionStorage.getItem("userId");
     const userDob = sessionStorage.getItem("userDob") || localStorage.getItem("userDob");
-
-    const calculateAge = (dob) => {
-        if (!dob || dob === 'undefined') return 0;
-        const birthDate = new Date(dob);
-        if (isNaN(birthDate)) return 0;
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        return age;
-    };
 
     useEffect(() => {
         // Pre-fill date if selected from calendar
@@ -70,7 +53,7 @@ function OrderForm() {
 
         const fetchServices = async () => {
             try {
-                const response = await api.get('/services.php?available=true');
+                const response = await api.get('/services');
                 setServices(response.data);
             } catch (error) {
                 console.error('Error fetching services:', error);
@@ -80,9 +63,6 @@ function OrderForm() {
             }
         };
 
-        if (userDob) {
-            setUserAge(calculateAge(userDob));
-        }
 
         const fetchUserData = async () => {
             try {
@@ -90,12 +70,8 @@ function OrderForm() {
                 const userEmail = sessionStorage.getItem("userEmail") || '';
 
                 try {
-                    const response = await api.get(`/read.php?type=user&id=${userId}`);
+                    const response = await api.get(`/users/${userId}`);
                     if (response.data) {
-                        if (response.data.date_of_birth) {
-                            setUserAge(calculateAge(response.data.date_of_birth));
-                        }
-                        
                         setFormData(prev => ({
                             ...prev,
                             firstName: response.data.first_name || '',
@@ -128,11 +104,11 @@ function OrderForm() {
     }, [loggedInUser, navigate, userId, userDob]);
 
     const handleChange = (e) => {
-        const { id, value, type, checked, files } = e.target;
+        const { id, value, type, checked } = e.target;
 
         setFormData(prev => ({
             ...prev,
-            [id]: id === 'seniorCardImage' ? files[0] : (type === 'checkbox' ? checked : value)
+            [id]: type === 'checkbox' ? checked : value
         }));
     };
 
@@ -164,14 +140,6 @@ function OrderForm() {
         }, 0);
     };
 
-    const calculateDiscount = () => {
-        if (!formData.applySeniorDiscount) return 0;
-        return (formData.service_ids || []).reduce((sum, sId) => {
-            const service = services.find(s => s.id === Number(sId));
-            return sum + (service ? parseFloat(service.base_price) * 0.20 : 0);
-        }, 0);
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -192,27 +160,10 @@ function OrderForm() {
         }
 
         try {
-            const submitData = new FormData();
-            submitData.append('type', 'order');
-            submitData.append('user_id', userId);
+            const submitData = { ...formData };
+            submitData.user_id = userId;
 
-            // Calculate discount amount if applicable
-            const discountAmount = calculateDiscount();
-            submitData.append('discountAmount', discountAmount.toFixed(2));
-            submitData.append('applySeniorDiscount', formData.applySeniorDiscount ? 'true' : 'false');
-
-            Object.keys(formData).forEach(key => {
-                if (key === 'seniorCardImage' && formData[key]) {
-                    submitData.append('seniorCardImage', formData[key]);
-                } else if (key === 'service_ids') {
-                    submitData.append('service_ids', JSON.stringify(formData.service_ids));
-                } else if (key !== 'seniorCardImage' && key !== 'applySeniorDiscount' && key !== 'service_ids') {
-                    submitData.append(key, formData[key]);
-                }
-            });
-
-            // Override standard api behavior to force native FormData processing without JSON constraints
-            const response = await axios.post('http://localhost/firstapp/php-backend/api/submit.php', submitData);
+            const response = await api.post('/orders/submit', submitData);
 
             if (response.data.success) {
                 navigate('/thank-you');
@@ -226,9 +177,7 @@ function OrderForm() {
                     service_ids: [],
                     date: '',
                     timeSlot: '',
-                    notes: '',
-                    applySeniorDiscount: false,
-                    seniorCardImage: null
+                    notes: ''
                 });
             } else {
                 showAlert("Error", response.data.message || "Error submitting order", "error");
@@ -405,67 +354,16 @@ function OrderForm() {
                                 <span className="fw-bold text-dark">Subtotal:</span>
                                 <span className="fw-bold text-dark">₱{calculateSubtotal().toFixed(2)}</span>
                             </div>
-                            {formData.applySeniorDiscount && (
-                                <div className="d-flex justify-content-between align-items-center mb-1 text-danger small">
-                                    <span>Senior Citizen Discount (20%):</span>
-                                    <span>-₱{calculateDiscount().toFixed(2)}</span>
-                                </div>
-                            )}
-                            <div className="d-flex justify-content-between align-items-center mb-1 text-muted small">
-                                <span>Service Tax (10%):</span>
-                                <span>₱{(calculateSubtotal() * 0.10).toFixed(2)}</span>
-                            </div>
                             <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                                 <span className="fw-bolder fs-5 text-dark">Estimated Total:</span>
                                 <span className="fw-bolder fs-5 text-success" style={{ color: '#0D8D1E' }}>
-                                    ₱{(calculateSubtotal() - calculateDiscount() + (calculateSubtotal() * 0.10)).toFixed(2)}
+                                    ₱{(calculateSubtotal() + (calculateSubtotal() * 0.10)).toFixed(2)}
                                 </span>
                             </div>
                         </div>
                     )}
 
-                    {/* Senior Discount Section */}
-                    {userAge >= 60 && (
-                        <div className="form-group p-3 border rounded mb-3 bg-light" style={{ borderColor: '#0D8D1E', borderRadius: '0.75rem' }}>
-                            <h5 className="fw-bold text-success mb-3">
-                                <i className="fas fa-id-card me-2"></i>Senior Citizen Discount
-                            </h5>
-                            <p className="small text-muted mb-3">
-                                You are legally eligible for a 20% senior citizen discount! Upload your Senior ID Card below to automatically apply the 20% discount.
-                            </p>
-                            
-                            <div className="mb-3">
-                                <label className="form-label text-dark fw-bold">Upload Senior Citizen ID Image</label>
-                                <input 
-                                    type="file"
-                                    className="form-control"
-                                    id="seniorCardImage"
-                                    accept="image/*"
-                                    onChange={handleChange}
-                                />
-                                <small className="text-muted d-block mt-1">Image will strictly be used for discount validation.</small>
-                            </div>
 
-                            <div className="form-check mb-3">
-                                <input 
-                                    type="checkbox" 
-                                    className="form-check-input" 
-                                    id="applySeniorDiscount" 
-                                    checked={formData.applySeniorDiscount || false}
-                                    onChange={handleChange}
-                                />
-                                <label className="form-check-label fw-bold text-dark" htmlFor="applySeniorDiscount">
-                                    I confirm that I want to apply the 20% Senior Citizen Discount
-                                </label>
-                            </div>
-
-                            {formData.applySeniorDiscount && (formData.service_ids || []).length > 0 && (
-                                <div className="mt-2 fw-bold text-success fs-5">
-                                    <em>Discount Amount: -₱{calculateDiscount().toFixed(2)}</em>
-                                </div>
-                            )}
-                        </div>
-                    )}
 
                     <div className="form-group">
                         <label className="form-label">Additional Notes (Optional)</label>

@@ -7,9 +7,30 @@ import logocontainer from '../assets/styles/images/logo_container.png';
 function Login() {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [message, setMessage] = useState('');
+  const [unverifiedEmail, setUnverifiedEmail] = useState(null);
+  const [resending, setResending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
+
+  const handleResendVerification = async () => {
+    if (!unverifiedEmail) return;
+    setResending(true);
+    setMessage('');
+    try {
+      const response = await api.post('/auth/resend-verification', { email: unverifiedEmail });
+      if (response.data.success) {
+        setMessage('Verification email resent! Please check your inbox.');
+        setUnverifiedEmail(null);
+      } else {
+        setMessage(response.data.message || 'Failed to resend email.');
+      }
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'An error occurred while resending.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   useEffect(() => {
     const loggedInUser = localStorage.getItem("loggedInUser") || sessionStorage.getItem("loggedInUser");
@@ -30,8 +51,8 @@ function Login() {
     setMessage('');
 
     try {
-      const response = await api.post('/login.php', {
-        username: formData.username,
+      const response = await api.post('/auth/login', {
+        email: formData.username,
         password: formData.password
       });
       
@@ -83,7 +104,12 @@ function Login() {
       }
     } catch (error) {
       console.error("Login error:", error);
-      setMessage("Login failed. Please check your connection and try again.");
+      if (error.response?.data?.notVerified) {
+        setUnverifiedEmail(error.response.data.email);
+      } else {
+        setUnverifiedEmail(null);
+      }
+      setMessage(error.response?.data?.message || "Login failed. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -160,8 +186,20 @@ function Login() {
         </div>
 
         {message && (
-          <div className={`alert ${message.includes('successful') ? 'alert-success' : 'alert-danger'} text-center`}>
+          <div className={`alert ${message.includes('successful') || message.includes('resent') ? 'alert-success' : 'alert-danger'} text-center`}>
             {message}
+            {unverifiedEmail && (
+              <div className="mt-3">
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-outline-danger fw-bold" 
+                  onClick={handleResendVerification}
+                  disabled={resending}
+                >
+                  {resending ? 'Resending...' : 'Resend Verification Email'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

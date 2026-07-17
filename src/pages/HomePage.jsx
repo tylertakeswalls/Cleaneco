@@ -18,6 +18,9 @@ import image10 from '../assets/styles/images/10.png';
 import image11 from '../assets/styles/images/11.png';
 
 function HomePage() {
+  const isLoggedIn = !!sessionStorage.getItem('loggedInUser');
+  const bookLink = isLoggedIn ? '/order' : '/register';
+  const servicePrefix = isLoggedIn ? '/client/services' : '/services';
   return (
     <div>
       {/* main hero carousel showcasing company services */}
@@ -50,7 +53,7 @@ function HomePage() {
           innovative solutions, on time, on budget and above all expectations.
         </p>
         {/* primary call-to-action for new users */}
-        <Link to="/register" className="btn btn-custom">Book Now!</Link>
+        <Link to={bookLink} className="btn btn-custom">Book Now!</Link>
       </section>
 
       {/* services showcase section with feature cards */}
@@ -71,7 +74,7 @@ function HomePage() {
                 and STP's to ensure proper sanitation, prevent
                 overflow, and maintain the efficiency of the
                 wastewater treatment system.</p>
-              <Link to="/services/siphoning-desludging" className="btn btn-custom">Learn More</Link>
+              <Link to={`${servicePrefix}/siphoning-desludging`} className="btn btn-custom">Learn More</Link>
             </div>
           </div>
 
@@ -85,7 +88,7 @@ function HomePage() {
                 hardened sludge, grease layers, and solid
                 waste deposits that regular siphoning cannot
                 eliminate.</p>
-              <Link to="/services/deep-cleaning" className="btn btn-custom">Learn More</Link>
+              <Link to={`${servicePrefix}/deep-cleaning`} className="btn btn-custom">Learn More</Link>
             </div>
           </div>
 
@@ -99,7 +102,7 @@ function HomePage() {
                 obstructions in sewer lines, floor drains, and
                 pipelines. This ensures smooth drainage flow and
                 prevents potential overflows or structural damage.</p>
-              <Link to="/services/declogging" className="btn btn-custom">Learn More</Link>
+              <Link to={`${servicePrefix}/declogging`} className="btn btn-custom">Learn More</Link>
             </div>
           </div>
         </div>
@@ -164,7 +167,7 @@ function HomePage() {
           Our operations are backed by strict compliance with LGU, DOH, and DENR standards, ensuring every service we provide safeguards not only your property but also public health and the environment.
         </p>
         {/* secondary call-to-action button */}
-        <Link to="/register" className="btn btn-custom">Book Now!</Link>
+        <Link to={bookLink} className="btn btn-custom">Book Now!</Link>
       </section>
     </div>
   );

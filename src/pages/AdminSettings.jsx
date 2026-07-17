@@ -1,38 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { useRef } from 'react';
 
 function AdminSettings() {
-  const [termsContent, setTermsContent] = useState('');
+  const container = useRef();
+  useGSAP(() => {
+    gsap.fromTo('.card, .table-box, .glass-panel, .thankyou-section, .thankyou-image, .admin-card', { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: 'power3.out' });
+  }, { scope: container });
+  const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
   const [alert, setAlert] = useState({ show: false, type: '', message: '' });
 
-  useEffect(() => {
-    const fetchTerms = async () => {
-      try {
-        setFetching(true);
-        const response = await api.get('/tos.php');
-        if (response.data.success) {
-          setTermsContent(response.data.content);
-        }
-      } catch (error) {
-        console.error('Error fetching TOS:', error);
-        showAlert('error', 'Failed to load Terms and Conditions.');
-      } finally {
-        setFetching(false);
-      }
-    };
-    fetchTerms();
-  }, []);
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type === 'application/pdf') {
+      setSelectedFile(file);
+    } else {
+      showAlert('error', 'Please select a valid PDF file.');
+      setSelectedFile(null);
+    }
+  };
 
+  // Removed fetchTerms since we don't display the text anymore.
+  // The user can view the existing PDF by clicking a link.
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!selectedFile) {
+      showAlert('error', 'Please select a PDF file first.');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await api.put('/update_tos.php', { content: termsContent });
+      const formData = new FormData();
+      formData.append('tosPdf', selectedFile);
+
+      const response = await api.post('/settings/tos/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
       if (response.data.success) {
-        showAlert('success', 'Terms and Conditions updated successfully!');
+        showAlert('success', 'Terms and Conditions PDF updated successfully!');
+        setSelectedFile(null);
+        document.getElementById('tosPdfInput').value = '';
       } else {
         showAlert('error', response.data.message || 'Failed to update Terms and Conditions.');
       }
@@ -50,7 +62,7 @@ function AdminSettings() {
   };
 
   return (
-    <div className="container-fluid bg-light min-vh-100 py-5">
+    <div ref={container} className="container-fluid bg-light min-vh-100 py-5">
       <div className="container">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">
@@ -71,48 +83,44 @@ function AdminSettings() {
           </div>
         )}
 
-        <div className="card shadow-sm border-0" style={{ borderRadius: '1.25rem' }}>
+        <div className="card glass-panel shadow-sm border-0 glass-panel" style={{ borderRadius: '1.25rem' }}>
           <div className="card-body p-5">
             <h4 className="fw-bold mb-4 text-dark" style={{ letterSpacing: '-0.5px' }}>
               <i className="fas fa-file-contract me-2" style={{ color: '#0D8D1E' }}></i> Terms and Conditions
             </h4>
-            <p className="text-muted mb-4">Update the terms and conditions that users must agree to before registering. This content will be instantly updated on the live website.</p>
+            <p className="text-muted mb-4">Upload a PDF document containing the terms and conditions that users must agree to before registering. This will replace the existing terms instantly.</p>
 
-            {fetching ? (
-              <div className="text-center py-5">
-                <div className="spinner-border text-success" role="status">
-                  <span className="visually-hidden">Loading...</span>
+            <form onSubmit={handleSave}>
+              <div className="form-group mb-4">
+                <label className="form-label fw-bold">Terms and Conditions PDF</label>
+                <input
+                  id="tosPdfInput"
+                  type="file"
+                  className="form-control form-control-lg"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                />
+                <div className="form-text mt-2">
+                  <a href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer" className="text-decoration-none">
+                    <i className="fas fa-external-link-alt me-1"></i> View Current Terms and Conditions PDF
+                  </a>
                 </div>
               </div>
-            ) : (
-              <form onSubmit={handleSave}>
-                <div className="form-group mb-4">
-                  <textarea
-                    className="form-control"
-                    rows="15"
-                    value={termsContent}
-                    onChange={(e) => setTermsContent(e.target.value)}
-                    placeholder="Enter Terms and Conditions here..."
-                    style={{ resize: 'vertical', fontSize: '1rem', lineHeight: '1.6', borderRadius: '0.75rem', padding: '1rem' }}
-                    required
-                  ></textarea>
-                </div>
-                <div className="d-flex justify-content-end">
-                  <button 
-                    type="submit" 
-                    className="btn btn-success shadow-sm fw-bold px-5 py-2" 
-                    style={{ borderRadius: '0.5rem', background: '#0D8D1E' }}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Saving...</>
-                    ) : (
-                      <><i className="fas fa-save me-2"></i> Save Changes</>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
+              <div className="d-flex justify-content-end mt-4">
+                <button 
+                  type="submit" 
+                  className="btn btn-success shadow-sm fw-bold px-5 py-2" 
+                  style={{ borderRadius: '0.5rem', background: '#0D8D1E' }}
+                  disabled={loading || !selectedFile}
+                >
+                  {loading ? (
+                    <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Uploading...</>
+                  ) : (
+                    <><i className="fas fa-upload me-2"></i> Upload PDF</>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>

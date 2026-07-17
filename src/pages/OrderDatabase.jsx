@@ -5,8 +5,15 @@ import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
 import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { useRef } from 'react';
 
 function OrderDatabase() {
+  const container = useRef();
+  useGSAP(() => {
+    gsap.fromTo('.card, .table-box, .glass-panel, .thankyou-section, .thankyou-image, .admin-card', { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: 'power3.out' });
+  }, { scope: container });
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -66,9 +73,7 @@ function OrderDatabase() {
     setConfirmModalConfig({ isOpen: false, title: '', message: '', orderId: null });
 
     try {
-      const response = await api.delete('/delete.php', {
-        data: { type: 'order', id }
-      });
+      const response = await api.delete('/orders/' + id);
 
       if (response.data.success) {
         const updatedOrders = orders.filter(order => order.id !== id);
@@ -100,7 +105,7 @@ function OrderDatabase() {
     
     const loadOrders = async () => {
       try {
-        const response = await api.get('/read.php?type=orders');
+        const response = await api.get('/orders');
         
         const grouped = response.data.reduce((acc, order) => {
           if (!acc[order.order_id]) {
@@ -165,9 +170,7 @@ function OrderDatabase() {
     if (!editModal.order) return;
 
     try {
-      const response = await api.put('/update.php', {
-        type: 'order',
-        id: editModal.order.id,
+      const response = await api.put('/orders/' + editModal.order.id, {
         status: editForm.status,
         price: editForm.price,
         request_type: editForm.request_type,
@@ -195,7 +198,7 @@ function OrderDatabase() {
 
   if (loading) {
     return (
-      <div>
+    <div ref={container}>
         <AlertModal 
             isOpen={modalConfig.isOpen} 
             title={modalConfig.title} 
@@ -218,12 +221,11 @@ function OrderDatabase() {
                     <th>Time</th>
                     <th>Status</th>
                     <th>Price (₱)</th>
-                    <th>Discount / ID</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td colSpan="9" className="text-center">Loading orders...</td></tr>
+                  <tr><td colSpan="8" className="text-center">Loading orders...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -264,7 +266,7 @@ function OrderDatabase() {
         <div className="table-box">
           <h3 className="text-center mb-4">Order Database</h3>
           
-          <div className="filters-container mb-3 d-flex gap-3 justify-content-center flex-wrap">
+          <div className="filters-container mb-3 d-flex gap-3 justify-content-center flex-wrap align-items-stretch">
             <select 
               className="form-control" 
               style={{ width: '200px' }}
@@ -295,7 +297,7 @@ function OrderDatabase() {
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
             />
-            <button className="btn btn-secondary" onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
+            <button className="btn btn-secondary d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px' }} onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
           </div>
           
           <div className="table-container">
@@ -309,13 +311,12 @@ function OrderDatabase() {
                   <th>Time</th>
                   <th>Status</th>
                   <th>Price (₱)</th>
-                  <th>Discount / ID</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOrders.length === 0 ? (
-                  <tr><td colSpan="9" className="text-center">No orders found.</td></tr>
+                  <tr><td colSpan="8" className="text-center">No orders found.</td></tr>
                 ) : (
                   filteredOrders.map((order) => (
                     <tr key={order.id}>
@@ -335,18 +336,6 @@ function OrderDatabase() {
                       </td>
                       <td>{order.price ? '₱' + order.price : "-"}</td>
                       <td>
-                        {order.discount_amount > 0 ? (
-                            <div className="d-flex flex-column align-items-center">
-                                <span className="badge bg-success mb-1">-₱{order.discount_amount}</span>
-                                {order.senior_card_image && (
-                                    <a href={`http://localhost/firstapp/php-backend/${order.senior_card_image}`} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-success p-1" style={{ fontSize: '0.75rem' }}>
-                                        View ID
-                                    </a>
-                                )}
-                            </div>
-                        ) : "-"}
-                      </td>
-                     <td>
                       <button 
                         className="btn-edit" 
                         onClick={() => openEditModal(order)}

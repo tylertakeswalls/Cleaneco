@@ -39,7 +39,7 @@ function ServiceManagement() {
 
     const fetchServices = useCallback(async () => {
         try {
-            const response = await api.get('/services.php');
+            const response = await api.get('/services');
             setServices(response.data);
         } catch (error) {
             console.error('Error fetching services:', error);
@@ -55,10 +55,7 @@ function ServiceManagement() {
     const handleAddService = async (e) => {
         e.preventDefault();
         try {
-            const response = await api.post('/submit.php', {
-                type: 'service',
-                ...newService
-            });
+            const response = await api.post('/services', newService);
             if (response.data.success) {
                 showAlert("Success", "Service added successfully", "success");
                 setNewService({ name: '', description: '', base_price: 0, status: 'available' });
@@ -68,18 +65,14 @@ function ServiceManagement() {
             }
         } catch (error) {
             console.error('Error adding service:', error);
-            showAlert("Error", "Failed to add service", "error");
+            showAlert("Error", error.response?.data?.message || "Failed to add service", "error");
         }
     };
 
     const handleUpdateService = async (e) => {
         e.preventDefault();
         try {
-            const response = await api.put('/update.php', {
-                type: 'service',
-                id: editingService.id,
-                ...editingService
-            });
+            const response = await api.put('/services/' + editingService.id, editingService);
             if (response.data.success) {
                 showAlert("Success", "Service updated successfully", "success");
                 setEditingService(null);
@@ -89,7 +82,7 @@ function ServiceManagement() {
             }
         } catch (error) {
             console.error('Error updating service:', error);
-            showAlert("Error", "Failed to update service", "error");
+            showAlert("Error", error.response?.data?.message || "Failed to update service", "error");
         }
     };
 
@@ -99,12 +92,7 @@ function ServiceManagement() {
         closeConfirm();
 
         try {
-            const response = await api.delete('/delete.php', {
-                data: {
-                    type: 'service',
-                    id
-                }
-            });
+            const response = await api.delete('/services/' + id);
             if (response.data.success) {
                 showAlert("Success", "Service deleted successfully", "success");
                 fetchServices();
@@ -120,9 +108,7 @@ function ServiceManagement() {
     const toggleServiceStatus = async (service) => {
         const newStatus = service.status === 'available' ? 'unavailable' : 'available';
         try {
-            const response = await api.put('/update.php', {
-                type: 'service',
-                id: service.id,
+            const response = await api.put('/services/' + service.id, {
                 status: newStatus
             });
             if (response.data.success) {
@@ -133,7 +119,7 @@ function ServiceManagement() {
             }
         } catch (error) {
             console.error('Error updating service status:', error);
-            showAlert("Error", "Failed to update service status", "error");
+            showAlert("Error", error.response?.data?.message || "Failed to update service status", "error");
         }
     };
 
@@ -236,7 +222,7 @@ function ServiceManagement() {
                                 <h4>Services List</h4>
                             </div>
                             <div className="card-body">
-                                <div className="filters-container mb-3 d-flex gap-3 align-items-center">
+                                <div className="filters-container mb-3 d-flex gap-3 align-items-stretch">
                                     <select
                                         className="form-control"
                                         style={{ width: '250px' }}
@@ -258,7 +244,7 @@ function ServiceManagement() {
                                         <option value="available">Available</option>
                                         <option value="unavailable">Unavailable</option>
                                     </select>
-                                    <button className="btn btn-secondary d-flex align-items-center justify-content-center" style={{ height: '38px' }} onClick={() => { setFilterName(''); setFilterStatus(''); }}>
+                                    <button className="btn btn-secondary d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px' }} onClick={() => { setFilterName(''); setFilterStatus(''); }}>
                                         Clear Filters
                                     </button>
                                 </div>
@@ -320,7 +306,7 @@ function ServiceManagement() {
                                                             )}
                                                         </td>
                                                         <td>
-                                                            <span className={`badge ${service.status === 'available' ? 'bg-success' : 'bg-danger'}`}>
+                                                            <span className={`badge text-capitalize ${service.status === 'available' ? 'bg-success' : 'bg-danger'}`}>
                                                                 {service.status}
                                                             </span>
                                                         </td>
@@ -341,23 +327,23 @@ function ServiceManagement() {
                                                                     </button>
                                                                 </div>
                                                             ) : (
-                                                                <div className="d-flex gap-2 justify-content-center">
+                                                                <div className="d-flex gap-2 justify-content-center align-items-center">
                                                                     <button
-                                                                        className="btn btn-sm btn-primary"
+                                                                        className="btn btn-sm btn-primary text-nowrap"
                                                                         onClick={() => setEditingService(service)}
                                                                     >
                                                                         Edit
                                                                     </button>
 
                                                                     <button
-                                                                        className={`btn btn-sm ${service.status === 'available' ? 'btn-warning' : 'btn-success'}`}
+                                                                        className={`btn btn-sm text-nowrap ${service.status === 'available' ? 'btn-warning' : 'btn-success'}`}
                                                                         onClick={() => toggleServiceStatus(service)}
                                                                     >
                                                                         {service.status === 'available' ? 'Make Unavailable' : 'Make Available'}
                                                                     </button>
 
                                                                     <button
-                                                                        className="btn btn-sm btn-danger"
+                                                                        className="btn btn-sm btn-danger text-nowrap"
                                                                         onClick={() => promptDelete(service.id)}
                                                                     >
                                                                         Delete

@@ -9,7 +9,23 @@ export default function AdminCalendar({ orders = [] }) {
 
     // Convert orders into date map
     const ordersByDate = orders.reduce((acc, order) => {
-        const d = order.date;
+        if (!order.date) return acc;
+        
+        let d = String(order.date);
+        // Clean up time if it's an ISO string
+        if (d.includes("T")) {
+            d = d.split("T")[0];
+        } else if (d.includes("/")) {
+            // Convert MM/DD/YYYY or M/D/YYYY to YYYY-MM-DD
+            const parts = d.split("/");
+            if (parts.length === 3) {
+                const mm = parts[0].padStart(2, "0");
+                const dd = parts[1].padStart(2, "0");
+                const yyyy = parts[2];
+                d = `${yyyy}-${mm}-${dd}`;
+            }
+        }
+        
         if (!acc[d]) acc[d] = [];
         acc[d].push(order);
         return acc;
@@ -48,10 +64,18 @@ export default function AdminCalendar({ orders = [] }) {
     };
 
     const handleClosePopup = () => setPopupVisible(false);
+    const maxDate = new Date();
+    maxDate.setMonth(maxDate.getMonth() + 1);
+    const canGoNext = currentDate.getFullYear() < maxDate.getFullYear() || 
+                      (currentDate.getFullYear() === maxDate.getFullYear() && currentDate.getMonth() < maxDate.getMonth());
+
     const goToPrevMonth = () =>
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-    const goToNextMonth = () =>
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+    const goToNextMonth = () => {
+        if (canGoNext) {
+            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+        }
+    };
 
     return (
         <div className="admin-calendar-container">
@@ -61,7 +85,7 @@ export default function AdminCalendar({ orders = [] }) {
                     {currentDate.toLocaleString("default", { month: "long" })}{" "}
                     {currentDate.getFullYear()}
                 </h2>
-                <button onClick={goToNextMonth}>›</button>
+                <button onClick={goToNextMonth} disabled={!canGoNext} style={{ opacity: canGoNext ? 1 : 0.5, cursor: canGoNext ? 'pointer' : 'not-allowed' }}>›</button>
             </div>
 
             <div className="calendar-grid">

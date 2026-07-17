@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import '../assets/styles/services.css';
 
 function SiphoDeslud() {
+  const isLoggedIn = !!sessionStorage.getItem('loggedInUser');
+  const bookLink = isLoggedIn ? '/order' : '/register';
   return (
     <div>
       {/* hero section for siphoning and desludging service */}
@@ -10,7 +12,7 @@ function SiphoDeslud() {
           <h1 className="display-4 font-weight-bold">Siphoning & Desludging Services</h1>
           <p className="lead">Professional, eco-friendly, and DOH-DENR compliant waste management for every property type.</p>
           {/* call-to-action button for new users to register and book */}
-          <Link to="/register" className="btn btn-custom mt-3">Book Now</Link>
+          <Link to={bookLink} className="btn btn-custom mt-3">Book Now</Link>
         </div>
       </section>
 
@@ -79,7 +81,7 @@ function SiphoDeslud() {
             </div>
           </div>
           {/* secondary call-to-action for scheduling service */}
-          <Link to="/register" className="btn btn-custom mt-4">Schedule a Service</Link>
+          <Link to={bookLink} className="btn btn-custom mt-4">Schedule a Service</Link>
         </div>
       </section>
     </div>

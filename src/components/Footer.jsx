@@ -1,4 +1,12 @@
+import { useLocation } from 'react-router-dom';
+
 function Footer() {
+  const location = useLocation();
+
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <footer className="footer-custom">
       <div className="footer-container">

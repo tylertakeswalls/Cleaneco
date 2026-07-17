@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import '../assets/styles/auth.css';
@@ -7,6 +7,7 @@ import logocontainer from '../assets/styles/images/logo_container.png';
 function Register() {
   const [formData, setFormData] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     email: '',
     phone: '',
@@ -29,24 +30,8 @@ function Register() {
   const navigate = useNavigate();
 
   // Terms of Service state
-  const [tosContent, setTosContent] = useState('');
   const [isTosModalOpen, setIsTosModalOpen] = useState(false);
-  const [hasOpenedTos, setHasOpenedTos] = useState(false);
   const [isTosAccepted, setIsTosAccepted] = useState(false);
-
-  useEffect(() => {
-    const fetchTos = async () => {
-      try {
-        const response = await api.get('/tos.php');
-        if (response.data.success) {
-          setTosContent(response.data.content);
-        }
-      } catch (error) {
-        console.error("Error fetching TOS:", error);
-      }
-    };
-    fetchTos();
-  }, []);
 
   const handleChange = (e) => {
     let { name, value } = e.target;
@@ -149,14 +134,18 @@ function Register() {
       const fullAddress = `${formData.addressLine1}${formData.addressLine2 ? ', ' + formData.addressLine2 : ''}, Barangay ${formData.barangay}, ${formData.city}, ${formData.province}`;
 
       // Create payload with combined address
-      const { addressLine1, addressLine2, barangay, city, province, ...otherData } = formData;
       const payload = {
-        type: 'register',
+        username: formData.username,
+        firstName: formData.firstName,
+        middleName: formData.middleName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
         address: fullAddress,
-        ...otherData
+        dateOfBirth: formData.dateOfBirth,
+        password: formData.password
       };
-
-      const response = await api.post('/submit.php', payload);
+      const response = await api.post('/auth/register', payload);
       const data = response.data;
       
       if (data.success) {
@@ -169,7 +158,7 @@ function Register() {
       }
     } catch (error) {
       console.error("Registration error:", error);
-      setMessage("Registration failed. Please check your connection and try again.");
+      setMessage(error.response?.data?.message || "Registration failed. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -186,8 +175,12 @@ function Register() {
       </div>
 
       <form onSubmit={handleSubmit}>
+        {/* --- Personal Information --- */}
+        <h5 className="mb-3 mt-2 fw-bold border-bottom pb-2" style={{ color: '#0D8D1E' }}>
+          <i className="fas fa-user-circle me-2"></i>Personal Information
+        </h5>
         <div className="row">
-          <div className="col-md-6">
+          <div className="col-md-4">
             <div className="form-group">
               <input
                 type="text"
@@ -200,7 +193,19 @@ function Register() {
               />
             </div>
           </div>
-          <div className="col-md-6">
+          <div className="col-md-4">
+            <div className="form-group">
+              <input
+                type="text"
+                name="middleName"
+                className="form-control"
+                placeholder="Middle Name (Optional)"
+                value={formData.middleName}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+          <div className="col-md-4">
             <div className="form-group">
               <input
                 type="text"
@@ -215,6 +220,44 @@ function Register() {
           </div>
         </div>
 
+        <div className="row">
+          <div className="col-md-6">
+            <div className="form-group">
+              <select
+                name="gender"
+                className="form-control"
+                value={formData.gender}
+                onChange={handleChange}
+                required
+                style={{ color: formData.gender ? '#333' : '#6c757d' }}
+              >
+                <option value="">Select Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="prefer-not-to-say">Prefer not to say</option>
+              </select>
+            </div>
+          </div>
+          <div className="col-md-6">
+            <div className="form-group">
+              <input
+                type="date"
+                name="dateOfBirth"
+                className="form-control"
+                value={formData.dateOfBirth}
+                onChange={handleChange}
+                required
+                style={{ color: formData.dateOfBirth ? '#333' : '#6c757d' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* --- Contact Information --- */}
+        <h5 className="mb-3 mt-4 fw-bold border-bottom pb-2" style={{ color: '#0D8D1E' }}>
+          <i className="fas fa-address-book me-2"></i>Contact Information
+        </h5>
         <div className="row">
           <div className="col-md-6">
             <div className="form-group">
@@ -244,6 +287,10 @@ function Register() {
           </div>
         </div>
 
+        {/* --- Address Details --- */}
+        <h5 className="mb-3 mt-4 fw-bold border-bottom pb-2" style={{ color: '#0D8D1E' }}>
+          <i className="fas fa-map-marker-alt me-2"></i>Address Details
+        </h5>
         <div className="row">
           <div className="col-md-6">
             <div className="form-group">
@@ -314,38 +361,10 @@ function Register() {
           </div>
         </div>
 
-        <div className="row">
-          <div className="col-md-6">
-            <div className="form-group">
-              <select
-                name="gender"
-                className="form-control"
-                value={formData.gender}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-                <option value="prefer-not-to-say">Prefer not to say</option>
-              </select>
-            </div>
-          </div>
-          <div className="col-md-6">
-            <div className="form-group">
-              <input
-                type="date"
-                name="dateOfBirth"
-                className="form-control"
-                value={formData.dateOfBirth}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
-        </div>
-
+        {/* --- Account Security --- */}
+        <h5 className="mb-3 mt-4 fw-bold border-bottom pb-2" style={{ color: '#0D8D1E' }}>
+          <i className="fas fa-shield-alt me-2"></i>Account Security
+        </h5>
         <div className="form-group">
           <input
             type="text"
@@ -412,7 +431,7 @@ function Register() {
           <button 
             type="button" 
             className={`btn rounded-pill fw-bold ${isTosAccepted ? 'btn-success' : 'btn-outline-success'}`}
-            onClick={() => { setIsTosModalOpen(true); setHasOpenedTos(true); }}
+            onClick={() => { setIsTosModalOpen(true); }}
             style={{ transition: 'all 0.3s ease', minWidth: '250px' }}
           >
             {isTosAccepted ? <><i className="fas fa-check-circle me-2"></i>Terms of Service Accepted</> : <><i className="fas fa-file-contract me-2"></i>Review & Accept Terms of Service</>}
@@ -453,10 +472,15 @@ function Register() {
               <h5 className="modal-title fw-bold text-white">Terms and Conditions</h5>
               <button type="button" className="btn-close btn-close-white" onClick={() => setIsTosModalOpen(false)} aria-label="Close"></button>
             </div>
-            <div className="modal-body p-4 bg-light" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#333' }}>
-                {tosContent || "Loading Terms and Conditions..."}
-              </div>
+            <div className="modal-body p-0 bg-light" style={{ height: '60vh' }}>
+              <object data={`${api.defaults.baseURL}/settings/tos/pdf`} type="application/pdf" width="100%" height="100%">
+                <div className="p-5 text-center">
+                  <p>Your browser does not support inline PDFs.</p>
+                  <a href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer" className="btn btn-outline-success">
+                    Click here to view the Terms and Conditions
+                  </a>
+                </div>
+              </object>
             </div>
             <div className="modal-footer bg-light d-flex flex-column align-items-stretch" style={{ borderTop: 'none', gap: '1rem' }}>
               <div className="d-flex justify-content-center gap-4 py-2 border rounded" style={{ backgroundColor: '#fff', borderColor: '#e2e8f0' }}>
@@ -468,7 +492,10 @@ function Register() {
                     id="tosAgreeYes" 
                     value="yes"
                     checked={isTosAccepted === true}
-                    onChange={() => setIsTosAccepted(true)}
+                    onChange={() => {
+                        setIsTosAccepted(true);
+                        setIsTosModalOpen(false);
+                    }}
                     style={{ cursor: 'pointer' }}
                   />
                   <label className="form-check-label fw-bold text-success" htmlFor="tosAgreeYes" style={{ cursor: 'pointer' }}>
@@ -514,8 +541,8 @@ function Register() {
             </div>
             <div className="modal-body p-4 bg-light text-center">
               <i className="fas fa-check-circle text-success mb-3" style={{ fontSize: '4rem' }}></i>
-              <p className="fs-5 text-dark">Welcome to Cleaneco.</p>
-              <p className="text-muted">You can now log in to schedule and manage your services.</p>
+              <p className="fs-5 text-dark">Welcome to Cleaneco!</p>
+              <p className="text-muted">Please check your email inbox (and spam folder) for a verification link to activate your account.</p>
               <p className="text-muted small mt-3">Redirecting to login...</p>
             </div>
           </div>

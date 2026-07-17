@@ -44,3 +44,13 @@ This document summarizes the recent features and structural updates implemented 
 - **Filtering Improvements**: 
   - Updated order filtering to use a dropdown of services instead of manual typing.
   - Updated service filtering to use a dropdown of services instead of manual typing.
+
+## 9. Major Architecture Overhaul (Node.js/Express Migration)
+- **Backend Migration**: Replaced the legacy PHP backend (`php-backend`) with a modern, robust Node.js/Express server (`backend/`).
+- **Database Integration**: Implemented Mongoose models (`Service.js`, `Notification.js`, etc.) for structured MongoDB interactions.
+- **Frontend Refactoring & Cleanup**:
+  - Removed redundant client-specific pages (e.g., `DecloggingClient.jsx`, `DeepCleaningClient.jsx`) in favor of unified, role-based views.
+  - Added dedicated layout components (e.g., `AdminLayout.jsx`) for better UI consistency.
+  - Introduced profile management pages (`AdminProfile.jsx`, `ClientProfile.jsx`).
+  - Implemented an email verification page (`VerifyEmail.jsx`) to enhance user security.
+  - Removed standard React boilerplate files (`App.test.js`, `logo.svg`, `reportWebVitals.js`, `setupTests.js`) to clean up the codebase.

@@ -1,42 +1,94 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import api from '../api/axiosConfig';
 import logo from '../assets/styles/images/logo_fixed.png';
 
 function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  // track logged in user state from session storage
+  
   const [loggedInUser, setLoggedInUser] = useState(sessionStorage.getItem("loggedInUser"));
+  const [userId, setUserId] = useState(sessionStorage.getItem("userId"));
+  
+  // States for Profile and Notifications
+  const [profilePic, setProfilePic] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifTray, setShowNotifTray] = useState(false);
 
-  // update user state when location changes (pagtapos ng login/logout)
+  // Re-fetch user profile and notifications when route/auth changes
   useEffect(() => {
-    setLoggedInUser(sessionStorage.getItem("loggedInUser"));
+    const currentLoggedIn = sessionStorage.getItem("loggedInUser");
+    const currentUserId = sessionStorage.getItem("userId");
+    
+    setLoggedInUser(currentLoggedIn);
+    setUserId(currentUserId);
+
+    if (currentUserId) {
+      // Fetch user profile picture
+      api.get(`/users/${currentUserId}`)
+        .then(res => {
+          if (res.data && res.data.profile_picture) {
+            setProfilePic(res.data.profile_picture);
+          } else {
+            setProfilePic('');
+          }
+        })
+        .catch(err => console.error(err));
+
+      // Fetch client notifications if not admin
+      if (currentLoggedIn !== 'admin') {
+        loadNotifications(currentUserId);
+      }
+    } else {
+      setProfilePic('');
+      setNotifications([]);
+      setUnreadCount(0);
+    }
   }, [location]);
 
-  // handle user logout or clear session and redirect to home
+  const loadNotifications = async (uid) => {
+    try {
+      const response = await api.get(`/notifications?userId=${uid}`);
+      const data = response.data.notifications || [];
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.is_read).length);
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+    }
+  };
+
+  const handleNotificationClick = async (notif) => {
+    if (!notif.is_read) {
+      try {
+        await api.put(`/notifications/${notif.id}/read`);
+        loadNotifications(userId);
+      } catch (error) {
+        console.error("Error marking notification read:", error);
+      }
+    }
+    setShowNotifTray(false);
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await api.put(`/notifications/read_all/all?userId=${userId}`);
+      loadNotifications(userId);
+    } catch (error) {
+      console.error("Error marking all notifications read:", error);
+    }
+  };
+
   const handleLogout = () => {
-    sessionStorage.removeItem("loggedInUser");
-    sessionStorage.removeItem("userId");
-    sessionStorage.removeItem("userRole");
-    sessionStorage.removeItem("userEmail");
-    sessionStorage.removeItem("userName");
-    sessionStorage.removeItem("token");
-    
-    // Clear localStorage to revoke "Remember Me" access on logout
-    localStorage.removeItem("loggedInUser");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("token");
+    sessionStorage.clear();
+    localStorage.clear();
     setLoggedInUser(null);
+    setUserId(null);
+    setProfilePic('');
     navigate('/');
   };
 
-  // render different navigation links based on user role
   const renderNavLinks = () => {
-    
-    // admin user navigation menu
     if (loggedInUser === 'admin') {
       return (
         <>
@@ -54,40 +106,23 @@ function Header() {
       );
     }
     
-    // regular logged in client navigation menu
     if (loggedInUser && loggedInUser !== 'admin') {
       return (
         <>
           <li className="nav-item">
-            <Link className={`nav-link ${location.pathname === '/client' ? 'active' : ''}`} to="/client">
-              Home
-            </Link>
+            <Link className={`nav-link ${location.pathname === '/client' ? 'active' : ''}`} to="/client">Home</Link>
           </li>
-          
           <li className="nav-item">
-            <Link className={`nav-link ${location.pathname === '/order' ? 'active' : ''}`} to="/order">
-              Book Order
-            </Link>
+            <Link className={`nav-link ${location.pathname === '/order' ? 'active' : ''}`} to="/order">Book Order</Link>
           </li>
-          
           <li className="nav-item">
-            <Link className={`nav-link ${location.pathname === '/orders' ? 'active' : ''}`} to="/orders">
-              Ongoing Orders
-            </Link>
+            <Link className={`nav-link ${location.pathname === '/orders' ? 'active' : ''}`} to="/orders">Ongoing Orders</Link>
           </li>
-
-          {/* services dropdown menu for clients */}
           <li className="nav-item dropdown">
-            <button 
-              className="nav-link dropdown-toggle btn btn-link" 
-              id="servicesDropdown"
-              data-bs-toggle="dropdown" 
-              aria-haspopup="true" 
-              aria-expanded="false"
-            >
+            <button className="nav-link dropdown-toggle btn btn-link" id="servicesDropdown" data-bs-toggle="dropdown">
               Our Services
             </button>
-            <div className="dropdown-menu" aria-labelledby="servicesDropdown">
+            <div className="dropdown-menu">
               <Link className="dropdown-item" to="/client/services/siphoning-desludging">Siphoning / Desludging</Link>
               <div className="dropdown-divider"></div>
               <Link className="dropdown-item" to="/client/services/deep-cleaning">Deep Cleaning</Link>
@@ -95,43 +130,22 @@ function Header() {
               <Link className="dropdown-item" to="/client/services/declogging">Declogging</Link>
             </div>
           </li>
-
           <li className="nav-item">
-            <Link className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} to="/about">
-              About Us
-            </Link>
+            <Link className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} to="/about">About Us</Link>
           </li>
-
           <li className="nav-item">
-            <Link className={`nav-link ${location.pathname === '/resources' ? 'active' : ''}`} to="/resources">
-              Resources
-            </Link>
+            <Link className={`nav-link ${location.pathname === '/resources' ? 'active' : ''}`} to="/resources">Resources</Link>
           </li>
         </>
       );
     }
 
-    // public navigation menu for non-logged in users
     return (
       <>
-        <li className="nav-item">
-          <Link className={`nav-link ${location.pathname === '/' ? 'active' : ''}`} to="/">
-            Home
-          </Link>
-        </li>
-
-        {/* services dropdown menu for non-logged in users */}
+        <li className="nav-item"><Link className={`nav-link ${location.pathname === '/' ? 'active' : ''}`} to="/">Home</Link></li>
         <li className="nav-item dropdown">
-          <button 
-            className="nav-link dropdown-toggle btn btn-link" 
-            id="servicesDropdown"
-            data-bs-toggle="dropdown" 
-            aria-haspopup="true" 
-            aria-expanded="false"
-          >
-            Our Services
-          </button>
-          <div className="dropdown-menu" aria-labelledby="servicesDropdown">
+          <button className="nav-link dropdown-toggle btn btn-link" id="servicesDropdown" data-bs-toggle="dropdown">Our Services</button>
+          <div className="dropdown-menu">
             <Link className="dropdown-item" to="/services/siphoning-desludging">Siphoning / Desludging</Link>
             <div className="dropdown-divider"></div>
             <Link className="dropdown-item" to="/services/deep-cleaning">Deep Cleaning</Link>
@@ -139,88 +153,112 @@ function Header() {
             <Link className="dropdown-item" to="/services/declogging">Declogging</Link>
           </div>
         </li>
-
-        <li className="nav-item">
-          <Link className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} to="/about">
-            About Us
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link className={`nav-link ${location.pathname === '/resources' ? 'active' : ''}`} to="/resources">
-            Resources
-          </Link>
-        </li>
+        <li className="nav-item"><Link className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} to="/about">About Us</Link></li>
+        <li className="nav-item"><Link className={`nav-link ${location.pathname === '/resources' ? 'active' : ''}`} to="/resources">Resources</Link></li>
       </>
     );
   };
 
-  // determine where the logo/brand should link based on user role
   const renderBrandLink = () => {
-    if (loggedInUser === 'admin') {
-      return '/admin';
-    } else if (loggedInUser && loggedInUser !== 'admin') {
-      return '/client';
-    } else {
-      return '/';
-    }
+    if (loggedInUser === 'admin') return '/admin';
+    if (loggedInUser && loggedInUser !== 'admin') return '/client';
+    return '/';
   };
 
-  // main header/navigation component
+  // Hide the global header on the new Admin Dashboard so it doesn't conflict with the custom sidebar
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <nav className="navbar navbar-expand-lg navbar-cleaneco">
       <div className="container-fluid">
-        {/* logo that links to appropriate dashboard based on user role */}
         <Link className="navbar-brand" to={renderBrandLink()}>
           <img src={logo} height="60" width="auto" alt="Cleaneco Logo" />
         </Link>
 
-        {/* mobile menu toggle button */}
-        <button 
-          className="navbar-toggler" 
-          type="button" 
-          data-bs-toggle="collapse" 
-          data-bs-target="#navbarSupportedContent"
-          aria-controls="navbarSupportedContent" 
-          aria-expanded="false" 
-          aria-label="Toggle navigation"
-        >
+        <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
           <span className="navbar-toggler-icon"></span>
         </button>
 
-        {/* main navigation content */}
         <div className="collapse navbar-collapse" id="navbarSupportedContent">
-          {/* left side navigation links */}
           <ul className="navbar-nav me-auto">
             {renderNavLinks()}
           </ul>
 
-          {/* right side auth links (login/register or logout) */}
-          <ul className="navbar-nav ms-auto">
+          <ul className="navbar-nav ms-auto align-items-center">
             {!loggedInUser ? (
               <>
-                <li className="nav-item">
-                  <Link className={`nav-link ${location.pathname === '/register' ? 'active' : ''}`} to="/register">
-                    Register
-                  </Link>
-                </li>
-                <li className="nav-item">
-                  <Link className={`nav-link ${location.pathname === '/login' ? 'active' : ''}`} to="/login">
-                    Login
-                  </Link>
-                </li>
+                <li className="nav-item"><Link className={`nav-link ${location.pathname === '/register' ? 'active' : ''}`} to="/register">Register</Link></li>
+                <li className="nav-item"><Link className={`nav-link ${location.pathname === '/login' ? 'active' : ''}`} to="/login">Login</Link></li>
               </>
             ) : (
-              // logout button for logged in users
-              <li className="nav-item">
-                <button 
-                  className="nav-link btn btn-link" 
-                  onClick={handleLogout}
-                  style={{border: 'none', background: 'none', color: 'inherit'}}
-                >
-                  Logout
-                </button>
-              </li>
+              <>
+                {loggedInUser !== 'admin' && (
+                  <li className="nav-item position-relative me-3" style={{ cursor: 'pointer' }} onClick={() => setShowNotifTray(!showNotifTray)}>
+                    <div className="nav-link">
+                      <i className="fas fa-bell fs-5" style={{ color: '#ffffff' }}></i>
+                      {unreadCount > 0 && (
+                        <span className="position-absolute translate-middle badge rounded-pill bg-danger" style={{ top: '25%', left: '80%', fontSize: '0.6rem' }}>
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    {showNotifTray && (
+                      <div className="card shadow-lg border position-absolute" style={{ top: '100%', right: '0', width: '320px', zIndex: 1050, borderRadius: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
+                        <div className="card-header bg-white d-flex justify-content-between align-items-center border-bottom py-2">
+                          <span className="fw-bold text-dark">Notifications</span>
+                          {unreadCount > 0 && (
+                            <button className="btn btn-link text-success p-0 fw-bold small text-decoration-none" style={{ fontSize: '0.8rem', color: '#0D8D1E' }} onClick={(e) => { e.stopPropagation(); handleMarkAllNotificationsRead(); }}>
+                              Mark all read
+                            </button>
+                          )}
+                        </div>
+                        <div className="list-group list-group-flush">
+                          {notifications.length === 0 ? (
+                            <div className="text-center p-3 text-secondary small">No notifications yet.</div>
+                          ) : (
+                            notifications.map(notif => (
+                              <div key={notif.id} className={`list-group-item list-group-item-action p-3 border-bottom d-flex align-items-start gap-2 ${notif.is_read ? '' : 'bg-light'}`} style={{ cursor: 'pointer', borderLeft: notif.is_read ? 'none' : '4px solid #0D8D1E' }} onClick={() => handleNotificationClick(notif)}>
+                                <div className="flex-grow-1">
+                                  <div className={`small ${notif.is_read ? 'text-secondary' : 'fw-bold text-dark'}`}>{notif.message}</div>
+                                  <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '2px' }}>{notif.details}</div>
+                                </div>
+                                {!notif.is_read && <span className="rounded-circle bg-success mt-1" style={{ width: '8px', height: '8px', flexShrink: 0 }}></span>}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                )}
+                
+                {/* Profile Picture Link */}
+                <li className="nav-item dropdown me-2 position-relative">
+                  <div className="nav-link dropdown-toggle d-flex align-items-center" role="button" data-bs-toggle="dropdown" aria-expanded="false" style={{ cursor: 'pointer' }}>
+                    <img 
+                      src={profilePic || 'https://via.placeholder.com/40'} 
+                      alt="Profile" 
+                      className="rounded-circle bg-white"
+                      style={{ width: '35px', height: '35px', objectFit: 'cover', border: '2px solid #ffffff' }}
+                    />
+                  </div>
+                  <ul className="dropdown-menu dropdown-menu-end shadow position-absolute" aria-labelledby="profileDropdown" style={{ right: 0, left: 'auto', minWidth: '160px' }}>
+                    <li>
+                      <Link className="dropdown-item fw-bold" to={loggedInUser === 'admin' ? '/admin/profile' : '/client/profile'}>
+                        <i className="fas fa-user-circle me-2 text-success"></i> My Account
+                      </Link>
+                    </li>
+                    <li><hr className="dropdown-divider" /></li>
+                    <li>
+                      <button className="dropdown-item text-danger fw-bold" onClick={handleLogout}>
+                        <i className="fas fa-sign-out-alt me-2"></i> Logout
+                      </button>
+                    </li>
+                  </ul>
+                </li>
+              </>
             )}
           </ul>
         </div>

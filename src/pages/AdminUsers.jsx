@@ -3,12 +3,39 @@ import api from '../api/axiosConfig';
 import '../assets/styles/orderdatabase.css'; 
 import carousel4 from '../assets/styles/images/carousel4.png';
 import AlertModal from '../components/AlertModal';
+import ConfirmModal from '../components/ConfirmModal';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { useRef } from 'react';
 
 function AdminUsers() {
+  const container = useRef();
+  useGSAP(() => {
+    gsap.fromTo('.card, .table-box, .glass-panel, .thankyou-section, .thankyou-image, .admin-card', { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: 'power3.out' });
+  }, { scope: container });
   const [users, setUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({});
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null, confirmText: 'Delete', confirmColor: 'danger' });
+
+  const triggerConfirm = (title, message, confirmText, confirmColor, action) => {
+      setConfirmConfig({
+          isOpen: true,
+          title,
+          message,
+          confirmText,
+          confirmColor,
+          onConfirm: () => {
+              setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+              action();
+          }
+      });
+  };
+
+  const closeConfirm = () => {
+      setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+  };
 
   const showAlert = (title, message, type = 'info') => {
       setModalConfig({ isOpen: true, title, message, type });
@@ -24,7 +51,7 @@ function AdminUsers() {
 
   const loadUsers = async () => {
     try {
-      const res = await api.get('/read.php?type=users');
+      const res = await api.get('/users');
       setUsers(res.data);
     } catch (err) {
       console.error("Failed to load users", err);
@@ -42,9 +69,7 @@ function AdminUsers() {
 
   const handleUpdate = async () => {
     try {
-      await api.put('/update.php', {
-        type: 'user',
-        id: editingUser,
+      await api.put('/users/' + editingUser, {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
@@ -55,30 +80,73 @@ function AdminUsers() {
       loadUsers();
       showAlert("Success", "User updated successfully", "success");
     } catch (err) {
-      showAlert("Error", "Failed to update user", "error");
+      showAlert("Error", err.response?.data?.message || "Failed to update user", "error");
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("⚠️ Are you sure you want to delete this user?")) return;
+  const handleDelete = (id) => {
+    triggerConfirm(
+      "Confirm Deletion",
+      "⚠️ Are you sure you want to delete this user?",
+      "Delete",
+      "danger",
+      async () => {
+        try {
+          const res = await api.delete('/users/' + id);
 
-    try {
-      // 🔥 USE POST INSTEAD OF DELETE
-      const res = await api.post('/delete.php', {
-        type: 'user',
-        id: id
-      });
-
-      if (res.data.success) {
-        showAlert("Success", "User deleted successfully", "success");
-        loadUsers();
-      } else {
-        showAlert("Warning", res.data.message, "warning");
+          if (res.data.success) {
+            showAlert("Success", "User deleted successfully", "success");
+            loadUsers();
+          } else {
+            showAlert("Warning", res.data.message, "warning");
+          }
+        } catch (err) {
+          showAlert("Error", err.response?.data?.message || "Cannot delete user with existing orders", "error");
+        }
       }
-    } catch (err) {
-      showAlert("Error", "Cannot delete user with existing orders", "error");
-    }
+    );
   };
+
+  const handleApproveDeletion = (id) => {
+    triggerConfirm(
+      "Approve Deletion",
+      "Approve account deletion? This will permanently delete the user.",
+      "Approve",
+      "danger",
+      async () => {
+        try {
+          const res = await api.delete('/users/' + id);
+          if (res.data.success) {
+            showAlert("Success", "User account deleted successfully.", "success");
+            loadUsers();
+          }
+        } catch (err) {
+          showAlert("Error", "Failed to approve deletion.", "error");
+        }
+      }
+    );
+  };
+
+  const handleRejectDeletion = (id) => {
+    triggerConfirm(
+      "Reject Deletion",
+      "Reject account deletion? The user account will remain active.",
+      "Reject",
+      "secondary",
+      async () => {
+        try {
+          await api.put('/users/' + id, { delete_requested: false });
+          showAlert("Success", "Account deletion request rejected.", "success");
+          loadUsers();
+        } catch (err) {
+          showAlert("Error", "Failed to reject deletion request.", "error");
+        }
+      }
+    );
+  };
+
+  const deletionRequests = users.filter(user => user.delete_requested);
+  const regularUsers = users.filter(user => !user.delete_requested);
 
   return (
     <>
@@ -89,10 +157,59 @@ function AdminUsers() {
         type={modalConfig.type} 
         onClose={closeAlert} 
     />
+    <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={closeConfirm}
+        confirmText={confirmConfig.confirmText}
+        confirmColor={confirmConfig.confirmColor}
+    />
     <div>
       <img className="img-fluid banner-img" src={carousel4} alt="Banner" />
 
       <section className="section-bg">
+        <div className="table-box mb-5">
+          <h3 className="text-center text-danger mb-4"><i className="fas fa-exclamation-triangle me-2"></i> Account Deletion Requests</h3>
+
+          <div className="table-container">
+            <table className="table table-bordered text-center mb-0">
+              <thead className="thead-light bg-danger text-white">
+                <tr>
+                  <th>Username</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deletionRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="text-muted py-4">No pending account deletion requests.</td>
+                  </tr>
+                ) : (
+                  deletionRequests.map(user => (
+                    <tr key={user.id}>
+                      <td className="fw-bold">{user.username}</td>
+                      <td>{user.first_name} {user.last_name}</td>
+                      <td>{user.email}</td>
+                      <td>
+                        <button className="btn btn-sm btn-success me-2" onClick={() => handleApproveDeletion(user.id)}>
+                          Approve (Delete)
+                        </button>
+                        <button className="btn btn-sm btn-secondary" onClick={() => handleRejectDeletion(user.id)}>
+                          Reject
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="table-box">
           <h3 className="text-center mb-4">Registered Users</h3>
 
@@ -110,12 +227,12 @@ function AdminUsers() {
               </thead>
 
               <tbody>
-                {users.length === 0 ? (
+                {regularUsers.length === 0 ? (
                   <tr>
                     <td colSpan="6">No users found.</td>
                   </tr>
                 ) : (
-                  users.map(user => (
+                  regularUsers.map(user => (
                     <tr key={user.id}>
                       <td>{user.username}</td>
 

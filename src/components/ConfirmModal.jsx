@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
+export default function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, confirmText, confirmColor }) {
     if (!isOpen) return null;
 
     return (
@@ -17,7 +17,7 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onCanc
         >
             <div className="modal-dialog modal-dialog-centered" role="document">
                 <div className="modal-content shadow-lg border-0" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
-                    <div className="modal-header" style={{ backgroundColor: '#dc3545', borderBottom: 'none' }}>
+                    <div className="modal-header" style={{ backgroundColor: confirmColor === 'secondary' ? '#6c757d' : '#dc3545', borderBottom: 'none' }}>
                         <h5 className="modal-title fw-bold text-white">
                             <i className="fas fa-exclamation-triangle me-2"></i>{title}
                         </h5>
@@ -37,11 +37,11 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onCanc
                         </button>
                         <button 
                             type="button" 
-                            className="btn btn-danger fw-bold px-4" 
+                            className={`btn btn-${confirmColor || 'danger'} fw-bold px-4`} 
                             style={{ borderRadius: '0.5rem' }} 
                             onClick={onConfirm}
                         >
-                            Delete
+                            {confirmText || 'Delete'}
                         </button>
                     </div>
                 </div>

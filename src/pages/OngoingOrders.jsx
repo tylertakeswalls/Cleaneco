@@ -26,15 +26,13 @@ function OngoingOrders() {
     setShowConfirmModal(false);
     const { id, type } = confirmData;
     try {
-      const response = await api.put('/update.php', {
-        type: 'order',
-        id: id,
+      const response = await api.put(`/orders/${id}`, {
         request_type: type
       });
       if (response.data.success) {
         setResultMessage("Request submitted successfully.");
         setShowResultModal(true);
-        const ordersRes = await api.get(`/read.php?type=user_orders&id=${userId}`);
+        const ordersRes = await api.get(`/orders/user/${userId}`);
         setOrders(ordersRes.data);
       } else {
         setResultMessage("Failed to submit request.");
@@ -71,7 +69,7 @@ function OngoingOrders() {
 
     const loadOrders = async () => {
       try {
-        const response = await api.get(`/read.php?type=user_orders&id=${userId}`);
+        const response = await api.get(`/orders/user/${userId}`);
         setOrders(response.data);
         setLoading(false);
       } catch (err) {
@@ -118,9 +116,8 @@ function OngoingOrders() {
     doc.text(`${order.phone || ''}`, 120, 68);
 
     const basePrice = order.price ? parseFloat(order.price) : 0;
-    const discount = order.discount_amount ? parseFloat(order.discount_amount) : 0;
     const tax = order.tax_amount ? parseFloat(order.tax_amount) : (basePrice * 0.10);
-    const total = basePrice - discount + tax;
+    const total = basePrice + tax;
 
     // Table
     autoTable(doc, {
@@ -129,7 +126,6 @@ function OngoingOrders() {
       body: [
         ['Base Service Fee', `PHP ${basePrice.toFixed(2)}`],
         ['Service Tax (10%)', `PHP ${tax.toFixed(2)}`],
-        ...(discount > 0 ? [['Senior Citizen Discount (20%)', `- PHP ${discount.toFixed(2)}`]] : []),
       ],
       foot: [['Total Paid', `PHP ${total.toFixed(2)}`]],
       theme: 'grid',

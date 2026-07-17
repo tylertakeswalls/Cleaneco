@@ -1,0 +1,97 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const multer = require('multer');
+const Setting = require('../models/Setting');
+const router = express.Router();
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+router.get('/tos', async (req, res) => {
+  try {
+    let tos = await Setting.findOne({ key_name: 'terms_and_conditions' });
+    if (!tos) {
+      tos = new Setting({ key_name: 'terms_and_conditions', value: '1. These are the default terms and conditions.' });
+      await tos.save();
+    }
+    res.json({ success: true, tos: tos.value });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch TOS' });
+  }
+});
+
+router.post('/tos', async (req, res) => {
+  try {
+    const { tos } = req.body;
+    await Setting.findOneAndUpdate(
+      { key_name: 'terms_and_conditions' },
+      { value: tos },
+      { upsert: true }
+    );
+    res.json({ success: true, message: 'TOS updated successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update TOS' });
+  }
+});
+
+module.exports = router;
+
+router.post('/tos/upload', upload.single('tosPdf'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    
+    const db = mongoose.connection.db;
+    const bucket = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: 'tos_files'
+    });
+
+    const existingFiles = await db.collection('tos_files.files').find({ filename: 'tos.pdf' }).toArray();
+    for (const file of existingFiles) {
+      await bucket.delete(file._id);
+    }
+
+    const uploadStream = bucket.openUploadStream('tos.pdf', {
+      contentType: 'application/pdf'
+    });
+    
+    uploadStream.end(req.file.buffer);
+
+    uploadStream.on('finish', () => {
+      res.json({ success: true, message: 'TOS PDF uploaded successfully' });
+    });
+    
+    uploadStream.on('error', (err) => {
+      res.status(500).json({ success: false, message: 'Error uploading file', error: err.message });
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to upload TOS PDF', error: error.message });
+  }
+});
+
+router.get('/tos/pdf', async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const bucket = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: 'tos_files'
+    });
+    
+    const files = await db.collection('tos_files.files').find({ filename: 'tos.pdf' }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ success: false, message: 'No PDF found' });
+    }
+    
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', 'inline; filename="tos.pdf"');
+    
+    const downloadStream = bucket.openDownloadStreamByName('tos.pdf');
+    downloadStream.pipe(res);
+    
+    downloadStream.on('error', (err) => {
+        res.status(500).end();
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch TOS PDF', error: error.message });
+  }
+});

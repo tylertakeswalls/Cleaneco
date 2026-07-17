@@ -18,7 +18,7 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
     useEffect(() => {
         const fetchAvailability = async () => {
             try {
-                const response = await api.get("/read.php?type=availability");
+                const response = await api.get("/orders/availability");
                 setAvailability(response.data || []);
             } catch (error) {
                 console.error("Error fetching availability:", error);
@@ -45,7 +45,7 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
     const daysInMonth = getDaysInMonth();
     const startDay = getStartDay();
     const datesArray = [];
-    
+
     // Padding for empty start days of the week
     for (let i = 0; i < startDay; i++) datesArray.push(null);
     for (let d = 1; d <= daysInMonth; d++) datesArray.push(d);
@@ -100,9 +100,9 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
     return (
         <div className="card shadow-sm border-0 mb-4" style={{ borderRadius: "1rem", overflow: "hidden" }}>
             <div className="card-header border-0 d-flex align-items-center justify-content-between p-3" style={{ background: "#ebf3ee" }}>
-                <button 
-                    type="button" 
-                    className="btn btn-sm btn-success border-0 px-3 fw-bold" 
+                <button
+                    type="button"
+                    className="btn btn-sm btn-success border-0 px-3 fw-bold"
                     onClick={goToPrevMonth}
                     style={{ background: "#0D8D1E" }}
                     disabled={currentDate.getMonth() === minDate.getMonth() && currentDate.getFullYear() === minDate.getFullYear()}
@@ -112,9 +112,9 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
                 <h5 className="mb-0 fw-bold text-dark">
                     {currentDate.toLocaleString("default", { month: "long" })} {currentDate.getFullYear()}
                 </h5>
-                <button 
-                    type="button" 
-                    className="btn btn-sm btn-success border-0 px-3 fw-bold" 
+                <button
+                    type="button"
+                    className="btn btn-sm btn-success border-0 px-3 fw-bold"
                     onClick={goToNextMonth}
                     style={{ background: "#0D8D1E" }}
                     disabled={currentDate.getMonth() === maxDate.getMonth() && currentDate.getFullYear() === maxDate.getFullYear()}
@@ -137,9 +137,9 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
 
                         const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                         const dateString = formatDate(dateObj);
-                        
+
                         const isOutOfRange = dateObj < minDate || dateObj > maxDate;
-                        
+
                         const dayData = bookingsByDate[dateString];
                         const totalBookings = dayData ? dayData.total : 0;
                         const isFullyBooked = totalBookings >= 3;
@@ -177,7 +177,7 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
 
                         return (
                             <div key={`day-${day}`}>
-                                <div 
+                                <div
                                     onClick={() => handleDateClick(dateString, isOutOfRange, isFullyBooked)}
                                     className="d-flex flex-column align-items-center justify-content-center p-1 rounded w-100"
                                     style={{
@@ -227,7 +227,7 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
                                         type="button"
                                         className={btnClass}
                                         onClick={() => !isBooked && handleSlotClick(slot.key)}
-                                        style={{ 
+                                        style={{
                                             borderRadius: "0.5rem",
                                             borderColor: (!isBooked && !isSlotSelected) ? "#0D8D1E" : undefined,
                                             color: (!isBooked && !isSlotSelected) ? "#0D8D1E" : undefined,
@@ -245,7 +245,7 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
                     </div>
                 )}
             </div>
-            
+
             {/* Legend */}
             <div className="card-footer bg-white border-0 d-flex justify-content-center gap-3 py-2 small text-muted">
                 <span className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{ width: "10px", height: "10px", background: "#f8fafc", border: "1px solid #e2e8f0" }}></span> Available</span>
