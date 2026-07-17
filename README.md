@@ -10,17 +10,17 @@ This document summarizes the recent features and structural updates implemented 
   - Barangay
   - City/Municipality
   - Province
-- **Backend & Database**: Updated `submit.php`, `update.php`, `read.php`, and `database.sql` to parse, store, and retrieve the new granular address fields correctly.
+- **Backend & Database**: Updated backend API routes and Mongoose schemas to parse, store, and retrieve the new granular address fields correctly.
 
 ## 2. Password Visibility Toggle
 - **Enhancement**: Added an interactive "eye" icon to the Password and Confirm Password fields in `Register.jsx`.
 - **Functionality**: Users can now toggle the visibility of their passwords while typing to prevent errors during account creation.
 
 ## 3. Email Notification System
-- **New Utility**: Introduced `php-backend/api/email_helper.php` to handle outbound email logic.
+- **New Utility**: Introduced Node.js email handling (`backend/utils/emailHelper.js`) using Nodemailer for outbound email logic.
 - **Integration**: 
-  - Wired into `submit.php` to send welcome/confirmation emails upon successful user registration and new order placement.
-  - Wired into `update.php` to notify users when their order status is updated by administrators.
+  - Wired into backend authentication routes to send welcome and verification emails upon successful user registration.
+  - Wired into order routes to notify users when an order is placed or its status is updated by administrators.
 
 ## 4. UI/UX Component Additions
 - **Modals**: Created reusable `AlertModal.jsx` and `ConfirmModal.jsx` to replace native browser alerts with stylized, branded popup dialogues.
