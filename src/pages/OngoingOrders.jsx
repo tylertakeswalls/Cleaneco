@@ -90,38 +90,91 @@ function OngoingOrders() {
     return statusClasses[status] || "pending-text";
   };
 
-  const generateReceipt = (order) => {
+  const generateReceipt = async (order) => {
     const doc = new jsPDF();
+    
+    let y = 40; // Default starting Y
+    // Add header image
+    try {
+      const response = await fetch('/header.png');
+      const blob = await response.blob();
+      const reader = new FileReader();
+      const base64data = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+      
+      const img = new Image();
+      img.src = base64data;
+      await new Promise(resolve => { img.onload = resolve; });
+      
+      const imgWidth = 180;
+      const imgHeight = (img.height * imgWidth) / img.width;
+      
+      doc.addImage(base64data, 'PNG', 15, 10, imgWidth, imgHeight);
+      y = 10 + imgHeight + 5; // Start text just below the image
+    } catch (err) {
+      console.warn("Could not load header image", err);
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(128, 128, 128); // gray
+    doc.text('CLEANECO WASTE MANAGEMENT SERVICES', 15, y);
+    
+    y += 5;
+    doc.setTextColor(13, 141, 30); // green
+    doc.text('Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields, Brgy. Mambog IV, Bacoor City, Cavite', 15, y);
+    y += 5;
+    doc.text('Tel. Nos.: (046) 477-0354 • 09173044157', 15, y);
+    y += 5;
+    doc.text('E-mail: cleaneco@cwms.com.ph', 15, y);
+    y += 5;
+    doc.text('Website: www.cwms.com.ph', 15, y);
 
-    // Header
-    doc.setFontSize(22);
-    doc.setTextColor(13, 141, 30);
-    doc.text('Cleaneco', 105, 20, { align: 'center' });
+    y += 15;
+    doc.setTextColor(0, 0, 0); // black
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    
+    // Date
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    doc.text(`Date: ${dateStr}`, 15, y);
+    
+    y += 10;
+    doc.text('Cleaneco Management', 15, y);
+    y += 5;
+    doc.text('Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields', 15, y);
+    y += 5;
+    doc.text('Bacoor City, Cavite', 15, y);
 
-    doc.setFontSize(14);
-    doc.setTextColor(50, 50, 50);
-    doc.text('Official Receipt', 105, 30, { align: 'center' });
+    y += 15;
+    doc.setFont('times', 'bold');
+    const customerName = `${order.first_name || sessionStorage.getItem('userName')} ${order.last_name || ''}`.trim();
+    doc.text(`ATTENTION: ${customerName}`, 15, y);
 
-    // Order info
-    doc.setFontSize(10);
-    doc.text(`Order ID: ${order.order_id}`, 20, 50);
-    doc.text(`Service: ${order.service_name || order.service_type}`, 20, 56);
-    doc.text(`Date: ${formatDate(order.date)}`, 20, 62);
-    doc.text(`Time Slot: ${order.time_slot}`, 20, 68);
+    y += 15;
+    doc.setFontSize(12);
+    doc.text('Official Receipt', 105, y, { align: 'center' });
+    // Underline
+    const titleWidth = doc.getTextWidth('Official Receipt');
+    doc.setLineWidth(0.5);
+    doc.line(105 - (titleWidth/2), y + 1, 105 + (titleWidth/2), y + 1);
 
-    // Customer info
-    doc.text(`Customer Info:`, 120, 50);
-    doc.text(`${order.first_name || sessionStorage.getItem('userName')} ${order.last_name || ''}`, 120, 56);
-    doc.text(`${order.email || ''}`, 120, 62);
-    doc.text(`${order.phone || ''}`, 120, 68);
+    y += 15;
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    doc.text(`This receipt confirms the completion and payment for Order ID: ${order.order_id}.`, 15, y);
+    y += 5;
+    doc.text(`Service provided: ${order.service_name || order.service_type}`, 15, y);
+    y += 5;
+    doc.text(`Service date: ${formatDate(order.date)} at ${order.time_slot}`, 15, y);
 
     const basePrice = order.price ? parseFloat(order.price) : 0;
     const tax = order.tax_amount ? parseFloat(order.tax_amount) : (basePrice * 0.10);
     const total = basePrice + tax;
 
-    // Table
     autoTable(doc, {
-      startY: 85,
+      startY: y + 10,
       head: [['Description', 'Amount']],
       body: [
         ['Base Service Fee', `PHP ${basePrice.toFixed(2)}`],
@@ -130,12 +183,14 @@ function OngoingOrders() {
       foot: [['Total Paid', `PHP ${total.toFixed(2)}`]],
       theme: 'grid',
       headStyles: { fillColor: [13, 141, 30] },
-      footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] }
+      footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] },
+      margin: { left: 15, right: 15 }
     });
 
-    // Footer
-    doc.setFontSize(10);
-    doc.text('Thank you for choosing Cleaneco!', 105, doc.lastAutoTable.finalY + 20, { align: 'center' });
+    const finalY = doc.lastAutoTable.finalY || y + 40;
+    
+    doc.setFont('times', 'normal');
+    doc.text('Thank you very much!', 15, finalY + 15);
 
     doc.save(`Cleaneco_Receipt_${order.order_id}.pdf`);
   };

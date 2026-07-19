@@ -5,15 +5,10 @@ import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
 import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import { useRef } from 'react';
 
 function OrderDatabase() {
   const container = useRef();
-  useGSAP(() => {
-    gsap.fromTo('.card, .table-box, .glass-panel, .thankyou-section, .thankyou-image, .admin-card', { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: 'power3.out' });
-  }, { scope: container });
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -245,7 +240,7 @@ function OrderDatabase() {
   });
 
   return (
-    <div>
+    <div ref={container}>
       <AlertModal 
           isOpen={modalConfig.isOpen} 
           title={modalConfig.title} 
@@ -268,8 +263,8 @@ function OrderDatabase() {
           
           <div className="filters-container mb-3 d-flex gap-3 align-items-center flex-wrap">
             <select 
-              className="form-select" 
-              style={{ width: '200px' }}
+              className="form-select m-0" 
+              style={{ width: '200px', height: '52px' }}
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
             >
@@ -279,8 +274,8 @@ function OrderDatabase() {
               ))}
             </select>
             <select 
-              className="form-select" 
-              style={{ width: '200px' }}
+              className="form-select m-0" 
+              style={{ width: '200px', height: '52px' }}
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -292,12 +287,12 @@ function OrderDatabase() {
             </select>
             <input 
               type="date" 
-              className="form-control" 
-              style={{ width: '200px' }}
+              className="form-control m-0" 
+              style={{ width: '200px', height: '52px' }}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
             />
-            <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '38px' }} onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
+            <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }} onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
           </div>
           
           <div className="table-container">

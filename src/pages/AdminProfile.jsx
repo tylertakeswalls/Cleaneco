@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import { useRef } from 'react';
 
 function AdminProfile() {
   const container = useRef();
-  useGSAP(() => {
-    gsap.fromTo('.card, .table-box, .glass-panel, .thankyou-section, .thankyou-image, .admin-card', { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: 'power3.out' });
-  }, { scope: container });
   const [profile, setProfile] = useState({
     username: '',
     first_name: '',

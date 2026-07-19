@@ -1,24 +1,12 @@
 import { Link } from 'react-router-dom';
 import '../assets/styles/services.css';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useRef } from 'react';
-
-gsap.registerPlugin(ScrollTrigger);
 
 function Declogging() {
   const isLoggedIn = !!sessionStorage.getItem('loggedInUser');
   const bookLink = isLoggedIn ? '/order' : '/register';
   const container = useRef();
   
-  useGSAP(() => {
-    gsap.utils.toArray('section').forEach((sec) => {
-      gsap.fromTo(sec, { y: 50, opacity: 0 }, { scrollTrigger: { trigger: sec, start: 'top 85%' }, y: 0, opacity: 1, duration: 0.8, ease: 'power3.out' });
-    });
-    gsap.fromTo('.info-card', { y: 30, opacity: 0 }, { scrollTrigger: { trigger: '.info-section', start: 'top 75%' }, y: 0, opacity: 1, stagger: 0.1, duration: 0.6, ease: 'power2.out' });
-    gsap.fromTo('.step', { y: 30, opacity: 0 }, { scrollTrigger: { trigger: '.how-it-works', start: 'top 75%' }, y: 0, opacity: 1, stagger: 0.1, duration: 0.6, ease: 'power2.out' });
-  }, { scope: container });
   return (
     <div ref={container}>
       {/* hero section for declogging service */}

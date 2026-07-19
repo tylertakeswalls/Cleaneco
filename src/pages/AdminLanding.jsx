@@ -4,7 +4,6 @@ import Chart from 'chart.js/auto';
 import api from '../api/axiosConfig';
 import '../assets/styles/admin.css';
 import AdminCalendar from '../components/AdminCalendar';
-import carousel5 from '../assets/styles/images/carousel5.png';
 
 // Removing gradient styles as we move to clean white cards
 
@@ -192,7 +191,6 @@ function AdminLanding() {
 
   return (
     <>
-      <img className="img-fluid banner-img w-100 mb-0" style={{ height: '250px', objectFit: 'cover', borderRadius: '0' }} src={carousel5} alt="Dashboard Banner" />
       {/* PAGE CONTENT */}
       <div className="p-4 w-100 h-100">
 
@@ -267,7 +265,7 @@ function AdminLanding() {
                     <div className="d-flex align-items-center"><span className="rounded-circle me-2" style={{ width: '10px', height: '10px', backgroundColor: '#20c997' }}></span><small className="text-muted">Revenue</small></div>
                   </div>
                 </div>
-                <div style={{ height: '300px' }}><canvas ref={lineChartRef}></canvas></div>
+                <div style={{ height: '300px' }}><canvas ref={lineChartRef} role="img" aria-label="Bar chart showing daily revenue over time"></canvas></div>
               </div>
             </div>
           </div>
@@ -278,7 +276,7 @@ function AdminLanding() {
               <div className="card-body p-4 d-flex flex-column">
                 <h5 className="fw-bold text-dark mb-4" style={{ fontSize: '1.1rem' }}>Order Status Overview</h5>
                 <div className="flex-grow-1 d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
-                  <canvas ref={statusChartRef}></canvas>
+                  <canvas ref={statusChartRef} role="img" aria-label="Donut chart showing order status distribution: Pending, In Progress, Completed, and Cancelled"></canvas>
                 </div>
               </div>
             </div>
@@ -308,7 +306,7 @@ function AdminLanding() {
                     <div className="text-center text-muted my-auto">No orders yet.</div>
                   ) : (
                     [...allOrders].reverse().slice(0, 5).map((order, idx) => (
-                      <div key={idx} className="d-flex align-items-center p-3 rounded" style={{ backgroundColor: '#f8f9fa', borderLeft: '4px solid #0D8D1E' }}>
+                      <div key={idx} className="d-flex align-items-center p-3 rounded" style={{ backgroundColor: '#f8f9fa', border: '1px solid rgba(0,0,0,0.05)' }}>
                         <div className="rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0" style={{ width: '40px', height: '40px', backgroundColor: 'rgba(13, 141, 30, 0.1)', color: '#0D8D1E' }}>
                           <i className="fas fa-shopping-bag"></i>
                         </div>

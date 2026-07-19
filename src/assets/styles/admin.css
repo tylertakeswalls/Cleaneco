@@ -222,7 +222,7 @@
     background: #f8f9fa;
     padding: 10px;
     border-radius: 5px;
-    border-left: 4px solid #007bff;
+    border: 1px solid rgba(0,0,0,0.1);
 }
 
 /* Quick actions buttons */

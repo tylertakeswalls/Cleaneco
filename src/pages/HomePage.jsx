@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { Carousel } from 'react-bootstrap';
 import '../assets/styles/homepage.css';
 import carousel5 from '../assets/styles/images/carousel5.png';
 import carousel1 from '../assets/styles/images/carousel1.png';
@@ -24,21 +23,32 @@ function HomePage() {
   return (
     <div>
       {/* main hero carousel showcasing company services */}
-      <Carousel 
-      interval={3000}
-      controls={true}
-      indicators={true}
-      pause="hover">
-        <Carousel.Item>
-          <img className="d-block w-100" src={carousel5} alt="First slide" />
-        </Carousel.Item>
-        <Carousel.Item>
-          <img className="d-block w-100" src={carousel1} alt="Second slide" />
-        </Carousel.Item>
-        <Carousel.Item>
-          <img className="d-block w-100" src={carousel2} alt="Third slide" />
-        </Carousel.Item>
-      </Carousel>
+      <div id="mainHeroCarousel" className="carousel slide" data-bs-ride="carousel" data-bs-interval="3000" data-bs-pause="hover">
+        <div className="carousel-indicators">
+          <button type="button" data-bs-target="#mainHeroCarousel" data-bs-slide-to="0" className="active" aria-current="true" aria-label="Slide 1"></button>
+          <button type="button" data-bs-target="#mainHeroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+          <button type="button" data-bs-target="#mainHeroCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+        </div>
+        <div className="carousel-inner">
+          <div className="carousel-item active">
+            <img className="d-block w-100" src={carousel5} alt="First slide" />
+          </div>
+          <div className="carousel-item">
+            <img className="d-block w-100" src={carousel1} alt="Second slide" />
+          </div>
+          <div className="carousel-item">
+            <img className="d-block w-100" src={carousel2} alt="Third slide" />
+          </div>
+        </div>
+        <button className="carousel-control-prev" type="button" data-bs-target="#mainHeroCarousel" data-bs-slide="prev">
+          <span className="carousel-control-prev-icon" aria-hidden="true"></span>
+          <span className="visually-hidden">Previous</span>
+        </button>
+        <button className="carousel-control-next" type="button" data-bs-target="#mainHeroCarousel" data-bs-slide="next">
+          <span className="carousel-control-next-icon" aria-hidden="true"></span>
+          <span className="visually-hidden">Next</span>
+        </button>
+      </div>
 
       {/* company introduction and value proposition section */}
       <section className="text-center my-5">
@@ -62,7 +72,7 @@ function HomePage() {
         <h2 className="intro-title">Our Services</h2>
         
         {/* service cards container */}
-  <div style={{display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: '20px', margin: '40px 0', flexWrap: 'wrap'}}>
+        <div style={{display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: '20px', margin: '40px 0', flexWrap: 'wrap'}}>
 
           {/* siphoning/desludging service card */}
           <div className="card" style={{width: '18rem'}}>
@@ -135,29 +145,36 @@ function HomePage() {
 
         {/* client logo carousel */}
         <div className="container">
-          <Carousel id="clientCarousel" interval={4000}>
-            {/* first set of client logos */}
-            <Carousel.Item>
-              <div className="d-flex justify-content-around align-items-center flex-wrap">
-                <div className="client-box"><img src={image2} alt="Client 1" /></div>
-                <div className="client-box"><img src={image3} alt="Client 2" /></div>
-                <div className="client-box"><img src={image4} alt="Client 3" /></div>
-                <div className="client-box"><img src={image5} alt="Client 4" /></div>
-                <div className="client-box"><img src={image6} alt="Client 5" /></div>
+          <div id="clientCarousel" className="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
+            <div className="carousel-inner">
+              <div className="carousel-item active">
+                <div className="d-flex justify-content-around align-items-center flex-wrap">
+                  <div className="client-box"><img src={image2} alt="Client 1" /></div>
+                  <div className="client-box"><img src={image3} alt="Client 2" /></div>
+                  <div className="client-box"><img src={image4} alt="Client 3" /></div>
+                  <div className="client-box"><img src={image5} alt="Client 4" /></div>
+                  <div className="client-box"><img src={image6} alt="Client 5" /></div>
+                </div>
               </div>
-            </Carousel.Item>
-
-            {/* second set of client logos */}
-            <Carousel.Item>
-              <div className="d-flex justify-content-around align-items-center flex-wrap">
-                <div className="client-box"><img src={image7} alt="Client 6" /></div>
-                <div className="client-box"><img src={image8} alt="Client 7" /></div>
-                <div className="client-box"><img src={image9} alt="Client 8" /></div>
-                <div className="client-box"><img src={image10} alt="Client 9" /></div>
-                <div className="client-box"><img src={image11} alt="Client 10" /></div>
+              <div className="carousel-item">
+                <div className="d-flex justify-content-around align-items-center flex-wrap">
+                  <div className="client-box"><img src={image7} alt="Client 6" /></div>
+                  <div className="client-box"><img src={image8} alt="Client 7" /></div>
+                  <div className="client-box"><img src={image9} alt="Client 8" /></div>
+                  <div className="client-box"><img src={image10} alt="Client 9" /></div>
+                  <div className="client-box"><img src={image11} alt="Client 10" /></div>
+                </div>
               </div>
-            </Carousel.Item>
-          </Carousel>
+            </div>
+            <button className="carousel-control-prev" type="button" data-bs-target="#clientCarousel" data-bs-slide="prev" style={{width: '5%'}}>
+              <span className="carousel-control-prev-icon" aria-hidden="true" style={{filter: 'invert(1)'}}></span>
+              <span className="visually-hidden">Previous</span>
+            </button>
+            <button className="carousel-control-next" type="button" data-bs-target="#clientCarousel" data-bs-slide="next" style={{width: '5%'}}>
+              <span className="carousel-control-next-icon" aria-hidden="true" style={{filter: 'invert(1)'}}></span>
+              <span className="visually-hidden">Next</span>
+            </button>
+          </div>
         </div>
         <br />
         

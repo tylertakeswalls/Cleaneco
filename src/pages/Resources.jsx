@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../assets/styles/resources.css';
-import { Accordion } from 'react-bootstrap';
 import doh from '../assets/styles/images/doh.png';
 import denr from '../assets/styles/images/denr.png';
 import lgu from '../assets/styles/images/lgu.png';
@@ -139,57 +138,77 @@ function Resources() {
         {/* general information faq category */}
         <h3 className="faq-question-category" id="tips">General Information</h3>
 
-        <Accordion>
-          <Accordion.Item eventKey="0">
-            <Accordion.Header>
-              <i className="fas fa-info-circle mr-2 text-muted"></i> How often should I schedule a Desludging/Siphoning service?
-            </Accordion.Header>
-            <Accordion.Body>
-              The standard recommendation, as per many LGUs, is to schedule desludging or siphoning every 3 to 5 years for residential properties to ensure your septic tank functions efficiently and to prevent blockages. Commercial and industrial establishments may require more frequent services, often every 1-2 years, depending on usage.
-            </Accordion.Body>
-          </Accordion.Item>
+        <div className="accordion" id="generalFaqAccordion">
+          <div className="accordion-item">
+            <h2 className="accordion-header" id="headingZero">
+              <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseZero" aria-expanded="false" aria-controls="collapseZero">
+                <span><i className="fas fa-info-circle me-2 text-muted"></i> How often should I schedule a Desludging/Siphoning service?</span>
+              </button>
+            </h2>
+            <div id="collapseZero" className="accordion-collapse collapse" aria-labelledby="headingZero" data-bs-parent="#generalFaqAccordion">
+              <div className="accordion-body">
+                The standard recommendation, as per many LGUs, is to schedule desludging or siphoning every 3 to 5 years for residential properties to ensure your septic tank functions efficiently and to prevent blockages. Commercial and industrial establishments may require more frequent services, often every 1-2 years, depending on usage.
+              </div>
+            </div>
+          </div>
 
-          <Accordion.Item eventKey="1">
-            <Accordion.Header>
-              <i className="fas fa-peso-sign mr-2 text-muted"></i> How is the service price determined?
-            </Accordion.Header>
-            <Accordion.Body>
-              The cost for our services (Siphoning, Deep Cleaning, Declogging) is determined by several factors, including: the type and size of the service required, the location of the site (travel time/distance), the accessibility of the septic tank or clogged area, and whether it is a residential or commercial client. Please call our hotline for a quick, no-obligation quotation.
-            </Accordion.Body>
-          </Accordion.Item>
-        </Accordion>
+          <div className="accordion-item">
+            <h2 className="accordion-header" id="headingOne">
+              <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                <span><i className="fas fa-peso-sign me-2 text-muted"></i> How is the service price determined?</span>
+              </button>
+            </h2>
+            <div id="collapseOne" className="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#generalFaqAccordion">
+              <div className="accordion-body">
+                The cost for our services (Siphoning, Deep Cleaning, Declogging) is determined by several factors, including: the type and size of the service required, the location of the site (travel time/distance), the accessibility of the septic tank or clogged area, and whether it is a residential or commercial client. Please call our hotline for a quick, no-obligation quotation.
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* services faq category */}
         <h3 className="faq-question-category">About Our Services</h3>
 
-        <Accordion>
-          <Accordion.Item eventKey="2">
-            <Accordion.Header>
-              <i className="fas fa-water mr-2 text-muted"></i> How does the Siphoning / Desludging process work?
-            </Accordion.Header>
-            <Accordion.Body>
-              Our team will locate your septic tank, open the manhole, and use a specialized vacuum truck to completely remove the accumulated sludge (septage) from the tank. The waste is securely contained and transported to a DENR-accredited treatment facility, ensuring zero improper disposal and full compliance with environmental regulations.
-            </Accordion.Body>
-          </Accordion.Item>
+        <div className="accordion" id="servicesFaqAccordion">
+          <div className="accordion-item">
+            <h2 className="accordion-header" id="headingTwo">
+              <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                <span><i className="fas fa-water me-2 text-muted"></i> How does the Siphoning / Desludging process work?</span>
+              </button>
+            </h2>
+            <div id="collapseTwo" className="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#servicesFaqAccordion">
+              <div className="accordion-body">
+                Our team will locate your septic tank, open the manhole, and use a specialized vacuum truck to completely remove the accumulated sludge (septage) from the tank. The waste is securely contained and transported to a DENR-accredited treatment facility, ensuring zero improper disposal and full compliance with environmental regulations.
+              </div>
+            </div>
+          </div>
 
-          <Accordion.Item eventKey="3">
-            <Accordion.Header>
-              <i className="fas fa-broom mr-2 text-muted"></i> What does Deep Cleaning service cover?
-            </Accordion.Header>
-            <Accordion.Body>
-              Our <strong>Deep Cleaning service</strong> is comprehensive, covering areas often missed by regular maintenance. This includes the thorough cleaning and sanitizing of catch basins, manholes, and grease traps (for food establishments). We remove hardened build-up, debris, and grease that cause slow drainage and foul odors, restoring your system to optimal function.
-            </Accordion.Body>
-          </Accordion.Item>
+          <div className="accordion-item">
+            <h2 className="accordion-header" id="headingThree">
+              <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                <span><i className="fas fa-broom me-2 text-muted"></i> What does Deep Cleaning service cover?</span>
+              </button>
+            </h2>
+            <div id="collapseThree" className="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#servicesFaqAccordion">
+              <div className="accordion-body">
+                Our <strong>Deep Cleaning service</strong> is comprehensive, covering areas often missed by regular maintenance. This includes the thorough cleaning and sanitizing of catch basins, manholes, and grease traps (for food establishments). We remove hardened build-up, debris, and grease that cause slow drainage and foul odors, restoring your system to optimal function.
+              </div>
+            </div>
+          </div>
 
-          <Accordion.Item eventKey="4">
-            <Accordion.Header>
-              <i className="fas fa-wrench mr-2 text-muted"></i> How quickly can you resolve a pipe Declogging emergency?
-            </Accordion.Header>
-            <Accordion.Body>
-              As we offer <strong>24/7 Emergency Service</strong>, we aim to dispatch a team immediately upon your call for urgent declogging issues (like toilet, sink, or main line blockages). Using powerful hydro-jetting equipment and specialized tools, our skilled professionals can typically resolve even the toughest clogs quickly and effectively to restore your plumbing system.
-            </Accordion.Body>
-          </Accordion.Item>
-        </Accordion>
+          <div className="accordion-item">
+            <h2 className="accordion-header" id="headingFour">
+              <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                <span><i className="fas fa-wrench me-2 text-muted"></i> How quickly can you resolve a pipe Declogging emergency?</span>
+              </button>
+            </h2>
+            <div id="collapseFour" className="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#servicesFaqAccordion">
+              <div className="accordion-body">
+                As we offer <strong>24/7 Emergency Service</strong>, we aim to dispatch a team immediately upon your call for urgent declogging issues (like toilet, sink, or main line blockages). Using powerful hydro-jetting equipment and specialized tools, our skilled professionals can typically resolve even the toughest clogs quickly and effectively to restore your plumbing system.
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   );

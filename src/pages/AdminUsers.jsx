@@ -4,15 +4,10 @@ import '../assets/styles/orderdatabase.css';
 import carousel4 from '../assets/styles/images/carousel4.png';
 import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import { useRef } from 'react';
 
 function AdminUsers() {
   const container = useRef();
-  useGSAP(() => {
-    gsap.fromTo('.card, .table-box, .glass-panel, .thankyou-section, .thankyou-image, .admin-card', { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: 'power3.out' });
-  }, { scope: container });
   const [users, setUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({});
@@ -166,7 +161,7 @@ function AdminUsers() {
         confirmText={confirmConfig.confirmText}
         confirmColor={confirmConfig.confirmColor}
     />
-    <div>
+    <div ref={container}>
       <img className="img-fluid banner-img" src={carousel4} alt="Banner" />
 
       <section className="section-bg">

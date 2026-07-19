@@ -11,6 +11,7 @@ function Login() {
   const [resending, setResending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const navigate = useNavigate();
 
   const handleResendVerification = async () => {
@@ -123,7 +124,8 @@ function Login() {
   };
 
   return (
-    <div className="form-wrapper">
+    <>
+      <div className="form-wrapper">
       <div className="form-header">
         <h3>Login</h3>
       </div>
@@ -143,6 +145,7 @@ function Login() {
               placeholder="Username" 
               value={formData.username}
               onChange={handleChange}
+              autoComplete="username"
               required 
             />
           </div>
@@ -158,6 +161,7 @@ function Login() {
               placeholder="Password" 
               value={formData.password}
               onChange={handleChange}
+              autoComplete="current-password"
               required 
             />
           </div>
@@ -179,7 +183,7 @@ function Login() {
           <button 
             type="button" 
             className="btn btn-link p-0"
-            onClick={() => alert("Contact cleaneco-it@cwms.com.ph for password reset")}
+            onClick={() => setShowForgotPasswordModal(true)}
           >
             Forgot password?
           </button>
@@ -230,6 +234,33 @@ function Login() {
         </p>
       </div>
     </div>
+
+      {showForgotPasswordModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
+              <div className="modal-header" style={{ backgroundColor: '#0D8D1E', borderBottom: 'none' }}>
+                <h5 className="modal-title fw-bold text-white">
+                  <i className="fas fa-info-circle me-2"></i>Password Reset
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowForgotPasswordModal(false)} aria-label="Close"></button>
+              </div>
+              <div className="modal-body p-4 bg-light text-dark text-center" style={{ fontSize: '1.1rem' }}>
+                <div className="mb-3">
+                  <i className="fas fa-envelope-open-text" style={{ fontSize: '3rem', color: '#0D8D1E' }}></i>
+                </div>
+                <p className="mb-2">For security reasons, password resets are handled manually by our IT support team.</p>
+                <p className="fw-bold mb-1">Please contact:</p>
+                <a href="mailto:cleaneco-it@cwms.com.ph" className="fs-5 text-decoration-none" style={{ color: '#0D8D1E', fontWeight: '700' }}>cleaneco-it@cwms.com.ph</a>
+              </div>
+              <div className="modal-footer bg-light d-flex justify-content-center" style={{ borderTop: 'none' }}>
+                <button type="button" className="btn text-white fw-bold px-4" style={{ backgroundColor: '#0D8D1E', borderRadius: '0.5rem' }} onClick={() => setShowForgotPasswordModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

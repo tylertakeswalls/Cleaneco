@@ -388,6 +388,7 @@ function Register() {
                   placeholder="Password"
                   value={formData.password}
                   onChange={handleChange}
+                  autoComplete="new-password"
                   required
                   minLength="6"
                   style={{ paddingRight: '2.5rem' }}
@@ -411,6 +412,7 @@ function Register() {
                   placeholder="Confirm Password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  autoComplete="new-password"
                   required
                   minLength="6"
                   style={{ paddingRight: '2.5rem' }}
@@ -430,9 +432,15 @@ function Register() {
         <div className="form-group text-center mb-3">
           <button 
             type="button" 
-            className={`btn rounded-pill fw-bold ${isTosAccepted ? 'btn-success' : 'btn-outline-success'}`}
+            className="btn rounded-pill fw-bold"
             onClick={() => { setIsTosModalOpen(true); }}
-            style={{ transition: 'all 0.3s ease', minWidth: '250px' }}
+            style={{ 
+              transition: 'all 0.3s ease', 
+              minWidth: '250px',
+              backgroundColor: isTosAccepted ? '#0D8D1E' : 'transparent',
+              color: isTosAccepted ? 'white' : '#0D8D1E',
+              border: '2px solid #0D8D1E'
+            }}
           >
             {isTosAccepted ? <><i className="fas fa-check-circle me-2"></i>Terms of Service Accepted</> : <><i className="fas fa-file-contract me-2"></i>Review & Accept Terms of Service</>}
           </button>
