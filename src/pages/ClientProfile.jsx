@@ -142,7 +142,7 @@ function ClientProfile() {
                       onClick={() => document.getElementById('profilePicInput').click()}
                     />
                     <div className="mt-2">
-                      <label htmlFor="profilePicInput" className="btn btn-sm btn-outline-success rounded-pill px-3">
+                      <label htmlFor="profilePicInput" className="btn btn-sm btn-cleaneco rounded-pill px-3">
                         <i className="fas fa-camera me-1"></i> Change Picture
                       </label>
                       <input 

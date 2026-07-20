@@ -135,7 +135,7 @@ function OrderForm() {
 
     const calculateSubtotal = () => {
         return (formData.service_ids || []).reduce((sum, sId) => {
-            const service = services.find(s => s.id === Number(sId));
+            const service = services.find(s => String(s.id) === String(sId));
             return sum + (service ? parseFloat(service.base_price) : 0);
         }, 0);
     };
@@ -340,7 +340,7 @@ function OrderForm() {
                         <div className="card border-0 p-3 mb-4 shadow-sm" style={{ background: '#f8fafc', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
                             <h6 className="fw-bold text-dark mb-3"><i className="fas fa-receipt me-2 text-success"></i>Price Summary</h6>
                             {(formData.service_ids || []).map(sId => {
-                                const s = services.find(serv => serv.id === Number(sId));
+                                const s = services.find(serv => String(serv.id) === String(sId));
                                 if (!s) return null;
                                 return (
                                     <div className="d-flex justify-content-between align-items-center mb-1 small text-muted" key={sId}>

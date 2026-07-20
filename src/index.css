@@ -24,6 +24,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.btn-cleaneco {
+  background-color: var(--cleaneco-green) !important;
+  border-color: var(--cleaneco-green) !important;
+  color: white !important;
+}
+
+.btn-cleaneco:hover {
+  background-color: var(--cleaneco-hover) !important;
+  border-color: var(--cleaneco-hover) !important;
+  color: white !important;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }

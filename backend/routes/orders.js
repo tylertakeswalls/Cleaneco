@@ -147,6 +147,7 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
     
+    const oldOrder = await Order.findById(id);
     const order = await Order.findByIdAndUpdate(id, updateData, { new: true });
     
     if (updateData.status && order) {
@@ -178,6 +179,30 @@ router.put('/:id', async (req, res) => {
         }
     }
 
+    // Notify admins if user requested cancel/reschedule
+    if (oldOrder && updateData.request_type && oldOrder.request_type !== updateData.request_type) {
+        if (updateData.request_type === 'Cancel Requested' || updateData.request_type === 'Reschedule Requested') {
+            await new Notification({
+                order_id: order.order_id,
+                message: `${updateData.request_type === 'Cancel Requested' ? 'Cancellation' : 'Reschedule'} Requested`,
+                details: `Client ${order.first_name} ${order.last_name} requested to ${updateData.request_type === 'Cancel Requested' ? 'cancel' : 'reschedule'} order #${order.order_id}.`
+            }).save();
+        }
+    }
+
+    // Check for rescheduling (Date or Time change)
+    const dateChanged = oldOrder && updateData.date && new Date(oldOrder.date).getTime() !== new Date(updateData.date).getTime();
+    const timeChanged = oldOrder && updateData.time_slot && oldOrder.time_slot !== updateData.time_slot;
+
+    if ((dateChanged || timeChanged) && order.user_id) {
+        await new Notification({
+            user_id: order.user_id,
+            order_id: order.order_id,
+            message: `Booking Rescheduled`,
+            details: `Your booking #${order.order_id} has been rescheduled to ${new Date(order.date).toLocaleDateString()} at ${order.time_slot}.`
+        }).save();
+    }
+
     res.json({ success: true, message: 'Order updated successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update order: ' + error.message });
@@ -195,6 +220,16 @@ router.delete('/:id', async (req, res) => {
     
     // Also delete any associated notifications
     await Notification.deleteMany({ order_id: deletedOrder.order_id });
+    
+    // Notify the client that their order was deleted
+    if (deletedOrder.user_id) {
+      await new Notification({
+          user_id: deletedOrder.user_id,
+          order_id: deletedOrder.order_id,
+          message: `Order Deleted`,
+          details: `Your order #${deletedOrder.order_id} has been removed from the system by an administrator.`
+      }).save();
+    }
     
     res.json({ success: true, message: 'Order deleted successfully' });
   } catch (error) {

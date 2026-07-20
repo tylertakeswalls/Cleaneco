@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatDate, getStatusClass } from '../utils/helpers';
 import '../assets/styles/ongoingorders.css';
 import carousel6 from '../assets/styles/images/carousel6.png';
 
@@ -45,20 +46,7 @@ function OngoingOrders() {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
 
-    try {
-      const date = new Date(dateString);
-      if (!isNaN(date)) {
-        return date.toLocaleDateString('en-US');
-      }
-    } catch (e) {
-      console.error("Date formatting error:", e);
-    }
-
-    return dateString;
-  };
 
   useEffect(() => {
     if (!loggedInUser) {
@@ -81,14 +69,7 @@ function OngoingOrders() {
     loadOrders();
   }, [loggedInUser, navigate, userId]);
 
-  const getStatusClass = (status) => {
-    const statusClasses = {
-      "Completed": "completed-text",
-      "In Progress": "in-progress-text",
-      "Cancelled": "cancelled-text"
-    };
-    return statusClasses[status] || "pending-text";
-  };
+
 
   const generateReceipt = async (order) => {
     const doc = new jsPDF();

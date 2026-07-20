@@ -1,54 +1,52 @@
 const express = require('express');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-  try {
-    const users = await User.find();
-    res.json(users.map(u => ({ ...u.toObject(), id: u._id })));
-  } catch (error) {
-    res.status(500).json({ success: false });
-  }
+  const users = await User.find();
+  res.json(users.map(u => ({ ...u.toObject(), id: u._id })));
 });
 
 router.get('/:id', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ success: false });
-    res.json({ ...user.toObject(), id: user._id });
-  } catch (error) {
-    res.status(500).json({ success: false });
-  }
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ success: false });
+  res.json({ ...user.toObject(), id: user._id });
 });
 
 router.put('/:id', async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.params.id, req.body);
-    res.json({ success: true });
-  } catch (error) {
-    if (error.code === 11000 && error.keyPattern && error.keyPattern.username) {
-      return res.status(400).json({ success: false, message: 'Username is already taken.' });
+  const oldUser = await User.findByIdAndUpdate(req.params.id, req.body);
+  
+  if (req.body.delete_requested === true && !oldUser.delete_requested) {
+    await new Notification({
+      message: "Account Deletion Requested",
+      details: `User ${oldUser.email} has requested account deletion.`
+    }).save();
+  } else {
+    const hasProfileChanged = 
+      (req.body.phone && req.body.phone !== oldUser.phone) ||
+      (req.body.address && req.body.address !== oldUser.address) ||
+      (req.body.email && req.body.email !== oldUser.email);
+    
+    if (hasProfileChanged) {
+      await new Notification({
+        message: "Client Profile Updated",
+        details: `User ${oldUser.first_name} ${oldUser.last_name} (${oldUser.email}) updated their contact information.`
+      }).save();
     }
-    res.status(500).json({ success: false, message: 'Failed to update profile.' });
   }
+
+  res.json({ success: true });
 });
 
 router.put('/:id/role', async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.params.id, { role: req.body.role });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false });
-  }
+  await User.findByIdAndUpdate(req.params.id, { role: req.body.role });
+  res.json({ success: true });
 });
 
 router.delete('/:id', async (req, res) => {
-  try {
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false });
-  }
+  await User.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
 });
 
 module.exports = router;

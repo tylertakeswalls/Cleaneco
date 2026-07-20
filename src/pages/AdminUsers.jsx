@@ -46,7 +46,7 @@ function AdminUsers() {
 
   const loadUsers = async () => {
     try {
-      const res = await api.get('/users');
+      const res = await api.get('/users?t=' + new Date().getTime());
       setUsers(res.data);
     } catch (err) {
       console.error("Failed to load users", err);

@@ -5,6 +5,7 @@ import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
 import AlertModal from '../components/AlertModal';
 import ConfirmModal from '../components/ConfirmModal';
+import { formatDate, getStatusClass } from '../utils/helpers';
 import { useRef } from 'react';
 
 function OrderDatabase() {
@@ -29,21 +30,6 @@ function OrderDatabase() {
 
   const closeAlert = () => {
       setModalConfig(prev => ({ ...prev, isOpen: false }));
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    try {
-      const date = new Date(dateString);
-      if (!isNaN(date)) {
-        return date.toLocaleDateString('en-US');
-      }
-    } catch (e) {
-      console.error("Date formatting error:", e);
-    }
-    
-    return dateString;
   };
 
   const calculateRevenue = (ordersData) => {
@@ -129,15 +115,6 @@ function OrderDatabase() {
 
     loadOrders();
   }, [navigate]);
-
-  const getStatusClass = (status) => {
-    const statusClasses = {
-      "Completed": "completed-text",
-      "In Progress": "in-progress-text", 
-      "Cancelled": "cancelled-text"
-    };
-    return statusClasses[status] || "pending-text";
-  };
 
   const openEditModal = (order) => {
     setEditModal({ show: true, order });

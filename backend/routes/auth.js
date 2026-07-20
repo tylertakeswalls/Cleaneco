@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { sendVerificationEmail } = require('../utils/emailHelper');
 
 const router = express.Router();
@@ -35,6 +36,19 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
+    
+    // Welcome Notification for Client
+    await new Notification({
+      user_id: user._id,
+      message: 'Welcome to Cleaneco!',
+      details: 'Thank you for registering. You can now start booking services.'
+    }).save();
+
+    // New Registration Notification for Admins
+    await new Notification({
+      message: 'New User Registration',
+      details: `User ${user.first_name} ${user.last_name} (${user.email}) has just registered.`
+    }).save();
     
     // Send email asynchronously so it doesn't block response
     sendVerificationEmail(user.email, verificationToken, user.first_name);

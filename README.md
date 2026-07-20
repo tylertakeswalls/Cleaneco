@@ -61,6 +61,15 @@ This document summarizes the recent features and structural updates implemented 
 - **Email Templating Polish**: Embedded the official `logo_fixed.png` securely in outbound Verification Emails, injected inline font styling, and corrected the system sender name to the official "Cleaneco Waste Management Services".
 - **Responsive Alignment**: Fixed a flexbox rendering discrepancy affecting the "Clear Filters" button in the Service Management and Order Database admin views by implementing strict cross-axis alignment parameters.
 
+## 11. Bug Fixes, Notifications & Codebase Optimization
+- **Admin Notifications**: Implemented comprehensive admin notification hooks for account deletion requests, profile updates, and order cancellation/reschedule requests. Fixed bugs where status updates were not properly triggering admin alerts.
+- **Profile Image Upload Fix**: Increased the Express body parser limit (`express.json({ limit: '10mb' })`) to resolve a `PayloadTooLargeError` that prevented users and admins from updating their profile pictures.
+- **Ponytail Audit / Refactoring**:
+  - Leveraged **Express 5** native async error handling to remove dozens of lines of repetitive `try/catch` boilerplate across API routes.
+  - Introduced a centralized `errorHandler` middleware to standardized API error responses.
+  - Consolidated scattered date-formatting and status-styling logic into a reusable `src/utils/helpers.js` file, utilizing native `Intl.DateTimeFormat`.
+  - Abstracted duplicate CSS button styles into a global `.btn-cleaneco` utility class for maintaining consistent branding across components.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
