@@ -26,6 +26,10 @@ function AdminLanding() {
   const lineChartRef = useRef(null);
   const statusChartInstance = useRef(null);
   const lineChartInstance = useRef(null);
+  
+  const growthChartRef = useRef(null);
+  const growthChartInstance = useRef(null);
+  const [growthPeriod, setGrowthPeriod] = useState('monthly');
 
   useEffect(() => {
     loadDashboardData();
@@ -41,7 +45,7 @@ function AdminLanding() {
       const dailyRevenue = allOrders.reduce((acc, order) => {
         if (order.status === "Completed") {
           const d = order.date;
-          const price = parseFloat(String(order.price || '').replace(/[₱,]/g, '').trim()) || 0;
+          const price = parseFloat(order.price) || 0;
           acc[d] = (acc[d] || 0) + price;
         }
         return acc;
@@ -133,6 +137,112 @@ function AdminLanding() {
     };
   }, [allOrders]);
 
+  useEffect(() => {
+    if (allOrders.length === 0) return;
+
+    // Use stats endpoint if possible, but since we already have allOrders, 
+    // let's simplify the growth chart parsing using parseFloat without regex.
+    const getBucket = (dateObj) => {
+      const year = dateObj.getFullYear();
+      if (growthPeriod === 'yearly') return `${year}`;
+      if (growthPeriod === 'quarterly') {
+        const q = Math.floor(dateObj.getMonth() / 3) + 1;
+        return `${year}-Q${q}`;
+      }
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      return `${year}-${month}`;
+    };
+
+    const aggregated = allOrders.reduce((acc, order) => {
+      if (order.status === "Completed" && order.date) {
+        const d = new Date(order.date);
+        const bucket = getBucket(d);
+        const price = parseFloat(order.price) || 0;
+        acc[bucket] = (acc[bucket] || 0) + price;
+      }
+      return acc;
+    }, {});
+
+    const sortedBuckets = Object.keys(aggregated).sort();
+    const labels = [];
+    const growthData = [];
+
+    for (let i = 0; i < sortedBuckets.length; i++) {
+      const currentBucket = sortedBuckets[i];
+      const currentRev = aggregated[currentBucket];
+      
+      let growth = 0;
+      if (i > 0) {
+        const prevRev = aggregated[sortedBuckets[i - 1]];
+        if (prevRev > 0) {
+          growth = ((currentRev - prevRev) / prevRev) * 100;
+        } else if (currentRev > 0) {
+          growth = 100; 
+        }
+      }
+
+      let label = currentBucket;
+      if (growthPeriod === 'monthly') {
+        const [y, m] = currentBucket.split('-');
+        const date = new Date(y, parseInt(m) - 1, 1);
+        label = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      }
+
+      labels.push(label);
+      growthData.push(growth);
+    }
+
+    if (growthChartInstance.current) growthChartInstance.current.destroy();
+
+    const ctx = growthChartRef.current?.getContext('2d');
+    if (ctx) {
+      growthChartInstance.current = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Revenue Growth (%)',
+            data: growthData,
+            borderColor: '#0D8D1E',
+            backgroundColor: 'rgba(13, 141, 30, 0.1)',
+            borderWidth: 2,
+            pointBackgroundColor: '#0D8D1E',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `Growth: ${context.parsed.y.toFixed(2)}%`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              grid: { color: '#f0f0f0', drawBorder: false },
+              ticks: { callback: (value) => value + '%', color: '#a0a0a0' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#a0a0a0' }
+            }
+          }
+        }
+      });
+    }
+
+    return () => {
+      if (growthChartInstance.current) growthChartInstance.current.destroy();
+    };
+  }, [allOrders, growthPeriod]);
+
   const handleGenerateReport = async (period) => {
     try {
       const response = await api.get(`/reports/generate?period=${period}`, { responseType: 'blob' });
@@ -151,38 +261,32 @@ function AdminLanding() {
 
   const loadDashboardData = async () => {
     try {
-      const ordersResponse = await api.get('/orders');
-      const ordersData = ordersResponse.data;
+      const [ordersRes, statsRes, servicesRes] = await Promise.all([
+        api.get('/orders'),
+        api.get('/orders/stats'),
+        api.get('/services')
+      ]);
+      
+      const ordersData = ordersRes.data;
       setAllOrders(ordersData);
 
-      const servicesResponse = await api.get('/services');
-      const servicesData = servicesResponse.data;
+      const stats = statsRes.data;
+      const servicesData = servicesRes.data;
 
-      let totalRevenue = 0, pending = 0, inProgress = 0, completed = 0, cancelled = 0;
-
-      ordersData.forEach(order => {
-        const cleanedPriceString = String(order.price || '').replace(/[₱,]/g, '').trim();
-        const price = parseFloat(cleanedPriceString);
-        if (!isNaN(price) && order.status === "Completed") totalRevenue += price;
-
-        switch (order.status) {
-          case "Pending": pending++; break;
-          case "In Progress": inProgress++; break;
-          case "Completed": completed++; break;
-          case "Cancelled": cancelled++; break;
-          default: break;
-        }
-      });
+      const getCount = (status) => {
+        const found = stats.statusCounts.find(s => s._id === status);
+        return found ? found.count : 0;
+      };
 
       setDashboardData({
-        totalRevenue,
-        completedOrders: completed,
-        inProgressOrders: inProgress,
-        pendingOrders: pending,
-        cancelledOrders: cancelled,
+        totalRevenue: stats.totalRevenue || 0,
+        completedOrders: getCount("Completed"),
+        inProgressOrders: getCount("In Progress"),
+        pendingOrders: getCount("Pending"),
+        cancelledOrders: getCount("Cancelled"),
         totalServices: servicesData.length,
         availableServices: servicesData.filter(s => s.status === 'available').length,
-        totalOrders: ordersData.length
+        totalOrders: stats.totalOrders || 0
       });
     } catch (error) {
       console.error("Error loading dashboard data:", error);
@@ -278,6 +382,37 @@ function AdminLanding() {
                 <div className="flex-grow-1 d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
                   <canvas ref={statusChartRef} role="img" aria-label="Donut chart showing order status distribution: Pending, In Progress, Completed, and Cancelled"></canvas>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* GROWTH CHART */}
+        <div className="row mt-4 g-4">
+          <div className="col-12">
+            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+              <div className="card-body p-4">
+                <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                  <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Revenue Growth Statistics</h5>
+                  <div className="d-flex gap-2">
+                    <button 
+                      className={`btn btn-sm ${growthPeriod === 'monthly' ? 'btn-success' : 'btn-outline-secondary'}`} 
+                      onClick={() => setGrowthPeriod('monthly')}
+                      style={growthPeriod === 'monthly' ? { backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' } : {}}
+                    >Monthly</button>
+                    <button 
+                      className={`btn btn-sm ${growthPeriod === 'quarterly' ? 'btn-success' : 'btn-outline-secondary'}`} 
+                      onClick={() => setGrowthPeriod('quarterly')}
+                      style={growthPeriod === 'quarterly' ? { backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' } : {}}
+                    >Quarterly</button>
+                    <button 
+                      className={`btn btn-sm ${growthPeriod === 'yearly' ? 'btn-success' : 'btn-outline-secondary'}`} 
+                      onClick={() => setGrowthPeriod('yearly')}
+                      style={growthPeriod === 'yearly' ? { backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' } : {}}
+                    >Yearly</button>
+                  </div>
+                </div>
+                <div style={{ height: '300px' }}><canvas ref={growthChartRef} role="img" aria-label="Line chart showing revenue growth"></canvas></div>
               </div>
             </div>
           </div>

@@ -3,34 +3,18 @@ import api from '../api/axiosConfig';
 import '../assets/styles/orderdatabase.css'; 
 import carousel4 from '../assets/styles/images/carousel4.png';
 import AlertModal from '../components/AlertModal';
-import ConfirmModal from '../components/ConfirmModal';
+import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
 
 function AdminUsers() {
+  const confirm = useConfirm();
   const container = useRef();
   const [users, setUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({});
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
-  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null, confirmText: 'Delete', confirmColor: 'danger' });
 
-  const triggerConfirm = (title, message, confirmText, confirmColor, action) => {
-      setConfirmConfig({
-          isOpen: true,
-          title,
-          message,
-          confirmText,
-          confirmColor,
-          onConfirm: () => {
-              setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-              action();
-          }
-      });
-  };
 
-  const closeConfirm = () => {
-      setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-  };
 
   const showAlert = (title, message, type = 'info') => {
       setModalConfig({ isOpen: true, title, message, type });
@@ -79,13 +63,15 @@ function AdminUsers() {
     }
   };
 
-  const handleDelete = (id) => {
-    triggerConfirm(
-      "Confirm Deletion",
-      "⚠️ Are you sure you want to delete this user?",
-      "Delete",
-      "danger",
-      async () => {
+  const handleDelete = async (id) => {
+    const isConfirmed = await confirm({
+      title: "Confirm Deletion",
+      text: "⚠️ Are you sure you want to delete this user?",
+      confirmLabel: "Delete",
+      confirmVariant: "danger"
+    });
+    
+    if (isConfirmed) {
         try {
           const res = await api.delete('/users/' + id);
 
@@ -98,17 +84,18 @@ function AdminUsers() {
         } catch (err) {
           showAlert("Error", err.response?.data?.message || "Cannot delete user with existing orders", "error");
         }
-      }
-    );
+    }
   };
 
-  const handleApproveDeletion = (id) => {
-    triggerConfirm(
-      "Approve Deletion",
-      "Approve account deletion? This will permanently delete the user.",
-      "Approve",
-      "danger",
-      async () => {
+  const handleApproveDeletion = async (id) => {
+    const isConfirmed = await confirm({
+      title: "Approve Deletion",
+      text: "Approve account deletion? This will permanently delete the user.",
+      confirmLabel: "Approve",
+      confirmVariant: "danger"
+    });
+
+    if (isConfirmed) {
         try {
           const res = await api.delete('/users/' + id);
           if (res.data.success) {
@@ -118,17 +105,18 @@ function AdminUsers() {
         } catch (err) {
           showAlert("Error", "Failed to approve deletion.", "error");
         }
-      }
-    );
+    }
   };
 
-  const handleRejectDeletion = (id) => {
-    triggerConfirm(
-      "Reject Deletion",
-      "Reject account deletion? The user account will remain active.",
-      "Reject",
-      "secondary",
-      async () => {
+  const handleRejectDeletion = async (id) => {
+    const isConfirmed = await confirm({
+      title: "Reject Deletion",
+      text: "Reject account deletion? The user account will remain active.",
+      confirmLabel: "Reject",
+      confirmVariant: "secondary"
+    });
+
+    if (isConfirmed) {
         try {
           await api.put('/users/' + id, { delete_requested: false });
           showAlert("Success", "Account deletion request rejected.", "success");
@@ -136,8 +124,7 @@ function AdminUsers() {
         } catch (err) {
           showAlert("Error", "Failed to reject deletion request.", "error");
         }
-      }
-    );
+    }
   };
 
   const deletionRequests = users.filter(user => user.delete_requested);
@@ -151,15 +138,6 @@ function AdminUsers() {
         message={modalConfig.message} 
         type={modalConfig.type} 
         onClose={closeAlert} 
-    />
-    <ConfirmModal 
-        isOpen={confirmConfig.isOpen}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        onConfirm={confirmConfig.onConfirm}
-        onCancel={closeConfirm}
-        confirmText={confirmConfig.confirmText}
-        confirmColor={confirmConfig.confirmColor}
     />
     <div ref={container}>
       <img className="img-fluid banner-img" src={carousel4} alt="Banner" />

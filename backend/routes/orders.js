@@ -6,19 +6,42 @@ const { sendConfirmationEmail } = require('../utils/emailHelper');
 
 const router = express.Router();
 
+const formatOrder = (o) => ({
+  ...o,
+  id: o._id,
+  user_id: o.user_id ? o.user_id._id || o.user_id : null,
+  service_id: o.service_id ? o.service_id._id || o.service_id : null,
+  service_name: o.service_id && o.service_id.name ? o.service_id.name : o.service_type
+});
+
 router.get('/', async (req, res) => {
   try {
-    const orders = await Order.find().populate('user_id').populate('service_id').sort({ created_at: -1 });
-    const formattedOrders = orders.map(o => ({
-      ...o.toObject(),
-      id: o._id,
-      user_id: o.user_id ? o.user_id._id : null,
-      service_id: o.service_id ? o.service_id._id : null,
-      service_name: o.service_id ? o.service_id.name : o.service_type
-    }));
-    res.json(formattedOrders);
+    const orders = await Order.find().populate('user_id').populate('service_id').sort({ created_at: -1 }).lean();
+    res.json(orders.map(formatOrder));
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch orders' });
+  }
+});
+
+router.get('/stats', async (req, res) => {
+  try {
+    const statusCounts = await Order.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } }
+    ]);
+    const revenueData = await Order.aggregate([
+      { $match: { status: "Completed" } },
+      { $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+          total: { $sum: "$price" }
+      }},
+      { $sort: { "_id": 1 } }
+    ]);
+    const totalRevenue = revenueData.reduce((acc, val) => acc + val.total, 0);
+    const totalOrders = await Order.countDocuments();
+    
+    res.json({ statusCounts, revenueData, totalRevenue, totalOrders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch stats' });
   }
 });
 
@@ -45,16 +68,8 @@ router.get('/availability', async (req, res) => {
 
 router.get('/user/:userId', async (req, res) => {
   try {
-    const orders = await Order.find({ user_id: req.params.userId }).populate('user_id').populate('service_id').sort({ created_at: -1 });
-    const formattedOrders = orders.map(o => ({
-      ...o.toObject(),
-      id: o._id,
-      user_id: o.user_id ? o.user_id._id : null,
-      service_id: o.service_id ? o.service_id._id : null,
-      service_name: o.service_id ? o.service_id.name : o.service_type
-    }));
-    // Filter out orders missing critical fields or map appropriately
-    res.json(formattedOrders); // Return as array to match frontend expectation from PHP
+    const orders = await Order.find({ user_id: req.params.userId }).populate('user_id').populate('service_id').sort({ created_at: -1 }).lean();
+    res.json(orders.map(formatOrder));
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch user orders' });
   }
@@ -148,6 +163,13 @@ router.put('/:id', async (req, res) => {
     const updateData = req.body;
     
     const oldOrder = await Order.findById(id);
+    if (!oldOrder) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    if (oldOrder.status === 'Cancelled') {
+        return res.status(400).json({ success: false, message: 'Cannot edit a cancelled order.' });
+    }
+    
     const order = await Order.findByIdAndUpdate(id, updateData, { new: true });
     
     if (updateData.status && order) {

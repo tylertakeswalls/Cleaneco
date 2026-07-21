@@ -4,9 +4,10 @@ import '../assets/styles/servicemanagement.css';
 import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
 import AlertModal from './AlertModal';
-import ConfirmModal from './ConfirmModal';
+import { useConfirm } from '../context/ConfirmContext';
 
 function ServiceManagement() {
+    const confirm = useConfirm();
     const [services, setServices] = useState([]);
     const [editingService, setEditingService] = useState(null);
     const [newService, setNewService] = useState({
@@ -16,7 +17,6 @@ function ServiceManagement() {
         status: 'available'
     });
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
-    const [confirmModalConfig, setConfirmModalConfig] = useState({ isOpen: false, serviceId: null });
 
     const showAlert = (title, message, type = 'info') => {
         setModalConfig({ isOpen: true, title, message, type });
@@ -26,13 +26,7 @@ function ServiceManagement() {
         setModalConfig(prev => ({ ...prev, isOpen: false }));
     };
 
-    const promptDelete = (id) => {
-        setConfirmModalConfig({ isOpen: true, serviceId: id });
-    };
 
-    const closeConfirm = () => {
-        setConfirmModalConfig({ isOpen: false, serviceId: null });
-    };
 
     const [filterName, setFilterName] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
@@ -86,22 +80,27 @@ function ServiceManagement() {
         }
     };
 
-    const executeDeleteService = async () => {
-        if (!confirmModalConfig.serviceId) return;
-        const id = confirmModalConfig.serviceId;
-        closeConfirm();
+    const promptDelete = async (id) => {
+        const isConfirmed = await confirm({
+            title: "Confirm Deletion",
+            text: "Are you sure you want to delete this service?",
+            confirmLabel: "Delete",
+            confirmVariant: "danger"
+        });
 
-        try {
-            const response = await api.delete('/services/' + id);
-            if (response.data.success) {
-                showAlert("Success", "Service deleted successfully", "success");
-                fetchServices();
-            } else {
-                showAlert("Warning", response.data.message || "Failed to delete service", "warning");
+        if (isConfirmed) {
+            try {
+                const response = await api.delete('/services/' + id);
+                if (response.data.success) {
+                    showAlert("Success", "Service deleted successfully", "success");
+                    fetchServices();
+                } else {
+                    showAlert("Warning", response.data.message || "Failed to delete service", "warning");
+                }
+            } catch (error) {
+                console.error('Error deleting service:', error);
+                showAlert("Error", error.response?.data?.message || "Failed to delete service", "error");
             }
-        } catch (error) {
-            console.error('Error deleting service:', error);
-            showAlert("Error", error.response?.data?.message || "Failed to delete service", "error");
         }
     };
 
@@ -140,13 +139,7 @@ function ServiceManagement() {
                 type={modalConfig.type}
                 onClose={closeAlert}
             />
-            <ConfirmModal
-                isOpen={confirmModalConfig.isOpen}
-                title="Confirm Deletion"
-                message="Are you sure you want to delete this service?"
-                onConfirm={executeDeleteService}
-                onCancel={closeConfirm}
-            />
+
             <div>
                 <img className="img-fluid banner-img" src={carousel7} alt="Banner" />
 

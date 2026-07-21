@@ -238,23 +238,25 @@ function Login() {
       {showForgotPasswordModal && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 1050 }}>
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
-              <div className="modal-header" style={{ backgroundColor: '#0D8D1E', borderBottom: 'none' }}>
-                <h5 className="modal-title fw-bold text-white">
-                  <i className="fas fa-info-circle me-2"></i>Password Reset
+            <div className="modal-content">
+              <div className="modal-header" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
+                <h5 className="modal-title text-white">
+                  Password Reset
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowForgotPasswordModal(false)} aria-label="Close"></button>
               </div>
-              <div className="modal-body p-4 bg-light text-dark text-center" style={{ fontSize: '1.1rem' }}>
-                <div className="mb-3">
+              <div className="modal-body text-start mt-3 mb-3">
+                <div className="text-center mb-3">
                   <i className="fas fa-envelope-open-text" style={{ fontSize: '3rem', color: '#0D8D1E' }}></i>
                 </div>
-                <p className="mb-2">For security reasons, password resets are handled manually by our IT support team.</p>
-                <p className="fw-bold mb-1">Please contact:</p>
-                <a href="mailto:cleaneco-it@cwms.com.ph" className="fs-5 text-decoration-none" style={{ color: '#0D8D1E', fontWeight: '700' }}>cleaneco-it@cwms.com.ph</a>
+                <h6 className="fw-normal mb-2 text-center">For security reasons, password resets are handled manually by our IT support team.</h6>
+                <h6 className="fw-bold mb-1 text-center">Please contact:</h6>
+                <div className="text-center">
+                  <a href="mailto:cleaneco-it@cwms.com.ph" className="fs-5 text-decoration-none" style={{ color: '#0D8D1E', fontWeight: '700' }}>cleaneco-it@cwms.com.ph</a>
+                </div>
               </div>
-              <div className="modal-footer bg-light d-flex justify-content-center" style={{ borderTop: 'none' }}>
-                <button type="button" className="btn text-white fw-bold px-4" style={{ backgroundColor: '#0D8D1E', borderRadius: '0.5rem' }} onClick={() => setShowForgotPasswordModal(false)}>Close</button>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setShowForgotPasswordModal(false)}>Close</button>
               </div>
             </div>
           </div>

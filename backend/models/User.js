@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
   date_of_birth: { type: Date },
   profile_picture: { type: String },
   delete_requested: { type: Boolean, default: false },
+  delete_requested_at: { type: Date },
   isVerified: { type: Boolean, default: false },
   verificationToken: { type: String },
   role: { type: String, enum: ['admin', 'client'], default: 'client' }

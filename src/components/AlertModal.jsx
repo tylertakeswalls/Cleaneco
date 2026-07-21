@@ -27,24 +27,23 @@ export default function AlertModal({ isOpen, title, message, type, onClose }) {
                 WebkitBackdropFilter: 'blur(5px)' 
             }} 
             tabIndex="-1"
-            role="dialog"
         >
-            <div className="modal-dialog modal-dialog-centered" role="document">
-                <div className="modal-content shadow-lg border-0" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
-                    <div className="modal-header" style={{ backgroundColor: headerColor, borderBottom: 'none' }}>
-                        <h5 className="modal-title fw-bold text-white">
-                            <i className={`${iconClass} me-2`}></i>{title}
+            <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                    <div className="modal-header" style={{ backgroundColor: headerColor, color: 'white' }}>
+                        <h5 className="modal-title text-white">
+                            {title}
                         </h5>
-                        <button type="button" className="btn-close btn-close-white" onClick={onClose} aria-label="Close"></button>
+                        <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
                     </div>
-                    <div className="modal-body p-4 bg-light text-dark text-center" style={{ fontSize: '1.1rem' }}>
-                        {message}
+                    <div className="modal-body text-start mt-3 mb-3">
+                        <h6 className="fw-normal">{message}</h6>
                     </div>
-                    <div className="modal-footer bg-light d-flex justify-content-center" style={{ borderTop: 'none' }}>
+                    <div className="modal-footer">
                         <button 
                             type="button" 
-                            className="btn text-white fw-bold px-4" 
-                            style={{ backgroundColor: headerColor, borderRadius: '0.5rem' }} 
+                            className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
+                            style={{ backgroundColor: headerColor, borderColor: headerColor }} 
                             onClick={onClose}
                         >
                             OK

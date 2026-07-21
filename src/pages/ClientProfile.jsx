@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
-import ConfirmModal from '../components/ConfirmModal';
+import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
 
 function ClientProfile() {
+  const confirm = useConfirm();
   const container = useRef();
   const [profile, setProfile] = useState({
     username: '',
@@ -23,7 +24,6 @@ function ClientProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const navigate = useNavigate();
 
   const userId = sessionStorage.getItem('userId');
@@ -87,20 +87,24 @@ function ClientProfile() {
     }
   };
 
-  const handleRequestDeletion = () => {
-    setShowDeleteModal(true);
-  };
-
-  const executeDeletionRequest = async () => {
-    setShowDeleteModal(false);
-    try {
-      const res = await api.put(`/users/${userId}`, { delete_requested: true });
-      if (res.data.success) {
-        setProfile({ ...profile, delete_requested: true });
-        setMessage({ type: 'success', text: 'Account deletion requested.' });
+  const handleRequestDeletion = async () => {
+    const isConfirmed = await confirm({
+        title: "Confirm Deletion",
+        text: "Are you sure you want to request account deletion?\nAn admin must approve this action. Your account will remain active until approved.",
+        confirmLabel: "Yes, Request Deletion",
+        confirmVariant: "danger"
+    });
+    
+    if (isConfirmed) {
+      try {
+        const res = await api.put(`/users/${userId}`, { delete_requested: true });
+        if (res.data.success) {
+          setProfile({ ...profile, delete_requested: true });
+          setMessage({ type: 'success', text: 'Account deletion requested.' });
+        }
+      } catch (error) {
+        setMessage({ type: 'danger', text: 'Failed to request deletion.' });
       }
-    } catch (error) {
-      setMessage({ type: 'danger', text: 'Failed to request deletion.' });
     }
   };
 
@@ -210,22 +214,6 @@ function ClientProfile() {
           </div>
         </div>
       </div>
-
-      <ConfirmModal 
-        isOpen={showDeleteModal}
-        title="Confirm Deletion"
-        message={
-          <>
-            <p className="fs-5 mb-0">Are you sure you want to request account deletion?</p>
-            <p className="text-muted small mt-2">An admin must approve this action. Your account will remain active until approved.</p>
-          </>
-        }
-        onConfirm={executeDeletionRequest}
-        onCancel={() => setShowDeleteModal(false)}
-        confirmText="Yes, Request Deletion"
-        confirmColor="danger"
-      />
-
     </div>
   );
 }

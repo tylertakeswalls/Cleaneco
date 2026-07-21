@@ -15,28 +15,41 @@ router.get('/:id', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const oldUser = await User.findByIdAndUpdate(req.params.id, req.body);
-  
-  if (req.body.delete_requested === true && !oldUser.delete_requested) {
-    await new Notification({
-      message: "Account Deletion Requested",
-      details: `User ${oldUser.email} has requested account deletion.`
-    }).save();
-  } else {
-    const hasProfileChanged = 
-      (req.body.phone && req.body.phone !== oldUser.phone) ||
-      (req.body.address && req.body.address !== oldUser.address) ||
-      (req.body.email && req.body.email !== oldUser.email);
-    
-    if (hasProfileChanged) {
-      await new Notification({
-        message: "Client Profile Updated",
-        details: `User ${oldUser.first_name} ${oldUser.last_name} (${oldUser.email}) updated their contact information.`
-      }).save();
-    }
-  }
+  try {
+    const oldUser = await User.findById(req.params.id);
+    if (!oldUser) return res.status(404).json({ success: false });
 
-  res.json({ success: true });
+    const updateData = { ...req.body };
+
+    // If delete was just requested
+    if (updateData.delete_requested === true && !oldUser.delete_requested) {
+      updateData.delete_requested_at = new Date();
+      await new Notification({
+        message: "Account Deletion Requested",
+        details: `User ${oldUser.email} has requested account deletion.`
+      }).save();
+    } else if (updateData.delete_requested === false && oldUser.delete_requested) {
+      // If admin cancels the deletion request
+      updateData.delete_requested_at = null;
+    } else if (!updateData.delete_requested && !oldUser.delete_requested) {
+      const hasProfileChanged = 
+        (updateData.phone && updateData.phone !== oldUser.phone) ||
+        (updateData.address && updateData.address !== oldUser.address) ||
+        (updateData.email && updateData.email !== oldUser.email);
+      
+      if (hasProfileChanged) {
+        await new Notification({
+          message: "Client Profile Updated",
+          details: `User ${oldUser.first_name} ${oldUser.last_name} (${oldUser.email}) updated their contact information.`
+        }).save();
+      }
+    }
+
+    await User.findByIdAndUpdate(req.params.id, updateData);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 router.put('/:id/role', async (req, res) => {

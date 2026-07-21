@@ -24,41 +24,44 @@ import AdminLayout from './components/AdminLayout';
 
 import AdminProfile from './pages/AdminProfile';
 import ClientProfile from './pages/ClientProfile';
+import { ConfirmProvider } from './context/ConfirmContext';
 
 function App() {
   return (
     <BrowserRouter>
-      <Header />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/client" element={<HomePage />} />
-        <Route path="/client/profile" element={<ClientProfile />} />
-        <Route path="/about" element={<AboutUs />} />
-        <Route path="/resources" element={<Resources />} />
-        <Route path="/services/siphoning-desludging" element={<SiphoDeslud />} />
-        <Route path="/client/services/siphoning-desludging" element={<SiphoDeslud />} />
-        <Route path="/services/deep-cleaning" element={<DeepCleaning />} />
-        <Route path="/client/services/deep-cleaning" element={<DeepCleaning />} />
-        <Route path="/services/declogging" element={<Declogging />} />
-        <Route path="/client/services/declogging" element={<Declogging />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/verify" element={<VerifyEmail />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/order" element={<OrderForm />} />
-        <Route path="/orders" element={<OngoingOrders />} />
-        <Route path="/thank-you" element={<ThankYou />} />
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminLanding />} />
-          <Route path="profile" element={<AdminProfile />} />
-          <Route path="orders" element={<OrderDatabase />} />
-          <Route path="services" element={<ServiceManagement />} />
-          <Route path="order-form" element={<OrderForm />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="settings" element={<AdminSettings />} />
-        </Route>
+      <ConfirmProvider>
+        <Header />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/client" element={<HomePage />} />
+          <Route path="/client/profile" element={<ClientProfile />} />
+          <Route path="/about" element={<AboutUs />} />
+          <Route path="/resources" element={<Resources />} />
+          <Route path="/services/siphoning-desludging" element={<SiphoDeslud />} />
+          <Route path="/client/services/siphoning-desludging" element={<SiphoDeslud />} />
+          <Route path="/services/deep-cleaning" element={<DeepCleaning />} />
+          <Route path="/client/services/deep-cleaning" element={<DeepCleaning />} />
+          <Route path="/services/declogging" element={<Declogging />} />
+          <Route path="/client/services/declogging" element={<Declogging />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/verify" element={<VerifyEmail />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/order" element={<OrderForm />} />
+          <Route path="/orders" element={<OngoingOrders />} />
+          <Route path="/thank-you" element={<ThankYou />} />
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminLanding />} />
+            <Route path="profile" element={<AdminProfile />} />
+            <Route path="orders" element={<OrderDatabase />} />
+            <Route path="services" element={<ServiceManagement />} />
+            <Route path="order-form" element={<OrderForm />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
 
-      </Routes>
-      <Footer />
+        </Routes>
+        <Footer />
+      </ConfirmProvider>
     </BrowserRouter>
   );
 }

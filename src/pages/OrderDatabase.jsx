@@ -4,11 +4,12 @@ import api from '../api/axiosConfig';
 import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
 import AlertModal from '../components/AlertModal';
-import ConfirmModal from '../components/ConfirmModal';
 import { formatDate, getStatusClass } from '../utils/helpers';
+import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
 
 function OrderDatabase() {
+  const confirm = useConfirm();
   const container = useRef();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +17,6 @@ function OrderDatabase() {
   const [editModal, setEditModal] = useState({ show: false, order: null });
   const [editForm, setEditForm] = useState({ status: '', price: '', request_type: '', approval_fee: '' });
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
-  const [confirmModalConfig, setConfirmModalConfig] = useState({ isOpen: false, title: '', message: '', orderId: null });
   
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -40,38 +40,31 @@ function OrderDatabase() {
     setTotalRevenue(total);
   };
   
-  const requestDeleteOrder = (id) => {
-    setConfirmModalConfig({
-      isOpen: true,
+  const requestDeleteOrder = async (id) => {
+    const isConfirmed = await confirm({
       title: "Confirm Deletion",
-      message: "⚠️ Are you sure you want to delete this order?",
-      orderId: id
+      text: "⚠️ Are you sure you want to delete this order?",
+      confirmLabel: "Delete",
+      confirmVariant: "danger"
     });
-  };
 
-  const confirmDeleteOrder = async () => {
-    const id = confirmModalConfig.orderId;
-    setConfirmModalConfig({ isOpen: false, title: '', message: '', orderId: null });
+    if (isConfirmed) {
+      try {
+        const response = await api.delete('/orders/' + id);
 
-    try {
-      const response = await api.delete('/orders/' + id);
-
-      if (response.data.success) {
-        const updatedOrders = orders.filter(order => order.id !== id);
-        setOrders(updatedOrders);
-        calculateRevenue(updatedOrders);
-        showAlert("Success", "Order deleted successfully!", "success");
-      } else {
-        showAlert("Warning", response.data.message, "warning");
+        if (response.data.success) {
+          const updatedOrders = orders.filter(order => order.id !== id);
+          setOrders(updatedOrders);
+          calculateRevenue(updatedOrders);
+          showAlert("Success", "Order deleted successfully!", "success");
+        } else {
+          showAlert("Warning", response.data.message, "warning");
+        }
+      } catch (error) {
+        console.error("Error deleting order:", error);
+        showAlert("Error", "Failed to delete order.", "error");
       }
-    } catch (error) {
-      console.error("Error deleting order:", error);
-      showAlert("Error", "Failed to delete order.", "error");
     }
-  };
-
-  const cancelDeleteOrder = () => {
-    setConfirmModalConfig({ isOpen: false, title: '', message: '', orderId: null });
   };
 
 
@@ -138,7 +131,23 @@ function OrderDatabase() {
     }));
   };
 
-  const saveOrderChanges = async () => {
+  const handleSaveChangesClick = async () => {
+    if (editForm.status === 'Cancelled' && editModal.order.status !== 'Cancelled') {
+      const isConfirmed = await confirm({
+        title: "Confirm Cancellation",
+        text: "⚠️ Are you sure you want to mark this order as cancelled? This action cannot be undone.",
+        confirmLabel: "Confirm",
+        confirmVariant: "danger"
+      });
+      if (isConfirmed) {
+        proceedSaveOrderChanges();
+      }
+    } else {
+      proceedSaveOrderChanges();
+    }
+  };
+
+  const proceedSaveOrderChanges = async () => {
     if (!editModal.order) return;
 
     try {
@@ -225,13 +234,6 @@ function OrderDatabase() {
           type={modalConfig.type} 
           onClose={closeAlert} 
       />
-      <ConfirmModal
-          isOpen={confirmModalConfig.isOpen}
-          title={confirmModalConfig.title}
-          message={confirmModalConfig.message}
-          onConfirm={confirmDeleteOrder}
-          onCancel={cancelDeleteOrder}
-      />
       <img className="img-fluid banner-img" src={carousel7} alt="Banner" />
     
       <section className="section-bg">
@@ -311,6 +313,8 @@ function OrderDatabase() {
                       <button 
                         className="btn-edit" 
                         onClick={() => openEditModal(order)}
+                        disabled={order.status === 'Cancelled'}
+                        style={order.status === 'Cancelled' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         Edit
                       </button>
@@ -337,13 +341,15 @@ function OrderDatabase() {
       </section>
 
       {editModal.show && (
-        <div className="modal-backdrop show">
-          <div className="modal d-block" tabIndex="-1">
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content">
-                <div className="modal-body">
-                  <h5 className="text-center font-weight-bold mb-3">Edit Order</h5>
-                  <p className="text-muted text-center mb-4">Update order status or set a price.</p>
+        <div className="modal fade show d-block" style={{ backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 1060 }} tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
+                <h5 className="modal-title text-white">Edit Order</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={closeEditModal}></button>
+              </div>
+              <div className="modal-body text-start mt-3 mb-3">
+                <p className="text-muted mb-4">Update order status or set a price.</p>
 
                   <form>
                     <div className="form-group">
@@ -398,25 +404,25 @@ function OrderDatabase() {
                       />
                     </div>
                   </form>
+                </div>
 
-                  <div className="text-center mt-4">
+                  <div className="modal-footer">
                     <button 
                       type="button" 
-                      className="btn btn-light mr-2" 
+                      className="btn btn-secondary rounded-pill px-4" 
                       onClick={closeEditModal}
                     >
                       Cancel
                     </button>
                     <button 
                       type="button" 
-                      className="btn btn-success" 
-                      onClick={saveOrderChanges}
+                      className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
+                      style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}
+                      onClick={handleSaveChangesClick}
                     >
                       Save Changes
                     </button>
                   </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

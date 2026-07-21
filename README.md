@@ -70,6 +70,13 @@ This document summarizes the recent features and structural updates implemented 
   - Consolidated scattered date-formatting and status-styling logic into a reusable `src/utils/helpers.js` file, utilizing native `Intl.DateTimeFormat`.
   - Abstracted duplicate CSS button styles into a global `.btn-cleaneco` utility class for maintaining consistent branding across components.
 
+## 12. Recent Enhancements & Global UI Standardization
+- **Account Deletion Lifecycle**: Implemented a 90-day grace period for account deletion requests, manageable by administrators.
+- **Admin Dashboard Stats**: Added monthly, quarterly, and yearly revenue growth percentage metrics utilizing MongoDB aggregation pipelines, and seeded historical data for realistic timeline displays.
+- **Order Editing Constraints**: Enforced strict rules where orders marked as "Cancelled" can no longer be edited by administrators to preserve data integrity.
+- **Global Modal System**: Unified all confirmation and alert modals into a single global `ConfirmContext`. Standardized modal styling to use a modern, custom design language with a glassmorphism blur effect (`backdrop-filter: blur(5px)`) and eliminated redundant localized modal components for a leaner architecture.
+- **Performance & Code Polish**: Optimized backend data retrieval using `.lean({ virtuals: true })` for significantly reduced memory footprint during order fetching, and removed obsolete frontend regex price parsers.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
