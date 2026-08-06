@@ -32,11 +32,11 @@ router.put('/:id', async (req, res) => {
       // If admin cancels the deletion request
       updateData.delete_requested_at = null;
     } else if (!updateData.delete_requested && !oldUser.delete_requested) {
-      const hasProfileChanged = 
+      const hasProfileChanged =
         (updateData.phone && updateData.phone !== oldUser.phone) ||
         (updateData.address && updateData.address !== oldUser.address) ||
         (updateData.email && updateData.email !== oldUser.email);
-      
+
       if (hasProfileChanged) {
         await new Notification({
           message: "Client Profile Updated",
