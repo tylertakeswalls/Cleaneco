@@ -77,6 +77,11 @@ This document summarizes the recent features and structural updates implemented 
 - **Global Modal System**: Unified all confirmation and alert modals into a single global `ConfirmContext`. Standardized modal styling to use a modern, custom design language with a glassmorphism blur effect (`backdrop-filter: blur(5px)`) and eliminated redundant localized modal components for a leaner architecture.
 - **Performance & Code Polish**: Optimized backend data retrieval using `.lean({ virtuals: true })` for significantly reduced memory footprint during order fetching, and removed obsolete frontend regex price parsers.
 
+## 13. UI Alignment & Payment Verification Enhancements
+- **Payment Verification System**: Added a dedicated `VerifyPayments.jsx` module for administrators to securely view, verify, or reject uploaded payment receipts in an organized dashboard.
+- **Structural UI Polish**: Restructured Admin dashboard views (`VerifyPayments.jsx`, `AdminProfile.jsx`, etc.) to use identical flexbox and bootstrap grid containers ensuring header text and action cards align seamlessly.
+- **CSS Hover Effects**: Eradicated transparent-text hover bugs across `OngoingOrders.jsx` and Admin quick actions by decoupling destructive global gradients from contextual `.btn-success-solid` and `.btn-primary-solid` utility classes.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
