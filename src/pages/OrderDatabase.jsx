@@ -15,12 +15,20 @@ function OrderDatabase() {
   const [loading, setLoading] = useState(true);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [editModal, setEditModal] = useState({ show: false, order: null });
-  const [editForm, setEditForm] = useState({ status: '', price: '', request_type: '', approval_fee: '' });
-  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+  const [editForm, setEditForm] = useState({ 
+    status: '', price: '', request_type: '', approval_fee: '',
+    confirmed_date: '', confirmed_time_slot: '', truck_team: ''
+  });
+  const [activeTab, setActiveTab] = useState('details');
+  const [quotationFile, setQuotationFile] = useState(null);
+  const [serviceReportFile, setServiceReportFile] = useState(null);
   
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [truckTeams, setTruckTeams] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
   
   const navigate = useNavigate();
 
@@ -67,7 +75,6 @@ function OrderDatabase() {
     }
   };
 
-
   useEffect(() => {
     const loggedInUser = sessionStorage.getItem("loggedInUser");
     const userRole = sessionStorage.getItem("userRole");
@@ -77,11 +84,18 @@ function OrderDatabase() {
       return;
     }
     
-    const loadOrders = async () => {
+    const loadData = async () => {
       try {
-        const response = await api.get('/orders');
+        const [ordersRes, settingsRes] = await Promise.all([
+          api.get('/orders'),
+          api.get('/settings/truck-teams').catch(() => ({ data: { truck_teams: [] } }))
+        ]);
         
-        const grouped = response.data.reduce((acc, order) => {
+        if (settingsRes.data && settingsRes.data.truck_teams) {
+          setTruckTeams(settingsRes.data.truck_teams);
+        }
+
+        const grouped = ordersRes.data.reduce((acc, order) => {
           if (!acc[order.order_id]) {
             acc[order.order_id] = { ...order, service_names: [], total_price: 0, first_id: order.id };
           }
@@ -101,12 +115,12 @@ function OrderDatabase() {
         calculateRevenue(groupedOrders);
         setLoading(false);
       } catch (error) {
-        console.error("Error loading orders:", error);
+        console.error("Error loading data:", error);
         setLoading(false);
       }
     };
 
-    loadOrders();
+    loadData();
   }, [navigate]);
 
   const openEditModal = (order) => {
@@ -115,13 +129,18 @@ function OrderDatabase() {
       status: order.status || '',
       price: order.price || '',
       request_type: order.request_type || '',
-      approval_fee: order.approval_fee || ''
+      approval_fee: order.approval_fee || '',
+      confirmed_date: order.confirmed_date ? new Date(order.confirmed_date).toISOString().split('T')[0] : '',
+      confirmed_time_slot: order.confirmed_time_slot || '',
+      truck_team: order.truck_team || ''
     });
+    setQuotationFile(null);
+    setServiceReportFile(null);
+    setActiveTab('details');
   };
 
   const closeEditModal = () => {
     setEditModal({ show: false, order: null });
-    setEditForm({ status: '', price: '', request_type: '', approval_fee: '' });
   };
 
   const handleEditChange = (e) => {
@@ -149,31 +168,58 @@ function OrderDatabase() {
 
   const proceedSaveOrderChanges = async () => {
     if (!editModal.order) return;
+    setIsSaving(true);
 
     try {
-      const response = await api.put('/orders/' + editModal.order.id, {
+      // 1. Update basic fields
+      await api.put('/orders/' + editModal.order.id, {
         status: editForm.status,
         price: editForm.price,
         request_type: editForm.request_type,
-        approval_fee: editForm.approval_fee
+        approval_fee: editForm.approval_fee,
+        confirmed_date: editForm.confirmed_date,
+        confirmed_time_slot: editForm.confirmed_time_slot,
+        truck_team: editForm.truck_team
       });
 
-      if (response.data && response.data.message) {
-        const updatedOrders = orders.map(order => 
-          order.id === editModal.order.id 
-            ? { ...order, status: editForm.status, price: editForm.price, request_type: editForm.request_type, approval_fee: editForm.approval_fee }
-            : order
-        );
-        setOrders(updatedOrders);
-        calculateRevenue(updatedOrders);
-        closeEditModal();
-        showAlert("Success", "Order updated successfully!", "success");
-      } else {
-        showAlert("Error", "Error updating order.", "error");
+      // 2. Upload documents if any
+      if (quotationFile || serviceReportFile) {
+        const formData = new FormData();
+        if (quotationFile) formData.append('quotation', quotationFile);
+        if (serviceReportFile) formData.append('service_report', serviceReportFile);
+
+        await api.post(`/orders/${editModal.order.id}/upload-documents`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
+
+      // 3. Reload orders to get updated URLs
+      const response = await api.get('/orders');
+      const grouped = response.data.reduce((acc, order) => {
+        if (!acc[order.order_id]) {
+          acc[order.order_id] = { ...order, service_names: [], total_price: 0, first_id: order.id };
+        }
+        acc[order.order_id].service_names.push(order.service_name || order.service_type);
+        acc[order.order_id].total_price += parseFloat(order.price || 0);
+        return acc;
+      }, {});
+      
+      const groupedOrders = Object.values(grouped).map(o => ({
+        ...o,
+        id: o.first_id,
+        service_name: o.service_names.join(', '),
+        price: o.total_price > 0 ? o.total_price.toFixed(2) : ''
+      }));
+
+      setOrders(groupedOrders);
+      calculateRevenue(groupedOrders);
+      closeEditModal();
+      showAlert("Success", "Order updated successfully!", "success");
     } catch (error) {
       console.error("Error updating order:", error);
       showAlert("Error", "Error updating order.", "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -281,10 +327,10 @@ function OrderDatabase() {
                   <th>Order ID</th>
                   <th>Customer</th>
                   <th>Service</th>
-                  <th>Date</th>
-                  <th>Time</th>
+                  <th>Pref. Date</th>
                   <th>Status</th>
-                  <th>Price (₱)</th>
+                  <th>Truck Team</th>
+                  <th>Final Price (₱)</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -298,16 +344,13 @@ function OrderDatabase() {
                       <td>{order.first_name} {order.last_name}</td>
                       <td>{order.service_name || order.service_type}</td>
                       <td>{formatDate(order.date)}</td>
-                      <td>{order.time_slot}</td>
                       <td className={`status-cell ${getStatusClass(order.status)}`}>
                         {order.status}
                         {order.request_type && (
                           <div className="small text-warning fw-bold mt-1">{order.request_type}</div>
                         )}
-                        {order.approval_fee > 0 && (
-                          <div className="small text-danger fw-bold mt-1">Fee: ₱{parseFloat(order.approval_fee).toFixed(2)}</div>
-                        )}
                       </td>
+                      <td>{order.truck_team || 'Unassigned'}</td>
                       <td>{order.price ? '₱' + order.price : "-"}</td>
                       <td>
                       <button 
@@ -316,7 +359,7 @@ function OrderDatabase() {
                         disabled={order.status === 'Cancelled'}
                         style={order.status === 'Cancelled' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
-                        Edit
+                        Manage
                       </button>
                       <button 
                         className="btn-delete" 
@@ -341,88 +384,181 @@ function OrderDatabase() {
       </section>
 
       {editModal.show && (
-        <div className="modal fade show d-block" style={{ backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 1060 }} tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered">
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }} tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content">
               <div className="modal-header" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
-                <h5 className="modal-title text-white">Edit Order</h5>
+                <h5 className="modal-title text-white"><i className="fas fa-edit me-2"></i>Manage Order</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={closeEditModal}></button>
               </div>
-              <div className="modal-body text-start mt-3 mb-3">
-                <p className="text-muted mb-4">Update order status or set a price.</p>
+              <div className="modal-body text-start p-0">
+                <ul className="nav nav-tabs px-4 pt-3 bg-light border-bottom" style={{ gap: '5px' }}>
+                  <li className="nav-item">
+                    <button className={`nav-link fw-bold ${activeTab === 'details' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('details')} style={activeTab === 'details' ? { color: '#0D8D1E' } : {}}>Details</button>
+                  </li>
+                  <li className="nav-item">
+                    <button className={`nav-link fw-bold ${activeTab === 'scheduling' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('scheduling')} style={activeTab === 'scheduling' ? { color: '#0D8D1E' } : {}}>Scheduling</button>
+                  </li>
+                  <li className="nav-item">
+                    <button className={`nav-link fw-bold ${activeTab === 'documents' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('documents')} style={activeTab === 'documents' ? { color: '#0D8D1E' } : {}}>Documents</button>
+                  </li>
+                </ul>
 
-                  <form>
-                    <div className="form-group">
-                      <label>Status</label>
-                      <select 
-                        name="status"
-                        className="form-control"
-                        value={editForm.status}
-                        onChange={handleEditChange}
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </div>
+                <div className="tab-content p-4">
+                  {activeTab === 'details' && (
+                    <div className="row">
+                      <div className="col-md-12">
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Order Status</label>
+                          <select 
+                            name="status"
+                            className="form-select bg-light border-0 shadow-sm"
+                            value={editForm.status}
+                            onChange={handleEditChange}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </div>
 
-                    <div className="form-group">
-                      <label>Price (₱)</label>
-                      <input 
-                        type="number" 
-                        name="price"
-                        className="form-control" 
-                        placeholder="Enter price"
-                        value={editForm.price}
-                        onChange={handleEditChange}
-                      />
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Final Price (₱)</label>
+                          <input 
+                            type="number" 
+                            name="price"
+                            className="form-control bg-light border-0 shadow-sm" 
+                            placeholder="Enter final total price"
+                            value={editForm.price}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                        
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Client Request Type</label>
+                          <select 
+                            name="request_type"
+                            className="form-select bg-light border-0 shadow-sm"
+                            value={editForm.request_type}
+                            onChange={handleEditChange}
+                          >
+                            <option value="">None</option>
+                            <option value="Cancel Requested">Cancel Requested</option>
+                            <option value="Reschedule Requested">Reschedule Requested</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                    <div className="form-group">
-                      <label>Request Type</label>
-                      <select 
-                        name="request_type"
-                        className="form-control"
-                        value={editForm.request_type}
-                        onChange={handleEditChange}
-                      >
-                        <option value="">None</option>
-                        <option value="Cancel Requested">Cancel Requested</option>
-                        <option value="Reschedule Requested">Reschedule Requested</option>
-                      </select>
-                    </div>
+                  )}
 
-                    <div className="form-group">
-                      <label>Approval Fee (₱)</label>
-                      <input 
-                        type="number" 
-                        name="approval_fee"
-                        className="form-control" 
-                        placeholder="Enter approval fee"
-                        value={editForm.approval_fee}
-                        onChange={handleEditChange}
-                      />
+                  {activeTab === 'scheduling' && (
+                    <div className="row">
+                      <div className="col-md-12">
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Confirmed Date</label>
+                          <input 
+                            type="date" 
+                            name="confirmed_date"
+                            className="form-control bg-light border-0 shadow-sm" 
+                            value={editForm.confirmed_date}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Confirmed Time Slot</label>
+                          <input 
+                            type="text" 
+                            name="confirmed_time_slot"
+                            className="form-control bg-light border-0 shadow-sm" 
+                            placeholder="e.g. 08:00 AM - 10:00 AM"
+                            value={editForm.confirmed_time_slot}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Assign Truck Team</label>
+                          <select 
+                            name="truck_team"
+                            className="form-select bg-light border-0 shadow-sm"
+                            value={editForm.truck_team}
+                            onChange={handleEditChange}
+                          >
+                            <option value="">-- Select a Team --</option>
+                            {truckTeams.map(team => (
+                              <option key={team} value={team}>{team}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                  </form>
+                  )}
+
+                  {activeTab === 'documents' && (
+                    <div className="row">
+                      <div className="col-md-12">
+                        <div className="form-group mb-4">
+                          <label className="form-label fw-bold small text-muted">Upload Quotation (Approved P.O.)</label>
+                          <input 
+                            type="file" 
+                            accept=".pdf"
+                            className="form-control bg-light border-0 shadow-sm"
+                            onChange={(e) => setQuotationFile(e.target.files[0])}
+                          />
+                          {editModal.order.quotation_pdf_url && (
+                            <div className="mt-2 small">
+                              <a href={`http://localhost:5000${editModal.order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
+                                <i className="fas fa-file-pdf me-1"></i>View Current Quotation
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="form-group mb-4">
+                          <label className="form-label fw-bold small text-muted">Upload Service Report / Invoice</label>
+                          <input 
+                            type="file" 
+                            accept=".pdf"
+                            className="form-control bg-light border-0 shadow-sm"
+                            onChange={(e) => setServiceReportFile(e.target.files[0])}
+                          />
+                          {editModal.order.service_report_pdf_url && (
+                            <div className="mt-2 small">
+                              <a href={`http://localhost:5000${editModal.order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
+                                <i className="fas fa-file-pdf me-1"></i>View Current Service Report
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="alert alert-info mt-4 small border-0 shadow-sm">
+                          <i className="fas fa-info-circle me-2"></i>
+                          Uploaded documents will be immediately visible on the client's dashboard under this order.
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
+              </div>
 
-                  <div className="modal-footer">
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary rounded-pill px-4" 
-                      onClick={closeEditModal}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="button" 
-                      className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
-                      style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}
-                      onClick={handleSaveChangesClick}
-                    >
-                      Save Changes
-                    </button>
-                  </div>
+                <div className="modal-footer border-0 bg-light">
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary rounded-pill px-4 fw-bold shadow-sm" 
+                    onClick={closeEditModal}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-success-solid rounded-pill px-4 fw-bold shadow-sm" 
+                    onClick={handleSaveChangesClick}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
             </div>
           </div>
         </div>

@@ -88,15 +88,15 @@ function AdminProfile() {
 
   return (
     <div ref={container} className="container-fluid py-4 px-lg-5" style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '3rem' }}>
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
-        <div>
-          <h2 className="fw-bolder mb-1 text-dark" style={{ letterSpacing: '-0.5px' }}>Admin Profile</h2>
-          <p className="text-muted mb-0 fw-medium">Manage your administrator account details.</p>
-        </div>
-      </div>
-
+      <div className="container">
       <div className="row justify-content-center">
         <div className="col-md-8">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+            <div>
+              <h2 className="fw-bolder mb-1 text-dark" style={{ letterSpacing: '-0.5px' }}>Admin Profile</h2>
+              <p className="text-muted mb-0 fw-medium">Manage your administrator account details.</p>
+            </div>
+          </div>
           <div className="card glass-panel shadow-sm border-0 glass-panel" style={{ borderRadius: '1rem' }}>
             <div className="card-body p-4">
               
@@ -172,6 +172,7 @@ function AdminProfile() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

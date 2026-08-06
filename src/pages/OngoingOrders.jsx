@@ -46,8 +46,6 @@ function OngoingOrders() {
     }
   };
 
-
-
   useEffect(() => {
     if (!loggedInUser) {
       alert("Please log in to view your orders.");
@@ -68,8 +66,6 @@ function OngoingOrders() {
 
     loadOrders();
   }, [loggedInUser, navigate, userId]);
-
-
 
   const generateReceipt = async (order) => {
     const doc = new jsPDF();
@@ -176,134 +172,204 @@ function OngoingOrders() {
     doc.save(`Cleaneco_Receipt_${order.order_id}.pdf`);
   };
 
+  const steps = [
+    { title: "Approved Quotation – Approved P.O.", desc: "The client approves the quotation and issues a Purchase Order (P.O.), officially authorizing the work to proceed." },
+    { title: "Set Schedule Date", desc: "Coordinate with the client to confirm the service date, time, site access requirements, and other logistical details." },
+    { title: "Meeting for Operation", desc: "Conduct a coordination meeting to review the scope of work, assign responsibilities, discuss safety requirements, equipment, and project timeline." },
+    { title: "Team Deployment on Site", desc: "Dispatch the assigned personnel, vehicles, equipment, and necessary materials to the project site as scheduled." },
+    { title: "Pre-Operation", desc: "Perform site inspection, secure work permits (if required), conduct toolbox meeting, assess hazards, inspect equipment, and prepare the work area before starting the service." },
+    { title: "Service Operation Flow", desc: "Execute the core tasks: siphoning, desludging, deep cleaning, or declogging according to the agreed method statement and industry standards." },
+    { title: "Demobilization", desc: "Clean up the work area, secure all tools and equipment, manage collected waste according to environmental regulations, and formally turn over the site to the client." },
+    { title: "Post-Operation", desc: "Conduct a final walkthrough with the client to verify completion, document the results, and obtain sign-off on the service provided." },
+    { title: "Issuance of Billing / Service Report", desc: "Prepare and submit the detailed Service Report along with the Billing Statement or Invoice to the client for the completed works." },
+    { title: "Client Payment", desc: "The client processes and remits the payment based on the submitted billing document, officially closing the transaction." }
+  ];
+
   if (loading) {
     return (
       <div>
         <img src={carousel6} alt="Banner" className="banner-img" />
-        <section>
-          <div className="container table-box">
-            <h3 className="text-center mb-3">My Ongoing Orders</h3>
-            <div className="table-container">
-              <table className="table table-bordered text-center">
-                <thead className="thead-light">
-                  <tr>
-                    <th>Order ID</th>
-                    <th>Service</th>
-                    <th>Date</th>
-                    <th>Time Slot</th>
-                    <th>Status</th>
-                    <th>Price</th>
-                    <th style={{ width: '140px' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td colSpan="6" className="text-center">Loading your orders...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+        <div className="container py-5 text-center">Loading your orders...</div>
       </div>
     );
   }
 
   return (
-    <div>
-      <img src={carousel6} alt="Banner" className="banner-img" />
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '3rem' }}>
+      <img src={carousel6} alt="Banner" className="banner-img w-100" style={{ height: '300px', objectFit: 'cover' }} />
 
-      <section>
-        <div className="container table-box">
-          <h3 className="text-center mb-3">My Ongoing Orders</h3>
-          <div className="table-container">
-            <table className="table table-bordered text-center">
-              <thead className="thead-light">
-                <tr>
-                  <th>Order ID</th>
-                  <th>Service</th>
-                  <th>Date</th>
-                  <th>Time Slot</th>
-                  <th>Status</th>
-                  <th>Price</th>
-                  <th style={{ width: '140px' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="text-center">No orders found.</td>
-                  </tr>
-                ) : (
-                  orders.map((order) => (
-                    <tr key={order.id}>
-                      <td>{order.order_id}</td>
-                      <td>{order.service_name || order.service_type}</td>
-                      <td>{formatDate(order.date)}</td>
-                      <td>{order.time_slot}</td>
-                      <td className={getStatusClass(order.status)}>
-                        {order.status}
-                        {order.request_type && (
-                          <div className="small text-warning fw-bold mt-1">{order.request_type}</div>
-                        )}
-                        {order.approval_fee > 0 && (
-                          <div className="small text-danger fw-bold mt-1">Fee: ₱{parseFloat(order.approval_fee).toFixed(2)}</div>
-                        )}
-                      </td>
-                      <td>{order.price ? '₱' + order.price : 'Pending'}</td>
-                      <td>
-                        {order.status === 'Completed' ? (
-                          <button
-                            className="btn btn-sm btn-success shadow-sm rounded-pill fw-bold"
-                            style={{ backgroundColor: '#0D8D1E' }}
-                            onClick={() => generateReceipt(order)}
-                          >
-                            <i className="fas fa-print me-1"></i> Receipt
-                          </button>
-                        ) : order.status === 'Pending' || order.status === 'In Progress' ? (
-                          <div className="d-flex flex-column gap-1">
-                            <button
-                              className="btn btn-sm btn-outline-warning rounded-pill"
-                              onClick={() => triggerRequest(order.id, 'Reschedule Requested')}
-                              disabled={!!order.request_type}
-                            >
-                              Reschedule
-                            </button>
-                            <button
-                              className="btn btn-sm btn-outline-danger rounded-pill"
-                              onClick={() => triggerRequest(order.id, 'Cancel Requested')}
-                              disabled={!!order.request_type}
-                            >
-                              Cancel
-                            </button>
+      <div className="container py-5">
+        <h3 className="fw-bold mb-4" style={{ color: '#0D8D1E' }}>My Ongoing Orders</h3>
+        
+        {orders.length === 0 ? (
+          <div className="alert alert-info shadow-sm">No ongoing orders found.</div>
+        ) : (
+          <div className="accordion mb-5 shadow-sm" id="ordersAccordion" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
+            {orders.map((order, index) => (
+              <div className="accordion-item border-0 border-bottom" key={order.id}>
+                <h2 className="accordion-header" id={`heading${order.id}`}>
+                  <button 
+                    className={`accordion-button ${index !== 0 ? 'collapsed' : ''} fw-bold`} 
+                    type="button" 
+                    data-bs-toggle="collapse" 
+                    data-bs-target={`#collapse${order.id}`} 
+                    aria-expanded={index === 0 ? "true" : "false"} 
+                    aria-controls={`collapse${order.id}`}
+                    style={{ backgroundColor: '#fff', color: '#333', padding: '1.5rem' }}
+                  >
+                    <div className="d-flex justify-content-between align-items-center w-100 me-3">
+                      <div>
+                        <span className="text-muted small d-block mb-1">Order #{order.order_id}</span>
+                        <span className="fs-5" style={{ color: '#0D8D1E' }}>{order.service_name || order.service_type}</span>
+                      </div>
+                      <div className="text-end">
+                        <span className={`badge rounded-pill ${getStatusClass(order.status)} mb-1 d-block`} style={{ fontSize: '0.85rem' }}>
+                          {order.status}
+                        </span>
+                        <span className="text-muted small fw-medium">{formatDate(order.date)}</span>
+                      </div>
+                    </div>
+                  </button>
+                </h2>
+                <div 
+                  id={`collapse${order.id}`} 
+                  className={`accordion-collapse collapse ${index === 0 ? 'show' : ''}`} 
+                  aria-labelledby={`heading${order.id}`} 
+                  data-bs-parent="#ordersAccordion"
+                >
+                  <div className="accordion-body p-4 bg-light">
+                    <div className="row mb-4">
+                      <div className="col-md-6 mb-3 mb-md-0">
+                        <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Pref. Schedule</p>
+                        <p className="mb-0 fw-medium">{formatDate(order.date)} <br/> {order.time_slot}</p>
+                      </div>
+                      <div className="col-md-6">
+                        <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Final Price</p>
+                        <p className="mb-0 fw-bold text-success fs-5">{order.price ? `₱${order.price}` : 'Pending Assessment'}</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 mb-4 rounded bg-white shadow-sm" style={{ borderLeft: '4px solid #0D8D1E' }}>
+                      <h6 className="fw-bold mb-3 text-success border-bottom pb-2 border-success border-opacity-25">
+                        <i className="fas fa-clipboard-check me-2"></i>Status & Updates
+                      </h6>
+                      
+                      <div className="d-flex flex-column gap-2">
+                        {order.truck_team ? (
+                          <div className="d-flex align-items-center">
+                            <i className="fas fa-truck text-success me-2" style={{ width: '20px' }}></i>
+                            <span className="fw-medium">Assigned Team: {order.truck_team}</span>
                           </div>
                         ) : (
-                          <span className="text-muted"><small>N/A</small></span>
+                          <div className="d-flex align-items-center text-muted">
+                            <i className="fas fa-truck me-2" style={{ width: '20px' }}></i>
+                            <span>No team assigned yet</span>
+                          </div>
                         )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+
+                        {order.confirmed_date && order.confirmed_time_slot && (
+                          <div className="d-flex align-items-center text-primary mt-2">
+                            <i className="far fa-calendar-check me-2" style={{ width: '20px' }}></i>
+                            <span className="fw-bold">Confirmed Schedule: {formatDate(order.confirmed_date)} ({order.confirmed_time_slot})</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <h6 className="fw-bold mb-3">Documents</h6>
+                    <div className="d-flex gap-2 flex-wrap mb-4">
+                      {order.reservation_receipt_url && (
+                        <a href={`http://localhost:5000${order.reservation_receipt_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-secondary-solid rounded-pill shadow-sm">
+                          <i className="fas fa-image me-1"></i>Reservation Receipt
+                        </a>
+                      )}
+                      {order.quotation_pdf_url ? (
+                        <a href={`http://localhost:5000${order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary-solid rounded-pill shadow-sm">
+                          <i className="fas fa-file-pdf me-1"></i>Approved P.O. / Quotation
+                        </a>
+                      ) : (
+                        <span className="btn btn-sm btn-secondary-solid rounded-pill disabled shadow-sm" style={{ opacity: 0.5 }}>
+                           <i className="fas fa-file-pdf me-1"></i>Approved P.O. (Pending)
+                        </span>
+                      )}
+                      
+                      {order.service_report_pdf_url ? (
+                        <a href={`http://localhost:5000${order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-cleaneco rounded-pill shadow-sm">
+                          <i className="fas fa-file-invoice me-1"></i>Service Report
+                        </a>
+                      ) : (
+                         <span className="btn btn-sm btn-secondary rounded-pill disabled shadow-sm" style={{ opacity: 0.5, border: 'none' }}>
+                           <i className="fas fa-file-invoice me-1"></i>Service Report (Pending)
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="d-flex justify-content-end gap-2 border-top pt-3">
+                      {order.status === 'Completed' ? (
+                        <button className="btn btn-cleaneco rounded-pill fw-bold shadow-sm" onClick={() => generateReceipt(order)}>
+                          <i className="fas fa-download me-1"></i> Download Receipt
+                        </button>
+                      ) : (
+                        <>
+                          <button className="btn btn-warning-solid rounded-pill shadow-sm fw-bold" onClick={() => triggerRequest(order.id, 'Reschedule Requested')} disabled={!!order.request_type}>
+                            Reschedule
+                          </button>
+                          <button className="btn btn-danger rounded-pill shadow-sm fw-bold" onClick={() => triggerRequest(order.id, 'Cancel Requested')} disabled={!!order.request_type}>
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {order.request_type && (
+                      <div className="text-end mt-2 small fw-bold text-warning">{order.request_type} received.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="card shadow-sm border-0 mt-5" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
+          <div className="card-header bg-white border-bottom p-4">
+            <h4 className="mb-0 fw-bold"><i className="fas fa-info-circle text-primary me-2"></i>Service Operation Flow</h4>
+            <p className="text-muted small mb-0 mt-1">Here is the standard flow of operations for our services.</p>
+          </div>
+          <div className="card-body p-4 bg-light">
+            <div className="row">
+              {steps.map((step, index) => (
+                <div className="col-md-6 mb-4" key={index}>
+                  <div className="d-flex align-items-start bg-white p-3 h-100 rounded shadow-sm" style={{ borderLeft: '4px solid #0D8D1E' }}>
+                    <div className="rounded-circle bg-success text-white d-flex justify-content-center align-items-center me-3 flex-shrink-0 fw-bold" style={{ width: '32px', height: '32px', backgroundColor: '#0D8D1E' }}>
+                      {index + 1}
+                    </div>
+                    <div>
+                      <h6 className="fw-bold mb-1">{step.title}</h6>
+                      <p className="text-muted small mb-0">{step.desc}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+
+      </div>
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 1060 }} tabIndex="-1">
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }} tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
                 <h5 className="modal-title text-white">Confirm Request</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowConfirmModal(false)}></button>
               </div>
-              <div className="modal-body text-start mt-3 mb-3">
+              <div className="modal-body text-start mt-3 mb-3 p-4">
                 <h6 className="fw-normal">Are you sure you want to request a <strong>{confirmData.type === 'Cancel Requested' ? 'cancellation' : 'reschedule'}</strong>?</h6>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setShowConfirmModal(false)}>
+              <div className="modal-footer border-0">
+                <button type="button" className="btn btn-light rounded-pill px-4 fw-bold" onClick={() => setShowConfirmModal(false)}>
                   Close
                 </button>
                 <button type="button" className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }} onClick={confirmRequest}>
@@ -317,18 +383,19 @@ function OngoingOrders() {
 
       {/* Result Notification Modal */}
       {showResultModal && (
-        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 1060 }} tabIndex="-1">
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }} tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
+            <div className="modal-content border-0">
+              <div className="modal-header border-0" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
                 <h5 className="modal-title text-white">Notification</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowResultModal(false)}></button>
               </div>
-              <div className="modal-body text-start mt-3 mb-3">
-                <h6 className="fw-normal">{resultMessage}</h6>
+              <div className="modal-body text-center p-5">
+                <i className={`fas ${resultMessage.includes('success') ? 'fa-check-circle text-success' : 'fa-exclamation-circle text-danger'} mb-3`} style={{ fontSize: '3rem' }}></i>
+                <h5 className="fw-bold">{resultMessage}</h5>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }} onClick={() => setShowResultModal(false)}>
+              <div className="modal-footer border-0 justify-content-center">
+                <button type="button" className="btn btn-success rounded-pill px-5 fw-bold shadow-sm" style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }} onClick={() => setShowResultModal(false)}>
                   OK
                 </button>
               </div>

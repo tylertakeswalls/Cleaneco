@@ -118,6 +118,10 @@ export default function AdminLayout() {
               <span className="flex-grow-1">All Orders</span>
               <i className="fas fa-database"></i>
             </Link>
+            <Link to="/admin/payments" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/payments' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/payments' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
+              <span className="flex-grow-1">Verify Payments</span>
+              <i className="fas fa-file-invoice-dollar"></i>
+            </Link>
             <Link to="/admin/services" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/services' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/services' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
               <span className="flex-grow-1">Services</span>
               <i className="fas fa-cogs"></i>

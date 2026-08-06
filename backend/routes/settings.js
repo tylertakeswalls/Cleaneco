@@ -33,7 +33,6 @@ router.post('/tos', async (req, res) => {
   }
 });
 
-module.exports = router;
 
 router.post('/tos/upload', upload.single('tosPdf'), async (req, res) => {
   try {
@@ -95,3 +94,32 @@ router.get('/tos/pdf', async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch TOS PDF', error: error.message });
   }
 });
+
+router.get('/truck-teams', async (req, res) => {
+  try {
+    let teams = await Setting.findOne({ key_name: 'truck_teams' });
+    if (!teams) {
+      teams = new Setting({ key_name: 'truck_teams', value: JSON.stringify(['Truck Team 1', 'Truck Team 2']) });
+      await teams.save();
+    }
+    res.json({ success: true, truck_teams: JSON.parse(teams.value) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch truck teams' });
+  }
+});
+
+router.put('/truck-teams', async (req, res) => {
+  try {
+    const { truck_teams } = req.body; // array of strings
+    await Setting.findOneAndUpdate(
+      { key_name: 'truck_teams' },
+      { value: JSON.stringify(truck_teams) },
+      { upsert: true }
+    );
+    res.json({ success: true, message: 'Truck teams updated successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update truck teams' });
+  }
+});
+
+module.exports = router;

@@ -144,7 +144,7 @@ function AdminUsers() {
 
       <section className="section-bg">
         <div className="table-box mb-5">
-          <h3 className="text-center text-danger mb-4"><i className="fas fa-exclamation-triangle me-2"></i> Account Deletion Requests</h3>
+          <h3 className="text-center text-danger mb-4">Account Deletion Requests</h3>
 
           <div className="table-container">
             <table className="table table-bordered text-center mb-0">

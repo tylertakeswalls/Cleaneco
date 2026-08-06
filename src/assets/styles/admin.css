@@ -246,6 +246,28 @@
     border: none;
 }
 
+.btn-primary-solid {
+    background: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: #fff !important;
+}
+.btn-primary-solid:hover {
+    background: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+    color: #fff !important;
+}
+
+.btn-success-solid {
+    background: #0D8D1E !important;
+    border-color: #0D8D1E !important;
+    color: #fff !important;
+}
+.btn-success-solid:hover {
+    background: #0A6F17 !important;
+    border-color: #0A6F17 !important;
+    color: #fff !important;
+}
+
 
 /* Form improvements */
 .form-check-input:checked {

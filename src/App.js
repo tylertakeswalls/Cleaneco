@@ -20,6 +20,7 @@ import OrderDatabase from './pages/OrderDatabase';
 import ServiceManagement from './components/ServiceManagement';
 import AdminUsers from './pages/AdminUsers';
 import AdminSettings from './pages/AdminSettings';
+import VerifyPayments from './pages/VerifyPayments';
 import AdminLayout from './components/AdminLayout';
 
 import AdminProfile from './pages/AdminProfile';
@@ -57,6 +58,7 @@ function App() {
             <Route path="order-form" element={<OrderForm />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="payments" element={<VerifyPayments />} />
           </Route>
 
         </Routes>

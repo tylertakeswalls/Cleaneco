@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import { useRef } from 'react';
@@ -8,6 +8,55 @@ function AdminSettings() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState({ show: false, type: '', message: '' });
+
+  const [truckTeams, setTruckTeams] = useState([]);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [loadingTeams, setLoadingTeams] = useState(true);
+
+  useEffect(() => {
+    fetchTruckTeams();
+  }, []);
+
+  const fetchTruckTeams = async () => {
+    try {
+      const res = await api.get('/settings/truck-teams');
+      if (res.data.success) {
+        setTruckTeams(res.data.truck_teams || []);
+      }
+    } catch (err) {
+      console.error('Error fetching truck teams:', err);
+    } finally {
+      setLoadingTeams(false);
+    }
+  };
+
+  const saveTruckTeams = async (teams) => {
+    try {
+      const res = await api.put('/settings/truck-teams', { truck_teams: teams });
+      if (res.data.success) {
+        showAlert('success', 'Truck teams updated successfully!');
+      } else {
+        showAlert('error', 'Failed to update truck teams.');
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert('error', 'Error updating truck teams.');
+    }
+  };
+
+  const addTruckTeam = () => {
+    if (!newTeamName.trim()) return;
+    const updated = [...truckTeams, newTeamName.trim()];
+    setTruckTeams(updated);
+    setNewTeamName('');
+    saveTruckTeams(updated);
+  };
+
+  const removeTruckTeam = (indexToRemove) => {
+    const updated = truckTeams.filter((_, index) => index !== indexToRemove);
+    setTruckTeams(updated);
+    saveTruckTeams(updated);
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -65,7 +114,7 @@ function AdminSettings() {
             <h2 className="fw-bold text-dark mb-1" style={{ letterSpacing: '-1px' }}>Site Settings</h2>
             <p className="text-secondary mb-0">Manage global website configuration and policies.</p>
           </div>
-          <Link to="/admin" className="btn btn-outline-secondary shadow-sm rounded-3 px-4 fw-bold">
+          <Link to="/admin" className="btn btn-secondary shadow-sm rounded-3 px-4 fw-bold">
             <i className="fas fa-arrow-left me-2"></i> Back to Dashboard
           </Link>
         </div>
@@ -116,6 +165,52 @@ function AdminSettings() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <div className="card glass-panel shadow-sm border-0 glass-panel mt-4" style={{ borderRadius: '1.25rem' }}>
+          <div className="card-body p-5">
+            <h4 className="fw-bold mb-4 text-dark" style={{ letterSpacing: '-0.5px' }}>
+              <i className="fas fa-truck me-2" style={{ color: '#0D8D1E' }}></i> Truck Teams
+            </h4>
+            <p className="text-muted mb-4">Manage the list of available truck teams for deployment.</p>
+
+            {loadingTeams ? (
+              <p>Loading truck teams...</p>
+            ) : (
+              <div>
+                <ul className="list-group mb-4">
+                  {truckTeams.map((team, index) => (
+                    <li key={index} className="list-group-item d-flex justify-content-between align-items-center">
+                      <span className="fw-medium">{team}</span>
+                      <button 
+                        className="btn btn-sm btn-outline-danger" 
+                        onClick={() => removeTruckTeam(index)}
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </li>
+                  ))}
+                  {truckTeams.length === 0 && (
+                    <li className="list-group-item text-muted">No truck teams available.</li>
+                  )}
+                </ul>
+
+                <div className="d-flex align-items-stretch gap-2">
+                  <input 
+                    type="text" 
+                    className="form-control m-0" 
+                    placeholder="New Truck Team Name" 
+                    value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && addTruckTeam()}
+                  />
+                  <button className="btn btn-success fw-bold m-0 d-flex align-items-center justify-content-center text-nowrap" type="button" onClick={addTruckTeam} style={{ background: '#0D8D1E', borderRadius: '0.5rem', minWidth: '130px', padding: '0 20px', border: 'none' }}>
+                    <i className="fas fa-plus me-2" style={{ fontSize: '0.9rem' }}></i> Add Team
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

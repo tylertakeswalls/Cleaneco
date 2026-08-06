@@ -21,7 +21,7 @@ export default function AlertModal({ isOpen, title, message, type, onClose }) {
         <div 
             className="modal fade show d-block" 
             style={{ 
-                zIndex: 1060, 
+                zIndex: 1070, 
                 backgroundColor: 'transparent', 
                 backdropFilter: 'blur(5px)', 
                 WebkitBackdropFilter: 'blur(5px)' 
@@ -32,6 +32,7 @@ export default function AlertModal({ isOpen, title, message, type, onClose }) {
                 <div className="modal-content">
                     <div className="modal-header" style={{ backgroundColor: headerColor, color: 'white' }}>
                         <h5 className="modal-title text-white">
+                            <i className={`${iconClass} me-2`}></i>
                             {title}
                         </h5>
                         <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>

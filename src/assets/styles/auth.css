@@ -252,7 +252,7 @@
     margin-bottom: 1rem;
 }
 
-.input-group i {
+.form-wrapper .input-group i, .login-card .input-group i {
     position: absolute;
     top: 50%;
     left: 15px;
@@ -261,7 +261,7 @@
     z-index: 4;
 }
 
-.input-group .form-control {
+.form-wrapper .input-group .form-control, .login-card .input-group .form-control {
     padding-left: 45px;
      border-radius: 0;
 }

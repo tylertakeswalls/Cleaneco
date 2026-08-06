@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import '../assets/styles/orderform.css';
 import carousel4 from '../assets/styles/images/carousel4.png';
+import instapayQr from '../assets/styles/images/instapay_qr.png';
 import ClientCalendar from '../components/ClientCalendar';
 import AlertModal from '../components/AlertModal';
 
@@ -22,6 +23,13 @@ function OrderForm() {
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+    
+    // Payment specific state
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentReceipt, setPaymentReceipt] = useState(null);
+    const [referenceNumber, setReferenceNumber] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const navigate = useNavigate();
 
     const showAlert = (title, message, type = 'info') => {
@@ -62,7 +70,6 @@ function OrderForm() {
                 setLoading(false);
             }
         };
-
 
         const fetchUserData = async () => {
             try {
@@ -105,7 +112,6 @@ function OrderForm() {
 
     const handleChange = (e) => {
         const { id, value, type, checked } = e.target;
-
         setFormData(prev => ({
             ...prev,
             [id]: type === 'checkbox' ? checked : value
@@ -133,14 +139,7 @@ function OrderForm() {
         }));
     };
 
-    const calculateSubtotal = () => {
-        return (formData.service_ids || []).reduce((sum, sId) => {
-            const service = services.find(s => String(s.id) === String(sId));
-            return sum + (service ? parseFloat(service.base_price) : 0);
-        }, 0);
-    };
-
-    const handleSubmit = async (e) => {
+    const handleInitialSubmit = (e) => {
         e.preventDefault();
 
         if (!loggedInUser || !userId) {
@@ -159,32 +158,53 @@ function OrderForm() {
             return;
         }
 
-        try {
-            const submitData = { ...formData };
-            submitData.user_id = userId;
+        // Open payment modal
+        setShowPaymentModal(true);
+    };
 
-            const response = await api.post('/orders/submit', submitData);
+    const handlePaymentSubmit = async () => {
+        if (!paymentReceipt) {
+            showAlert("Receipt Required", "Please upload a proof of payment to proceed.", "warning");
+            return;
+        }
+        if (!referenceNumber) {
+            showAlert("Reference Number Required", "Please enter the transaction reference number.", "warning");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const submitData = new FormData();
+            submitData.append('user_id', userId);
+            submitData.append('firstName', formData.firstName);
+            submitData.append('lastName', formData.lastName);
+            submitData.append('email', formData.email);
+            submitData.append('phone', formData.phone);
+            submitData.append('address', formData.address);
+            submitData.append('date', formData.date);
+            submitData.append('timeSlot', formData.timeSlot);
+            submitData.append('notes', formData.notes);
+            submitData.append('service_ids', JSON.stringify(formData.service_ids));
+            submitData.append('reference_number', referenceNumber);
+            submitData.append('receipt', paymentReceipt);
+
+            const response = await api.post('/orders/submit', submitData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
 
             if (response.data.success) {
+                setShowPaymentModal(false);
                 navigate('/thank-you');
-
-                setFormData({
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    address: '',
-                    service_ids: [],
-                    date: '',
-                    timeSlot: '',
-                    notes: ''
-                });
             } else {
                 showAlert("Error", response.data.message || "Error submitting order", "error");
             }
         } catch (error) {
             console.error('Error submitting order:', error);
             showAlert("Error", "Error submitting order. Please try again.", "error");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -194,6 +214,60 @@ function OrderForm() {
 
     return (
         <>
+
+
+        {showPaymentModal && (
+            <div className="modal fade show" style={{ display: 'block', backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 1060 }} tabIndex="-1">
+                <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '1rem' }}>
+                        <div className="modal-header border-0" style={{ backgroundColor: '#0D8D1E', color: 'white', borderTopLeftRadius: '1rem', borderTopRightRadius: '1rem' }}>
+                            <h5 className="modal-title text-white fw-bold"><i className="fas fa-wallet me-2"></i>Pay Reservation Fee</h5>
+                            <button type="button" className="btn-close btn-close-white" onClick={() => setShowPaymentModal(false)}></button>
+                        </div>
+                        <div className="modal-body text-center p-4">
+                            <p className="text-muted mb-3">To secure your booking, a reservation fee of <strong>₱2,200</strong> is required.</p>
+                            <img src={instapayQr} alt="Instapay QR" className="img-fluid mb-3 rounded border" style={{ maxHeight: '250px' }} />
+                            <div className="alert alert-info text-start small mb-4" role="alert">
+                                <i className="fas fa-info-circle me-2"></i>
+                                <strong>Instructions:</strong> Please scan the Instapay QR Code above to pay the reservation fee. Make sure to include the transaction reference number and your order ID in the payment reference if possible. This ₱2000 fee (plus 10% tax) will be deducted from your final bill.
+                            </div>
+                            
+                            <div className="form-group text-start mb-3">
+                                <label className="form-label fw-bold">Transaction Reference Number <span className="text-danger">*</span></label>
+                                <input 
+                                    type="text" 
+                                    className="form-control bg-light" 
+                                    placeholder="e.g. 000123456789"
+                                    value={referenceNumber}
+                                    onChange={(e) => setReferenceNumber(e.target.value)}
+                                    required
+                                />
+                            </div>
+
+                            <div className="form-group text-start">
+                                <label className="form-label fw-bold">Upload Proof of Payment (Receipt) <span className="text-danger">*</span></label>
+                                <input 
+                                    type="file" 
+                                    className="form-control bg-light" 
+                                    accept="image/*,.pdf"
+                                    onChange={(e) => setPaymentReceipt(e.target.files[0])}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer border-0 p-4 pt-0">
+                            <button type="button" className="btn btn-light rounded-pill px-4 fw-bold" onClick={() => setShowPaymentModal(false)} disabled={isSubmitting}>
+                                Cancel
+                            </button>
+                            <button type="button" className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" style={{ backgroundColor: '#0D8D1E' }} onClick={handlePaymentSubmit} disabled={isSubmitting}>
+                                {isSubmitting ? 'Submitting...' : 'Confirm Payment & Submit'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <AlertModal 
             isOpen={modalConfig.isOpen} 
             title={modalConfig.title} 
@@ -201,6 +275,7 @@ function OrderForm() {
             type={modalConfig.type} 
             onClose={closeAlert} 
         />
+
         <div className="order-form-container">
             <div className="form-image">
                 <img src={carousel4} alt="Worker" />
@@ -209,7 +284,7 @@ function OrderForm() {
             <div className="form-section">
                 <h2 className="form-title">Cleaneco's Order Form</h2>
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleInitialSubmit}>
                     <div className="name-row">
                         <div className="form-group">
                             <label className="form-label">Name</label>
@@ -313,9 +388,6 @@ function OrderForm() {
                                             <p className="text-secondary small mb-3" style={{ flexGrow: 1, minHeight: '40px' }}>
                                                 {service.description || 'No description available'}
                                             </p>
-                                            <div className="fw-bold text-success fs-5">
-                                                ₱{parseFloat(service.base_price).toFixed(2)}
-                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -338,32 +410,24 @@ function OrderForm() {
                     {/* Price Breakdown / Receipt Summary */}
                     {(formData.service_ids || []).length > 0 && (
                         <div className="card border-0 p-3 mb-4 shadow-sm" style={{ background: '#f8fafc', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
-                            <h6 className="fw-bold text-dark mb-3"><i className="fas fa-receipt me-2 text-success"></i>Price Summary</h6>
-                            {(formData.service_ids || []).map(sId => {
-                                const s = services.find(serv => String(serv.id) === String(sId));
-                                if (!s) return null;
-                                return (
-                                    <div className="d-flex justify-content-between align-items-center mb-1 small text-muted" key={sId}>
-                                        <span>{s.name}</span>
-                                        <span>₱{parseFloat(s.base_price).toFixed(2)}</span>
-                                    </div>
-                                );
-                            })}
-                            <hr className="my-2" />
-                            <div className="d-flex justify-content-between align-items-center mb-1">
-                                <span className="fw-bold text-dark">Subtotal:</span>
-                                <span className="fw-bold text-dark">₱{calculateSubtotal().toFixed(2)}</span>
+                            <h6 className="fw-bold text-dark mb-3"><i className="fas fa-receipt me-2 text-success"></i>Reservation Summary</h6>
+                            <div className="d-flex justify-content-between align-items-center mb-1 small text-muted">
+                                <span>Reservation Fee</span>
+                                <span>₱2000.00</span>
                             </div>
+                            <div className="d-flex justify-content-between align-items-center mb-1 small text-muted">
+                                <span>Service Tax (10%)</span>
+                                <span>₱200.00</span>
+                            </div>
+                            <hr className="my-2" />
                             <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                                <span className="fw-bolder fs-5 text-dark">Estimated Total:</span>
+                                <span className="fw-bolder fs-5 text-dark">Total Amount Due Now:</span>
                                 <span className="fw-bolder fs-5 text-success" style={{ color: '#0D8D1E' }}>
-                                    ₱{(calculateSubtotal() + (calculateSubtotal() * 0.10)).toFixed(2)}
+                                    ₱2200.00
                                 </span>
                             </div>
                         </div>
                     )}
-
-
 
                     <div className="form-group">
                         <label className="form-label">Additional Notes (Optional)</label>
@@ -377,8 +441,8 @@ function OrderForm() {
                         />
                     </div>
 
-                    <button type="submit" className="submit-btn">
-                        Submit Order
+                    <button type="submit" className="submit-btn" style={{ backgroundColor: '#0D8D1E' }}>
+                        <i className="fas fa-wallet me-2"></i>Pay Now
                     </button>
                 </form>
             </div>

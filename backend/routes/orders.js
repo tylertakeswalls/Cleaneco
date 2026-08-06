@@ -3,6 +3,23 @@ const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
 const { sendConfirmationEmail } = require('../utils/emailHelper');
+const Payment = require('../models/Payment');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
 const router = express.Router();
 
@@ -75,7 +92,7 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-router.post('/submit', async (req, res) => {
+router.post('/submit', upload.single('receipt'), async (req, res) => {
   try {
     const data = req.body;
     let serviceIds = [];
@@ -99,13 +116,22 @@ router.post('/submit', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid service selected' });
     }
 
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Payment receipt is required.' });
+    }
+
+    const receiptUrl = `/uploads/${req.file.filename}`;
     const orderId = 'ORD' + Date.now() + Math.floor(Math.random() * 1000);
     const orderItems = [];
+    const reservationFee = 2000;
+    const taxAmount = 200;
+
+    const parsedUserId = (data.user_id && data.user_id !== 'null' && data.user_id !== 'undefined') ? data.user_id : null;
 
     for (const service of services) {
       const order = new Order({
         order_id: orderId,
-        user_id: data.user_id || null,
+        user_id: parsedUserId,
         service_id: service._id,
         first_name: data.firstName,
         last_name: data.lastName,
@@ -116,8 +142,10 @@ router.post('/submit', async (req, res) => {
         date: new Date(data.date),
         time_slot: data.timeSlot,
         notes: data.notes,
-        tax_amount: parseFloat((service.base_price * 0.10).toFixed(2)),
-        discount_amount: 0 // Senior discount removed entirely
+        price: reservationFee,
+        tax_amount: taxAmount,
+        discount_amount: 0,
+        reservation_receipt_url: receiptUrl
       });
       await order.save();
       orderItems.push({
@@ -127,8 +155,19 @@ router.post('/submit', async (req, res) => {
       });
     }
 
+    // Create Payment Record
+    await new Payment({
+      order_id: orderId,
+      user_id: parsedUserId,
+      client_name: `${data.firstName} ${data.lastName}`,
+      amount_paid: reservationFee + taxAmount,
+      payment_type: 'Reservation Fee',
+      receipt_url: receiptUrl,
+      reference_number: data.reference_number || ''
+    }).save();
+
     const servicesStr = services.map(s => s.name).join(', ');
-    const notifMsg = `New booking from ${data.firstName} ${data.lastName} (#${orderId})`;
+    const notifMsg = `New booking with payment from ${data.firstName} ${data.lastName} (#${orderId})`;
     const notifDetails = `Services: ${servicesStr} on ${data.date} (${data.timeSlot})`;
     
     await new Notification({
@@ -151,16 +190,39 @@ router.post('/submit', async (req, res) => {
 
     await sendConfirmationEmail(orderId, clientInfo, orderItems, false);
 
-    res.json({ success: true, message: 'Order submitted successfully', order_id: orderId });
+    res.json({ success: true, message: 'Order submitted and payment pending verification', order_id: orderId });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Order submission failed: ' + error.message });
+  }
+});
+
+router.post('/:id/upload-documents', upload.fields([{ name: 'quotation' }, { name: 'service_report' }]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    
+    if (req.files['quotation']) {
+      order.quotation_pdf_url = `/uploads/${req.files['quotation'][0].filename}`;
+    }
+    if (req.files['service_report']) {
+      order.service_report_pdf_url = `/uploads/${req.files['service_report'][0].filename}`;
+    }
+    
+    await order.save();
+    res.json({ success: true, message: 'Documents uploaded successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Upload failed: ' + error.message });
   }
 });
 
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
+    
+    if (updateData.request_type === '') updateData.request_type = null;
+    if (updateData.price === '') updateData.price = null;
     
     const oldOrder = await Order.findById(id);
     if (!oldOrder) {
