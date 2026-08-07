@@ -275,8 +275,10 @@
 }
 
 /* Action buttons alignment (Edit/Make Unavailable/Delete) */
-.service-management table td:nth-child(6) {
-    width: 320px;
+@media (min-width: 769px) {
+    .service-management table td:nth-child(6) {
+        width: 320px;
+    }
 }
 
 .service-management .action-buttons .btn-sm {

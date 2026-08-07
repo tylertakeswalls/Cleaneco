@@ -106,19 +106,19 @@ function VerifyPayments() {
                                         <td className="fw-bold text-success">₱{payment.amount_paid?.toFixed(2)}</td>
                                         <td>{payment.reference_number || 'N/A'}</td>
                                         <td>
-                                            <a href={`http://localhost:5000${payment.receipt_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary-solid rounded-pill fw-bold">
+                                            <a href={`http://localhost:5000${payment.receipt_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary-solid rounded-pill fw-bold payment-action-btn">
                                                 <i className="fas fa-eye me-1"></i>View
                                             </a>
                                         </td>
                                         <td className="text-center">
                                             <button 
-                                                className="btn btn-sm btn-success-solid rounded-pill fw-bold mx-2" 
+                                                className="btn btn-sm btn-success-solid rounded-pill fw-bold mx-1 payment-action-btn" 
                                                 onClick={() => handleVerify(payment._id, 'Verified')}
                                             >
                                                 <i className="fas fa-check me-1"></i>Verify
                                             </button>
                                             <button 
-                                                className="btn btn-sm btn-danger rounded-pill fw-bold" 
+                                                className="btn btn-sm btn-danger rounded-pill fw-bold mx-1 payment-action-btn" 
                                                 onClick={() => handleVerify(payment._id, 'Rejected')}
                                             >
                                                 <i className="fas fa-times me-1"></i>Reject

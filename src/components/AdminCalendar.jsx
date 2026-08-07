@@ -1,6 +1,9 @@
 import { useState } from "react";
 import "../assets/styles/adminCalendar.css";
 
+// ponytail: Custom calendar grid is a known ceiling. Avoid adding complex date-math or timezone logic here.
+// Upgrade path: Swap with 'react-big-calendar' or 'react-calendar' if complex features (like week view or drag-drop) are needed later.
+
 export default function AdminCalendar({ orders = [] }) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);

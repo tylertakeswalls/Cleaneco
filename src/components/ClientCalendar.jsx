@@ -1,3 +1,6 @@
+// ponytail: Custom calendar grid is a known ceiling. Avoid adding complex date-math or timezone logic here.
+// Upgrade path: Swap with 'react-big-calendar' or 'react-calendar' if complex features are needed later.
+
 import { useState, useEffect } from "react";
 import api from "../api/axiosConfig";
 

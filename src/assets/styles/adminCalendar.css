@@ -124,7 +124,6 @@
     z-index: 9999;
 }
 
-
 .calendar-close-btn {
     background: #777;
     color: white;
@@ -134,4 +133,23 @@
     cursor: pointer;
 }
 
-/* Inline Order Form Modal remains unchanged */
+/* Responsive tweaks for admin calendar */
+@media (max-width: 768px) {
+    .calendar-container, .admin-calendar-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 10px;
+        width: 100%;
+        display: block;
+    }
+    .calendar-header, .calendar-grid {
+        min-width: 600px;
+    }
+    .calendar-day-header {
+        font-size: 0.85rem;
+        padding: 4px 0;
+    }
+    .calendar-cell {
+        min-height: 60px;
+    }
+}

@@ -299,14 +299,14 @@ function AdminLanding() {
       <div className="p-4 w-100 h-100">
 
         {/* Page Header */}
-        <div className="d-flex justify-content-between align-items-center mb-4">
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
           <h4 className="fw-bold text-dark mb-0 d-flex align-items-center">
             <span className="d-inline-flex align-items-center justify-content-center bg-white shadow-sm text-primary rounded me-3" style={{ width: '38px', height: '38px', color: '#0D8D1E' }}>
               <i className="fas fa-home" style={{ color: '#0D8D1E' }}></i>
             </span>
             Dashboard
           </h4>
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex flex-wrap align-items-center gap-2">
             <span className="text-muted fw-bold me-2" style={{ fontSize: '0.85rem' }}>Reports:</span>
             <button className="btn btn-success btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('monthly')} style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}>
               <i className="fas fa-file-pdf me-1"></i>Monthly

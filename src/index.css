@@ -24,6 +24,23 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Notification Tray adjustments */
+.client-notif-tray {
+    width: 320px;
+    right: -10px;
+}
+
+@media (max-width: 576px) {
+    .client-notif-tray {
+        position: fixed !important;
+        top: 80px !important;
+        right: 10px !important;
+        left: 10px !important;
+        width: auto !important;
+        max-width: none !important;
+    }
+}
+
 .btn-cleaneco {
   background-color: var(--cleaneco-green) !important;
   border-color: var(--cleaneco-green) !important;
@@ -498,3 +515,26 @@ footer h1, footer h2, footer h3, footer h4, footer h5, footer h6,
   border-radius: 0 !important;
 }
 
+/* =======================================
+   Responsive Tweaks
+   ======================================= */
+@media (max-width: 768px) {
+  h1, h2, h3 {
+    font-size: calc(1.3rem + 0.6vw) !important;
+  }
+  .intro-text {
+    font-size: 1rem !important;
+    padding: 0 15px;
+  }
+  .hero-content .main-title {
+    font-size: 2.2rem !important;
+  }
+  .hero-content .sub-title {
+    font-size: 1.2rem !important;
+  }
+  .carousel-control-prev-icon,
+  .carousel-control-next-icon {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+  }
+}

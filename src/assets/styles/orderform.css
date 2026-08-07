@@ -193,3 +193,32 @@
 .submit-btn:hover {
     background-color: #1a6b2d;
 }
+
+/* =======================================
+   Mobile Responsiveness for Order Form
+   ======================================= */
+@media (max-width: 992px) {
+    .order-form-container {
+        flex-direction: column;
+    }
+
+    .form-image {
+        position: relative;
+        height: 250px;
+        width: 100%;
+        top: auto;
+    }
+
+    .form-section {
+        padding: 30px 20px;
+    }
+
+    .name-row, .contact-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .name-row .form-group, .contact-row .form-group {
+        margin-bottom: 20px;
+    }
+}

@@ -530,3 +530,58 @@
   font-size: 1rem;
   line-height: 1;
 }
+
+/* Admin Dashboard Responsiveness */
+.admin-sidebar {
+    width: 260px;
+}
+
+.admin-main-content {
+    margin-left: 260px;
+}
+
+@media (max-width: 992px) {
+    .admin-layout-wrapper {
+        flex-direction: column !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .admin-sidebar {
+        width: 100% !important;
+        position: relative !important;
+        height: auto !important;
+    }
+    .admin-main-content {
+        margin-left: 0 !important;
+    }
+    .stat-card {
+        margin-top: 15px;
+    }
+    .admin-nav-links {
+        flex-direction: row !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 10px !important;
+        padding-bottom: 5px;
+    }
+    .admin-nav-links .btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        margin-bottom: 0 !important;
+    }
+    .admin-nav-links::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.payment-action-btn {
+    min-width: 90px;
+    display: inline-block;
+    text-align: center;
+}
+

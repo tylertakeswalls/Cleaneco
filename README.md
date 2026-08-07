@@ -82,6 +82,16 @@ This document summarizes the recent features and structural updates implemented 
 - **Structural UI Polish**: Restructured Admin dashboard views (`VerifyPayments.jsx`, `AdminProfile.jsx`, etc.) to use identical flexbox and bootstrap grid containers ensuring header text and action cards align seamlessly.
 - **CSS Hover Effects**: Eradicated transparent-text hover bugs across `OngoingOrders.jsx` and Admin quick actions by decoupling destructive global gradients from contextual `.btn-success-solid` and `.btn-primary-solid` utility classes.
 
+## 14. Mobile Responsiveness & Layout Overhaul
+- **Admin Layout Simplification**: Restructured the mobile admin sidebar to integrate gracefully with the top navbar. The top navbar is hidden on mobile devices and its essential actions (Notifications, Profile) are embedded directly into the horizontally scrollable sidebar header, creating a clean, full-screen mobile app experience.
+- **Client Navbar Toggler Fix**: Removed redundant `bootstrap.bundle.min.js` imports across HTML and React entry files to resolve conflicting event listeners, ensuring the mobile burger menu opens and closes natively without state corruption.
+- **Client Header Actions**: Extracted the Profile Picture and Notification Bell from the collapsible mobile menu and placed them directly on the top header row for constant visibility.
+- **Client Notification Overlay**: Upgraded the notification dropdown on mobile devices to a sleek, fixed overlay that spans the full screen width, preventing the UI from being clipped off the edge of narrow screens.
+- **Ponytail Architecture Audit**:
+  - Replaced an inefficient `O(N)` manual array mapping loop in the `/availability` endpoint with a highly optimized MongoDB Aggregation pipeline (`Order.aggregate`) that natively groups and counts bookings.
+  - Refactored `Header.jsx` to eliminate network spam. It now utilizes independent `useEffect` hooks and a 60-second polling interval rather than refetching notifications on every single route change.
+  - Left explicit architectural ceiling comments on custom calendar grid components (`AdminCalendar.jsx`, `ClientCalendar.jsx`) to guide future scalability.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

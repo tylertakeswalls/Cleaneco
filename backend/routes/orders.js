@@ -64,19 +64,24 @@ router.get('/stats', async (req, res) => {
 
 router.get('/availability', async (req, res) => {
   try {
-    const orders = await Order.find({ status: { $nin: ['Cancelled', 'Completed'] } });
-    const availability = orders.reduce((acc, order) => {
-      const dateStr = order.date ? order.date.toISOString().split('T')[0] : null;
-      if (!dateStr || !order.time_slot) return acc;
-      
-      const existing = acc.find(a => a.date === dateStr && a.time_slot === order.time_slot);
-      if (existing) {
-        existing.booking_count += 1;
-      } else {
-        acc.push({ date: dateStr, time_slot: order.time_slot, booking_count: 1 });
-      }
-      return acc;
-    }, []);
+    const availabilityData = await Order.aggregate([
+      { $match: { status: { $nin: ['Cancelled', 'Completed'] } } },
+      { $group: {
+          _id: { 
+            date: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, 
+            time_slot: "$time_slot" 
+          },
+          booking_count: { $sum: 1 }
+      }},
+      { $match: { "_id.date": { $ne: null }, "_id.time_slot": { $ne: null } } }
+    ]);
+    
+    const availability = availabilityData.map(item => ({
+      date: item._id.date,
+      time_slot: item._id.time_slot,
+      booking_count: item.booking_count
+    }));
+    
     res.json(availability);
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch availability' });
