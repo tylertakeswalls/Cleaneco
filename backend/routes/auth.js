@@ -2,11 +2,30 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { sendVerificationEmail } = require('../utils/emailHelper');
 
 const router = express.Router();
+
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    const resetTime = req.rateLimit.resetTime;
+    const remainingSeconds = resetTime ? Math.ceil((resetTime.getTime() - Date.now()) / 1000) : 60;
+    res.status(429).json({
+      success: false,
+      message: `Too many login attempts. Please try again in ${remainingSeconds} seconds.`,
+      locked: true,
+      remainingSeconds
+    });
+  }
+});
 
 router.post('/register', async (req, res) => {
   try {
@@ -59,7 +78,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const identifier = username || email;

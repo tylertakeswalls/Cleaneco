@@ -92,6 +92,9 @@ This document summarizes the recent features and structural updates implemented 
   - Refactored `Header.jsx` to eliminate network spam. It now utilizes independent `useEffect` hooks and a 60-second polling interval rather than refetching notifications on every single route change.
   - Left explicit architectural ceiling comments on custom calendar grid components (`AdminCalendar.jsx`, `ClientCalendar.jsx`) to guide future scalability.
 
+## 15. Security & Authentication Enhancements
+- **Login Rate Limiting**: Implemented a robust **IP-based** rate limiting system on the authentication endpoints using `express-rate-limit`. This prevents brute-force attacks by temporarily locking out any IP address that attempts to log in with invalid credentials (or non-existent usernames) 5 consecutive times, enforcing a 60-second cooldown period with a live frontend countdown timer.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

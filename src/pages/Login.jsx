@@ -12,6 +12,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [lockdownTimer, setLockdownTimer] = useState(0);
   const navigate = useNavigate();
 
   const handleResendVerification = async () => {
@@ -32,6 +33,17 @@ function Login() {
       setResending(false);
     }
   };
+
+  useEffect(() => {
+    if (lockdownTimer > 0) {
+      const timerId = setInterval(() => {
+        setLockdownTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(timerId);
+    } else if (lockdownTimer === 0 && message && message.includes('locked')) {
+      setMessage('');
+    }
+  }, [lockdownTimer, message]);
 
   useEffect(() => {
     const loggedInUser = localStorage.getItem("loggedInUser") || sessionStorage.getItem("loggedInUser");
@@ -105,12 +117,17 @@ function Login() {
       }
     } catch (error) {
       console.error("Login error:", error);
-      if (error.response?.data?.notVerified) {
-        setUnverifiedEmail(error.response.data.email);
+      if (error.response?.data?.locked) {
+        setLockdownTimer(error.response.data.remainingSeconds || 60);
+        setMessage(error.response.data.message);
       } else {
-        setUnverifiedEmail(null);
+        if (error.response?.data?.notVerified) {
+          setUnverifiedEmail(error.response.data.email);
+        } else {
+          setUnverifiedEmail(null);
+        }
+        setMessage(error.response?.data?.message || "Login failed. Please check your connection and try again.");
       }
-      setMessage(error.response?.data?.message || "Login failed. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -189,7 +206,13 @@ function Login() {
           </button>
         </div>
 
-        {message && (
+        {lockdownTimer > 0 && (
+          <div className="alert alert-danger text-center">
+            Account temporarily locked. Please try again in {lockdownTimer} seconds.
+          </div>
+        )}
+
+        {message && !lockdownTimer && (
           <div className={`alert ${message.includes('successful') || message.includes('resent') ? 'alert-success' : 'alert-danger'} text-center`}>
             {message}
             {unverifiedEmail && (
@@ -210,7 +233,7 @@ function Login() {
         <button 
           type="submit" 
           className="btn-register-custom"
-          disabled={loading}
+          disabled={loading || lockdownTimer > 0}
         >
           {loading ? (
             <>

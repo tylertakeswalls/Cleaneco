@@ -16,7 +16,9 @@ const userSchema = new mongoose.Schema({
   delete_requested_at: { type: Date },
   isVerified: { type: Boolean, default: false },
   verificationToken: { type: String },
-  role: { type: String, enum: ['admin', 'client'], default: 'client' }
+  role: { type: String, enum: ['admin', 'client'], default: 'client' },
+  loginAttempts: { type: Number, required: true, default: 0 },
+  lockUntil: { type: Date }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 module.exports = mongoose.model('User', userSchema);
