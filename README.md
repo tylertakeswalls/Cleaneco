@@ -95,6 +95,11 @@ This document summarizes the recent features and structural updates implemented 
 ## 15. Security & Authentication Enhancements
 - **Login Rate Limiting**: Implemented a robust **IP-based** rate limiting system on the authentication endpoints using `express-rate-limit`. This prevents brute-force attacks by temporarily locking out any IP address that attempts to log in with invalid credentials (or non-existent usernames) 5 consecutive times, enforcing a 60-second cooldown period with a live frontend countdown timer.
 
+## 16. PayMongo Integration & Codebase Optimization
+- **Unified Checkout Flow**: Removed manual QR code scanning and file uploads for reservation fee payments. The `OrderForm` now securely submits directly to the backend to generate a **PayMongo Checkout Session**, seamlessly redirecting users to the payment gateway.
+- **Automated Revenue Tracking**: Implemented a secure webhook listener (`/api/payments/webhook`) to parse `checkout_session.payment.paid` events. The backend now automatically updates order statuses to "In Progress" and updates Admin Revenue metrics instantly upon successful payment.
+- **Ponytail Debt Reduction**: Streamlined the architecture by aggressively deleting redundant code. Entirely removed the `VerifyPayments.jsx` admin interface, dropped the secondary `Payment.js` MongoDB schema, and purged obsolete endpoints to ensure the application maintains a lean, single source of truth (`Order.status`) for all revenue calculations.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
