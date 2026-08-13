@@ -18,7 +18,6 @@ const orderSchema = new mongoose.Schema({
   discount_amount: { type: Number, default: 0 },
   request_type: { type: String, enum: ['Cancel Requested', 'Reschedule Requested', null], default: null },
   approval_fee: { type: Number, default: 0 },
-  reservation_receipt_url: { type: String },
   quotation_pdf_url: { type: String },
   confirmed_date: { type: Date },
   confirmed_time_slot: { type: String },

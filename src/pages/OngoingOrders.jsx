@@ -278,11 +278,6 @@ function OngoingOrders() {
 
                     <h6 className="fw-bold mb-3">Documents</h6>
                     <div className="d-flex gap-2 flex-wrap mb-4">
-                      {order.reservation_receipt_url && (
-                        <a href={`http://localhost:5000${order.reservation_receipt_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-secondary-solid rounded-pill shadow-sm">
-                          <i className="fas fa-image me-1"></i>Reservation Receipt
-                        </a>
-                      )}
                       {order.quotation_pdf_url ? (
                         <a href={`http://localhost:5000${order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary-solid rounded-pill shadow-sm">
                           <i className="fas fa-file-pdf me-1"></i>Approved P.O. / Quotation

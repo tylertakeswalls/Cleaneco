@@ -24,4 +24,4 @@ yarn-error.log*
 
 # environment variables
 .env
-
+backend/uploads/

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import '../assets/styles/orderform.css';
 import carousel4 from '../assets/styles/images/carousel4.png';
-import instapayQr from '../assets/styles/images/instapay_qr.png';
+import paymongoLogo from '../assets/styles/images/paymongo.png';
 import ClientCalendar from '../components/ClientCalendar';
 import AlertModal from '../components/AlertModal';
 
@@ -26,8 +26,6 @@ function OrderForm() {
     
     // Payment specific state
     const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [paymentReceipt, setPaymentReceipt] = useState(null);
-    const [referenceNumber, setReferenceNumber] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const navigate = useNavigate();
@@ -162,16 +160,9 @@ function OrderForm() {
         setShowPaymentModal(true);
     };
 
-    const handlePaymentSubmit = async () => {
-        if (!paymentReceipt) {
-            showAlert("Receipt Required", "Please upload a proof of payment to proceed.", "warning");
-            return;
-        }
-        if (!referenceNumber) {
-            showAlert("Reference Number Required", "Please enter the transaction reference number.", "warning");
-            return;
-        }
 
+
+    const handlePayMongoSubmit = async () => {
         setIsSubmitting(true);
         try {
             const submitData = new FormData();
@@ -185,24 +176,21 @@ function OrderForm() {
             submitData.append('timeSlot', formData.timeSlot);
             submitData.append('notes', formData.notes);
             submitData.append('service_ids', JSON.stringify(formData.service_ids));
-            submitData.append('reference_number', referenceNumber);
-            submitData.append('receipt', paymentReceipt);
 
             const response = await api.post('/orders/submit', submitData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-
-            if (response.data.success) {
-                setShowPaymentModal(false);
-                navigate('/thank-you');
+            
+            if (response.data.success && response.data.checkout_url) {
+                window.location.href = response.data.checkout_url;
             } else {
-                showAlert("Error", response.data.message || "Error submitting order", "error");
+                showAlert("Error", response.data.message || "Could not create payment session", "error");
             }
         } catch (error) {
-            console.error('Error submitting order:', error);
-            showAlert("Error", "Error submitting order. Please try again.", "error");
+            console.error('Submit error:', error);
+            showAlert("Error", "Error submitting order or connecting to PayMongo. Please try again.", "error");
         } finally {
             setIsSubmitting(false);
         }
@@ -226,42 +214,21 @@ function OrderForm() {
                         </div>
                         <div className="modal-body text-center p-4">
                             <p className="text-muted mb-3">To secure your booking, a reservation fee of <strong>₱2,200</strong> is required.</p>
-                            <img src={instapayQr} alt="Instapay QR" className="img-fluid mb-3 rounded border" style={{ maxHeight: '250px' }} />
+                            <img src={paymongoLogo} alt="PayMongo Options" className="img-fluid mb-4 px-2" style={{ width: '100%', objectFit: 'contain' }} />
                             <div className="alert alert-info text-start small mb-4" role="alert">
                                 <i className="fas fa-info-circle me-2"></i>
-                                <strong>Instructions:</strong> Please scan the Instapay QR Code above to pay the reservation fee. Make sure to include the transaction reference number and your order ID in the payment reference if possible. This ₱2000 fee (plus 10% tax) will be deducted from your final bill.
-                            </div>
-                            
-                            <div className="form-group text-start mb-3">
-                                <label className="form-label fw-bold">Transaction Reference Number <span className="text-danger">*</span></label>
-                                <input 
-                                    type="text" 
-                                    className="form-control bg-light" 
-                                    placeholder="e.g. 000123456789"
-                                    value={referenceNumber}
-                                    onChange={(e) => setReferenceNumber(e.target.value)}
-                                    required
-                                />
-                            </div>
-
-                            <div className="form-group text-start">
-                                <label className="form-label fw-bold">Upload Proof of Payment (Receipt) <span className="text-danger">*</span></label>
-                                <input 
-                                    type="file" 
-                                    className="form-control bg-light" 
-                                    accept="image/*,.pdf"
-                                    onChange={(e) => setPaymentReceipt(e.target.files[0])}
-                                    required
-                                />
+                                <strong>Instructions:</strong> Please click the button below to pay securely via PayMongo. You can use credit/debit cards, GCash, or Maya. This ₱2000 fee (plus 10% tax) will be deducted from your final bill.
                             </div>
                         </div>
-                        <div className="modal-footer border-0 p-4 pt-0">
-                            <button type="button" className="btn btn-light rounded-pill px-4 fw-bold" onClick={() => setShowPaymentModal(false)} disabled={isSubmitting}>
-                                Cancel
+                        <div className="modal-footer border-0 p-4 pt-0 d-flex flex-column gap-2">
+                            <button type="button" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm" onClick={handlePayMongoSubmit} disabled={isSubmitting}>
+                                <i className="fas fa-credit-card me-2"></i>{isSubmitting ? 'Processing...' : 'Pay with PayMongo (Cards, GCash, Maya)'}
                             </button>
-                            <button type="button" className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" style={{ backgroundColor: '#0D8D1E' }} onClick={handlePaymentSubmit} disabled={isSubmitting}>
-                                {isSubmitting ? 'Submitting...' : 'Confirm Payment & Submit'}
-                            </button>
+                            <div className="d-flex w-100 gap-2 mt-2">
+                                <button type="button" className="btn btn-light rounded-pill flex-grow-1 fw-bold" onClick={() => setShowPaymentModal(false)} disabled={isSubmitting}>
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

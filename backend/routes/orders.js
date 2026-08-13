@@ -1,9 +1,9 @@
 const express = require('express');
+const axios = require('axios');
 const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
 const { sendConfirmationEmail } = require('../utils/emailHelper');
-const Payment = require('../models/Payment');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -97,7 +97,7 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-router.post('/submit', upload.single('receipt'), async (req, res) => {
+router.post('/submit', upload.none(), async (req, res) => {
   try {
     const data = req.body;
     let serviceIds = [];
@@ -121,15 +121,9 @@ router.post('/submit', upload.single('receipt'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid service selected' });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'Payment receipt is required.' });
-    }
-
-    const receiptUrl = `/uploads/${req.file.filename}`;
     const orderId = 'ORD' + Date.now() + Math.floor(Math.random() * 1000);
     const orderItems = [];
-    const reservationFee = 2000;
-    const taxAmount = 200;
+    const totalAmount = 2200; // 2000 fee + 200 tax
 
     const parsedUserId = (data.user_id && data.user_id !== 'null' && data.user_id !== 'undefined') ? data.user_id : null;
 
@@ -147,10 +141,9 @@ router.post('/submit', upload.single('receipt'), async (req, res) => {
         date: new Date(data.date),
         time_slot: data.timeSlot,
         notes: data.notes,
-        price: reservationFee,
-        tax_amount: taxAmount,
-        discount_amount: 0,
-        reservation_receipt_url: receiptUrl
+        price: 2000,
+        tax_amount: 200,
+        discount_amount: 0
       });
       await order.save();
       orderItems.push({
@@ -160,18 +153,46 @@ router.post('/submit', upload.single('receipt'), async (req, res) => {
       });
     }
 
-    // Create Payment Record
-    await new Payment({
-      order_id: orderId,
-      user_id: parsedUserId,
-      client_name: `${data.firstName} ${data.lastName}`,
-      amount_paid: reservationFee + taxAmount,
-      payment_type: 'Reservation Fee',
-      receipt_url: receiptUrl,
-      reference_number: data.reference_number || ''
-    }).save();
-
     const servicesStr = services.map(s => s.name).join(', ');
+    const description = `Cleaneco Service Booking - ${servicesStr}`;
+
+    // Create PayMongo Checkout Session
+    const options = {
+        method: 'POST',
+        url: 'https://api.paymongo.com/v1/checkout_sessions',
+        headers: {
+            accept: 'application/json',
+            'Content-Type': 'application/json',
+            authorization: `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY + ':').toString('base64')}`
+        },
+        data: {
+            data: {
+                attributes: {
+                    send_email_receipt: true,
+                    show_description: true,
+                    show_line_items: true,
+                    cancel_url: 'http://localhost:3000/payment-cancel',
+                    success_url: 'http://localhost:3000/payment-success',
+                    description: description,
+                    line_items: [
+                        {
+                            currency: 'PHP',
+                            amount: totalAmount * 100, // in centavos
+                            description: description,
+                            name: 'Reservation Fee',
+                            quantity: 1
+                        }
+                    ],
+                    payment_method_types: ['card', 'gcash', 'paymaya', 'grab_pay', 'dob'],
+                    reference_number: orderId
+                }
+            }
+        }
+    };
+
+    const paymongoResponse = await axios.request(options);
+    const checkout_url = paymongoResponse.data.data.attributes.checkout_url;
+
     const notifMsg = `New booking with payment from ${data.firstName} ${data.lastName} (#${orderId})`;
     const notifDetails = `Services: ${servicesStr} on ${data.date} (${data.timeSlot})`;
     
@@ -195,7 +216,7 @@ router.post('/submit', upload.single('receipt'), async (req, res) => {
 
     await sendConfirmationEmail(orderId, clientInfo, orderItems, false);
 
-    res.json({ success: true, message: 'Order submitted and payment pending verification', order_id: orderId });
+    res.json({ success: true, message: 'Order submitted, redirecting to payment...', checkout_url });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Order submission failed: ' + error.message });
   }
