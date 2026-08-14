@@ -585,3 +585,11 @@
     text-align: center;
 }
 
+/* Impeccable Design Tokens */
+.text-brand { color: var(--cleaneco-primary) !important; }
+.bg-brand-soft { background-color: rgba(13, 141, 30, 0.1) !important; }
+.btn-brand { background-color: var(--cleaneco-primary) !important; border-color: var(--cleaneco-primary) !important; color: white !important; }
+.btn-brand:hover { filter: brightness(0.9); }
+.icon-container-md { width: 38px; height: 38px; }
+.icon-container-lg { width: 50px; height: 50px; }
+.rounded-xl { border-radius: 10px !important; }

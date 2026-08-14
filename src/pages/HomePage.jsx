@@ -67,56 +67,41 @@ function HomePage() {
       </section>
 
       {/* services showcase section with feature cards */}
-      <div className="text-center my-5" style={{backgroundColor: '#F2F2F2'}}>
-        <br />
+      <div className="text-center my-5 bg-light py-5">
         <h2 className="intro-title">Our Services</h2>
         
         {/* service cards container */}
-        <div style={{display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: '20px', margin: '40px 0', flexWrap: 'wrap'}}>
-
-          {/* siphoning/desludging service card */}
-          <div className="card" style={{width: '18rem'}}>
-            <img className="card-img-top" src={carousel4} alt="Siphoning/Desludging" style={{width: '100%', height: '250px', objectFit: 'cover'}} />
-            <div className="card-body">
-              <h5 className="card-title">Siphoning/Desludging</h5>
-              <p className="card-text">Siphoning of accumulated sludge and
-                wastewater from the septic tanks, grease traps,
-                and STP's to ensure proper sanitation, prevent
-                overflow, and maintain the efficiency of the
-                wastewater treatment system.</p>
-              <Link to={`${servicePrefix}/siphoning-desludging`} className="btn btn-custom">Learn More</Link>
+        <div className="d-flex justify-content-center align-items-stretch flex-wrap gap-4 mt-5 mb-4">
+          {[
+            {
+              title: "Siphoning/Desludging",
+              image: carousel4,
+              description: "Siphoning of accumulated sludge and wastewater from the septic tanks, grease traps, and STP's to ensure proper sanitation, prevent overflow, and maintain the efficiency of the wastewater treatment system.",
+              link: `${servicePrefix}/siphoning-desludging`
+            },
+            {
+              title: "Deep Cleaning",
+              image: carousel2,
+              description: "Deep cleaning of septic tanks, grease traps, and STP's involves the thorough removal of hardened sludge, grease layers, and solid waste deposits that regular siphoning cannot eliminate.",
+              link: `${servicePrefix}/deep-cleaning`
+            },
+            {
+              title: "Declogging",
+              image: carousell7,
+              description: "Our declogging service utilizes high-pressure water jetting and mechanical tools to clear obstructions in sewer lines, floor drains, and pipelines. This ensures smooth drainage flow and prevents potential overflows or structural damage.",
+              link: `${servicePrefix}/declogging`
+            }
+          ].map((service, index) => (
+            <div className="card" style={{ width: '18rem' }} key={index}>
+              <img className="card-img-top" src={service.image} alt={service.title} style={{ width: '100%', height: '250px', objectFit: 'cover' }} />
+              <div className="card-body">
+                <h5 className="card-title">{service.title}</h5>
+                <p className="card-text">{service.description}</p>
+                <Link to={service.link} className="btn btn-custom">Learn More</Link>
+              </div>
             </div>
-          </div>
-
-          {/* deep cleaning service card */}
-          <div className="card" style={{width: '18rem'}}>
-            <img className="card-img-top" src={carousel2} alt="Deep Cleaning" style={{width: '100%', height: '250px', objectFit: 'cover'}} />
-            <div className="card-body">
-              <h5 className="card-title">Deep Cleaning</h5>
-              <p className="card-text">Deep cleaning of septic tanks, grease traps,
-                and STP's involves the thorough removal of
-                hardened sludge, grease layers, and solid
-                waste deposits that regular siphoning cannot
-                eliminate.</p>
-              <Link to={`${servicePrefix}/deep-cleaning`} className="btn btn-custom">Learn More</Link>
-            </div>
-          </div>
-
-          {/* declogging service card */}
-          <div className="card" style={{width: '18rem'}}>
-            <img className="card-img-top" src={carousell7} alt="Declogging" style={{width: '100%', height: '250px', objectFit: 'cover'}} />
-            <div className="card-body">
-              <h5 className="card-title">Declogging</h5>
-              <p className="card-text">Our declogging service utilizes high-pressure
-                water jetting and mechanical tools to clear
-                obstructions in sewer lines, floor drains, and
-                pipelines. This ensures smooth drainage flow and
-                prevents potential overflows or structural damage.</p>
-              <Link to={`${servicePrefix}/declogging`} className="btn btn-custom">Learn More</Link>
-            </div>
-          </div>
+          ))}
         </div>
-        <br />
       </div>
 
       {/* company location and map section */}
@@ -140,7 +125,7 @@ function HomePage() {
       </section>
 
       {/* client portfolio and testimonials section */}
-      <section className="clients-section text-center py-5" style={{backgroundColor: '#F2F2F2'}}>
+      <section className="clients-section text-center py-5 bg-light">
         <h2 className="intro-title mb-4" id="clients">Trusted by Our Clients</h2>
 
         {/* client logo carousel */}

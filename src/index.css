@@ -73,7 +73,7 @@ h1, h2, h3, h4, h5, h6, .intro-title {
   margin: 0 auto 2rem;
 }
 
-/* Global Navbar Styling (Glassmorphism) */
+/* Global Navbar Styling */
 .navbar-cleaneco {
   background: var(--cleaneco-primary) !important;
   border-bottom: 1px solid rgba(0,0,0,0.1) !important;
@@ -156,9 +156,6 @@ h1, h2, h3, h4, h5, h6, .intro-title {
   object-fit: cover !important;
 }
 
-.card:hover .card-img-top {
-  filter: brightness(1.05);
-}
 
 .card-title {
   font-weight: 700;

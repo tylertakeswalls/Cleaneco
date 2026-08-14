@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import '../assets/styles/orderdatabase.css';
@@ -342,7 +343,17 @@ function OrderDatabase() {
               </thead>
               <tbody>
                 {filteredOrders.length === 0 ? (
-                  <tr><td colSpan="8" className="text-center">No orders found.</td></tr>
+                  <tr>
+                    <td colSpan="8" className="text-center py-5">
+                      <div className="d-flex flex-column align-items-center justify-content-center py-4">
+                        <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '70px', height:'70px'}}>
+                          <i className="fas fa-box-open fs-2 text-secondary"></i>
+                        </div>
+                        <h5 className="fw-bold text-dark mb-1">No orders found</h5>
+                        <p className="text-muted mb-0">Try adjusting your filters or wait for new bookings.</p>
+                      </div>
+                    </td>
+                  </tr>
                 ) : (
                   filteredOrders.map((order) => (
                     <tr key={order.id}>
@@ -392,223 +403,228 @@ function OrderDatabase() {
           <h4>Total Revenue</h4>
           <div className="revenue-amount">₱{totalRevenue.toFixed(2)}</div>
         </div>
-      </section>
+        
+        {editModal.show && createPortal(
+        <div className="side-drawer-overlay" onClick={closeEditModal}>
+          <div className="side-drawer" onClick={e => e.stopPropagation()}>
+            <div className="side-drawer-header">
+              <h5 className="mb-0 text-dark fw-bold"><i className="fas fa-edit me-2" style={{color: '#0D8D1E'}}></i>Manage Order</h5>
+              <button type="button" className="btn-close" onClick={closeEditModal}></button>
+            </div>
+            
+            <div className="side-drawer-body p-0">
+              <ul className="nav nav-tabs px-4 pt-3 bg-light border-bottom" style={{ gap: '5px' }}>
+                <li className="nav-item">
+                  <button className={`nav-link fw-bold ${activeTab === 'details' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('details')} style={activeTab === 'details' ? { color: '#0D8D1E' } : {}}>Details</button>
+                </li>
+                <li className="nav-item">
+                  <button className={`nav-link fw-bold ${activeTab === 'scheduling' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('scheduling')} style={activeTab === 'scheduling' ? { color: '#0D8D1E' } : {}}>Scheduling</button>
+                </li>
+                <li className="nav-item">
+                  <button className={`nav-link fw-bold ${activeTab === 'documents' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('documents')} style={activeTab === 'documents' ? { color: '#0D8D1E' } : {}}>Documents</button>
+                </li>
+              </ul>
 
-      {editModal.show && (
-        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }} tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content">
-              <div className="modal-header" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
-                <h5 className="modal-title text-white"><i className="fas fa-edit me-2"></i>Manage Order</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={closeEditModal}></button>
+              <div className="tab-content p-4">
+                {activeTab === 'details' && (
+                  <div className="row">
+                    <div className="col-md-12">
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Order Status</label>
+                        <select 
+                          name="status"
+                          className="form-select bg-light border-0 shadow-sm"
+                          value={editForm.status}
+                          onChange={handleEditChange}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Base Estimate (₱)</label>
+                        <input 
+                          type="number" 
+                          className="form-control bg-light border-0 shadow-sm" 
+                          value={editModal.order?.base_estimate || 0} 
+                          readOnly 
+                        />
+                      </div>
+
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Misc Fee (₱)</label>
+                        <input 
+                          type="number" 
+                          name="misc_fee"
+                          className="form-control bg-light border-0 shadow-sm" 
+                          value={editForm.misc_fee} 
+                          onChange={handleEditChange}
+                        />
+                      </div>
+                      
+                      <div className="alert alert-success border-0 shadow-sm p-3 mb-4">
+                        <small className="fw-bold d-block text-success mb-1">Calculated Final Price (+10% Tax):</small>
+                        <h4 className="mb-0 fw-bold text-success">
+                          ₱ {Math.round(((editModal.order?.base_estimate || 0) + Number(editForm.misc_fee)) * 1.10).toLocaleString()}
+                        </h4>
+                        <div className="mt-1 small">
+                          Balance to pay: ₱ {Math.max(0, Math.round(((editModal.order?.base_estimate || 0) + Number(editForm.misc_fee)) * 1.10) - 1100).toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Internal Notes</label>
+                        <textarea 
+                          name="internal_notes"
+                          className="form-control bg-light border-0 shadow-sm" 
+                          placeholder="Private notes (client will not see this)"
+                          value={editForm.internal_notes}
+                          onChange={handleEditChange}
+                          rows="2"
+                        />
+                      </div>
+                      
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Client Request Type</label>
+                        <select 
+                          name="request_type"
+                          className="form-select bg-light border-0 shadow-sm"
+                          value={editForm.request_type}
+                          onChange={handleEditChange}
+                        >
+                          <option value="">None</option>
+                          <option value="Cancel Requested">Cancel Requested</option>
+                          <option value="Reschedule Requested">Reschedule Requested</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'scheduling' && (
+                  <div className="row">
+                    <div className="col-md-12">
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Confirmed Date</label>
+                        <input 
+                          type="date" 
+                          name="confirmed_date"
+                          className="form-control bg-light border-0 shadow-sm" 
+                          value={editForm.confirmed_date}
+                          onChange={handleEditChange}
+                        />
+                      </div>
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Confirmed Time Slot</label>
+                        <input 
+                          type="text" 
+                          name="confirmed_time_slot"
+                          className="form-control bg-light border-0 shadow-sm" 
+                          placeholder="e.g. 08:00 AM - 10:00 AM"
+                          value={editForm.confirmed_time_slot}
+                          onChange={handleEditChange}
+                        />
+                      </div>
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Assign Truck Team</label>
+                        <select 
+                          name="truck_team"
+                          className="form-select bg-light border-0 shadow-sm"
+                          value={editForm.truck_team}
+                          onChange={handleEditChange}
+                        >
+                          <option value="">-- Select a Team --</option>
+                          {truckTeams.map(team => (
+                            <option key={team} value={team}>{team}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Service Date</label>
+                        <input 
+                          type="date" 
+                          className="form-control bg-light border-0 shadow-sm" 
+                          value={editModal.order?.date?.split('T')[0] || ''} 
+                          readOnly
+                        />
+                        <small className="text-muted mt-1 d-block">Client preferred date</small>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'documents' && (
+                  <div className="row">
+                    <div className="col-md-12">
+                      <div className="form-group mb-4">
+                        <label className="form-label fw-bold small text-muted">Upload Quotation (Approved P.O.)</label>
+                        <input 
+                          type="file" 
+                          accept=".pdf"
+                          className="form-control bg-light border-0 shadow-sm"
+                          onChange={(e) => setQuotationFile(e.target.files[0])}
+                        />
+                        {editModal.order.quotation_pdf_url && (
+                          <div className="mt-2 small">
+                            <a href={`http://localhost:5000${editModal.order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
+                              <i className="fas fa-file-pdf me-1"></i>View Current Quotation
+                            </a>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="form-group mb-4">
+                        <label className="form-label fw-bold small text-muted">Upload Service Report / Invoice</label>
+                        <input 
+                          type="file" 
+                          accept=".pdf"
+                          className="form-control bg-light border-0 shadow-sm"
+                          onChange={(e) => setServiceReportFile(e.target.files[0])}
+                        />
+                        {editModal.order.service_report_pdf_url && (
+                          <div className="mt-2 small">
+                            <a href={`http://localhost:5000${editModal.order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
+                              <i className="fas fa-file-pdf me-1"></i>View Current Service Report
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="alert alert-info mt-4 small border-0 shadow-sm">
+                        <i className="fas fa-info-circle me-2"></i>
+                        Uploaded documents will be immediately visible on the client's dashboard under this order.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="modal-body text-start p-0">
-                <ul className="nav nav-tabs px-4 pt-3 bg-light border-bottom" style={{ gap: '5px' }}>
-                  <li className="nav-item">
-                    <button className={`nav-link fw-bold ${activeTab === 'details' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('details')} style={activeTab === 'details' ? { color: '#0D8D1E' } : {}}>Details</button>
-                  </li>
-                  <li className="nav-item">
-                    <button className={`nav-link fw-bold ${activeTab === 'scheduling' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('scheduling')} style={activeTab === 'scheduling' ? { color: '#0D8D1E' } : {}}>Scheduling</button>
-                  </li>
-                  <li className="nav-item">
-                    <button className={`nav-link fw-bold ${activeTab === 'documents' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('documents')} style={activeTab === 'documents' ? { color: '#0D8D1E' } : {}}>Documents</button>
-                  </li>
-                </ul>
+            </div>
 
-                <div className="tab-content p-4">
-                  {activeTab === 'details' && (
-                    <div className="row">
-                      <div className="col-md-12">
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Order Status</label>
-                          <select 
-                            name="status"
-                            className="form-select bg-light border-0 shadow-sm"
-                            value={editForm.status}
-                            onChange={handleEditChange}
-                          >
-                            <option value="Pending">Pending</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
-                        </div>
-
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Base Estimate (₱)</label>
-                          <input 
-                            type="number" 
-                            className="form-control bg-light border-0 shadow-sm" 
-                            value={editModal.order?.base_estimate || 0} 
-                            readOnly 
-                          />
-                        </div>
-
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Misc Fee (₱)</label>
-                          <input 
-                            type="number" 
-                            name="misc_fee"
-                            className="form-control bg-light border-0 shadow-sm" 
-                            placeholder="Enter any additional fees"
-                            value={editForm.misc_fee}
-                            onChange={handleEditChange}
-                          />
-                        </div>
-
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Calculated Final Price (₱)</label>
-                          <input 
-                            type="number" 
-                            className="form-control bg-light border-0 shadow-sm fw-bold text-success" 
-                            value={(editModal.order?.base_estimate || 0) + (parseFloat(editForm.misc_fee) || 0)} 
-                            readOnly 
-                          />
-                          <small className="text-muted d-block mt-1">
-                            Total Bill with 10% Tax: <strong>₱{(((editModal.order?.base_estimate || 0) + (parseFloat(editForm.misc_fee) || 0)) * 1.1).toFixed(2)}</strong>
-                          </small>
-                        </div>
-
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Internal Notes</label>
-                          <textarea 
-                            name="internal_notes"
-                            className="form-control bg-light border-0 shadow-sm" 
-                            placeholder="Private notes (client will not see this)"
-                            value={editForm.internal_notes}
-                            onChange={handleEditChange}
-                            rows="2"
-                          />
-                        </div>
-                        
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Client Request Type</label>
-                          <select 
-                            name="request_type"
-                            className="form-select bg-light border-0 shadow-sm"
-                            value={editForm.request_type}
-                            onChange={handleEditChange}
-                          >
-                            <option value="">None</option>
-                            <option value="Cancel Requested">Cancel Requested</option>
-                            <option value="Reschedule Requested">Reschedule Requested</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'scheduling' && (
-                    <div className="row">
-                      <div className="col-md-12">
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Confirmed Date</label>
-                          <input 
-                            type="date" 
-                            name="confirmed_date"
-                            className="form-control bg-light border-0 shadow-sm" 
-                            value={editForm.confirmed_date}
-                            onChange={handleEditChange}
-                          />
-                        </div>
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Confirmed Time Slot</label>
-                          <input 
-                            type="text" 
-                            name="confirmed_time_slot"
-                            className="form-control bg-light border-0 shadow-sm" 
-                            placeholder="e.g. 08:00 AM - 10:00 AM"
-                            value={editForm.confirmed_time_slot}
-                            onChange={handleEditChange}
-                          />
-                        </div>
-                        <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Assign Truck Team</label>
-                          <select 
-                            name="truck_team"
-                            className="form-select bg-light border-0 shadow-sm"
-                            value={editForm.truck_team}
-                            onChange={handleEditChange}
-                          >
-                            <option value="">-- Select a Team --</option>
-                            {truckTeams.map(team => (
-                              <option key={team} value={team}>{team}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'documents' && (
-                    <div className="row">
-                      <div className="col-md-12">
-                        <div className="form-group mb-4">
-                          <label className="form-label fw-bold small text-muted">Upload Quotation (Approved P.O.)</label>
-                          <input 
-                            type="file" 
-                            accept=".pdf"
-                            className="form-control bg-light border-0 shadow-sm"
-                            onChange={(e) => setQuotationFile(e.target.files[0])}
-                          />
-                          {editModal.order.quotation_pdf_url && (
-                            <div className="mt-2 small">
-                              <a href={`http://localhost:5000${editModal.order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
-                                <i className="fas fa-file-pdf me-1"></i>View Current Quotation
-                              </a>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="form-group mb-4">
-                          <label className="form-label fw-bold small text-muted">Upload Service Report / Invoice</label>
-                          <input 
-                            type="file" 
-                            accept=".pdf"
-                            className="form-control bg-light border-0 shadow-sm"
-                            onChange={(e) => setServiceReportFile(e.target.files[0])}
-                          />
-                          {editModal.order.service_report_pdf_url && (
-                            <div className="mt-2 small">
-                              <a href={`http://localhost:5000${editModal.order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
-                                <i className="fas fa-file-pdf me-1"></i>View Current Service Report
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="alert alert-info mt-4 small border-0 shadow-sm">
-                          <i className="fas fa-info-circle me-2"></i>
-                          Uploaded documents will be immediately visible on the client's dashboard under this order.
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-                <div className="modal-footer border-0 bg-light">
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary rounded-pill px-4 fw-bold shadow-sm" 
-                    onClick={closeEditModal}
-                    disabled={isSaving}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-success-solid rounded-pill px-4 fw-bold shadow-sm" 
-                    onClick={handleSaveChangesClick}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
+            <div className="side-drawer-footer">
+              <button 
+                type="button" 
+                className="btn btn-light rounded-pill px-4 fw-bold shadow-sm" 
+                onClick={closeEditModal}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
+                onClick={handleSaveChangesClick}
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
+      </section>
     </div>
   );
 }

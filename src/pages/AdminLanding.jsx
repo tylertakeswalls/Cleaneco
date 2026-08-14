@@ -301,20 +301,20 @@ function AdminLanding() {
         {/* Page Header */}
         <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
           <h4 className="fw-bold text-dark mb-0 d-flex align-items-center">
-            <span className="d-inline-flex align-items-center justify-content-center bg-white shadow-sm text-primary rounded me-3" style={{ width: '38px', height: '38px', color: '#0D8D1E' }}>
-              <i className="fas fa-home" style={{ color: '#0D8D1E' }}></i>
+            <span className="d-inline-flex align-items-center justify-content-center bg-white shadow-sm text-brand rounded me-3 icon-container-md">
+              <i className="fas fa-home"></i>
             </span>
             Dashboard
           </h4>
           <div className="d-flex flex-wrap align-items-center gap-2">
             <span className="text-muted fw-bold me-2" style={{ fontSize: '0.85rem' }}>Reports:</span>
-            <button className="btn btn-success btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('monthly')} style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}>
+            <button className="btn btn-brand btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('monthly')}>
               <i className="fas fa-file-pdf me-1"></i>Monthly
             </button>
-            <button className="btn btn-success btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('quarterly')} style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}>
+            <button className="btn btn-brand btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('quarterly')}>
               <i className="fas fa-file-pdf me-1"></i>Quarterly
             </button>
-            <button className="btn btn-success btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('yearly')} style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}>
+            <button className="btn btn-brand btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('yearly')}>
               <i className="fas fa-file-pdf me-1"></i>Yearly
             </button>
           </div>
@@ -323,34 +323,34 @@ function AdminLanding() {
         {/* 3 LARGE STAT CARDS */}
         <div className="row g-4 mb-4">
           <div className="col-md-4">
-            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+            <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center">
                 <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Total Revenue</p>
                 <h3 className="fw-bold mb-3 text-dark">₱ {dashboardData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
-                <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px', backgroundColor: 'rgba(13, 141, 30, 0.1)' }}>
-                  <i className="fas fa-chart-line fs-5" style={{ color: '#0D8D1E' }}></i>
+                <div className="rounded-circle d-flex align-items-center justify-content-center bg-brand-soft icon-container-lg">
+                  <i className="fas fa-chart-line fs-5 text-brand"></i>
                 </div>
               </div>
             </div>
           </div>
           <div className="col-md-4">
-            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+            <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center">
                 <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Total Orders</p>
                 <h3 className="fw-bold mb-3 text-dark">{dashboardData.totalOrders.toLocaleString()}</h3>
-                <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px', backgroundColor: 'rgba(13, 141, 30, 0.1)' }}>
-                  <i className="fas fa-bookmark fs-5" style={{ color: '#0D8D1E' }}></i>
+                <div className="rounded-circle d-flex align-items-center justify-content-center bg-brand-soft icon-container-lg">
+                  <i className="fas fa-bookmark fs-5 text-brand"></i>
                 </div>
               </div>
             </div>
           </div>
           <div className="col-md-4">
-            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+            <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center">
                 <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Completed Orders</p>
                 <h3 className="fw-bold mb-3 text-dark">{dashboardData.completedOrders.toLocaleString()}</h3>
-                <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px', backgroundColor: 'rgba(13, 141, 30, 0.1)' }}>
-                  <i className="fas fa-gem fs-5" style={{ color: '#0D8D1E' }}></i>
+                <div className="rounded-circle d-flex align-items-center justify-content-center bg-brand-soft icon-container-lg">
+                  <i className="fas fa-gem fs-5 text-brand"></i>
                 </div>
               </div>
             </div>
@@ -361,7 +361,7 @@ function AdminLanding() {
         <div className="row g-4">
           {/* Revenue / Visits Chart (Large Left) */}
           <div className="col-lg-7">
-            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+            <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Visit And Sales Statistics</h5>
@@ -369,18 +369,34 @@ function AdminLanding() {
                     <div className="d-flex align-items-center"><span className="rounded-circle me-2" style={{ width: '10px', height: '10px', backgroundColor: '#20c997' }}></span><small className="text-muted">Revenue</small></div>
                   </div>
                 </div>
-                <div style={{ height: '300px' }}><canvas ref={lineChartRef} role="img" aria-label="Bar chart showing daily revenue over time"></canvas></div>
+                <div style={{ height: '300px' }} className="d-flex justify-content-center align-items-center">
+                  {allOrders.length === 0 ? (
+                    <div className="text-center text-muted">
+                      <i className="fas fa-chart-bar fs-1 mb-3 text-light"></i>
+                      <p className="mb-0">No revenue data available yet.</p>
+                    </div>
+                  ) : (
+                    <canvas ref={lineChartRef} role="img" aria-label="Bar chart showing daily revenue over time"></canvas>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Traffic Sources / Order Status Chart (Smaller Right) */}
           <div className="col-lg-5">
-            <div className="card border-0 shadow-sm h-100 d-flex flex-column" style={{ borderRadius: '10px' }}>
+            <div className="card border-0 shadow-sm h-100 d-flex flex-column rounded-xl">
               <div className="card-body p-4 d-flex flex-column">
                 <h5 className="fw-bold text-dark mb-4" style={{ fontSize: '1.1rem' }}>Order Status Overview</h5>
                 <div className="flex-grow-1 d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
-                  <canvas ref={statusChartRef} role="img" aria-label="Donut chart showing order status distribution: Pending, In Progress, Completed, and Cancelled"></canvas>
+                  {allOrders.length === 0 ? (
+                    <div className="text-center text-muted">
+                      <i className="fas fa-chart-pie fs-1 mb-3 text-light"></i>
+                      <p className="mb-0">Waiting for first orders...</p>
+                    </div>
+                  ) : (
+                    <canvas ref={statusChartRef} role="img" aria-label="Donut chart showing order status distribution"></canvas>
+                  )}
                 </div>
               </div>
             </div>
@@ -390,29 +406,35 @@ function AdminLanding() {
         {/* GROWTH CHART */}
         <div className="row mt-4 g-4">
           <div className="col-12">
-            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+            <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4">
                 <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Revenue Growth Statistics</h5>
                   <div className="d-flex gap-2">
                     <button 
-                      className={`btn btn-sm ${growthPeriod === 'monthly' ? 'btn-success' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${growthPeriod === 'monthly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
                       onClick={() => setGrowthPeriod('monthly')}
-                      style={growthPeriod === 'monthly' ? { backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' } : {}}
                     >Monthly</button>
                     <button 
-                      className={`btn btn-sm ${growthPeriod === 'quarterly' ? 'btn-success' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${growthPeriod === 'quarterly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
                       onClick={() => setGrowthPeriod('quarterly')}
-                      style={growthPeriod === 'quarterly' ? { backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' } : {}}
                     >Quarterly</button>
                     <button 
-                      className={`btn btn-sm ${growthPeriod === 'yearly' ? 'btn-success' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${growthPeriod === 'yearly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
                       onClick={() => setGrowthPeriod('yearly')}
-                      style={growthPeriod === 'yearly' ? { backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' } : {}}
                     >Yearly</button>
                   </div>
                 </div>
-                <div style={{ height: '300px' }}><canvas ref={growthChartRef} role="img" aria-label="Line chart showing revenue growth"></canvas></div>
+                <div style={{ height: '300px' }} className="d-flex justify-content-center align-items-center">
+                  {allOrders.length === 0 ? (
+                    <div className="text-center text-muted">
+                      <i className="fas fa-chart-line fs-1 mb-3 text-light"></i>
+                      <p className="mb-0">Not enough data to calculate growth.</p>
+                    </div>
+                  ) : (
+                    <canvas ref={growthChartRef} role="img" aria-label="Line chart showing revenue growth"></canvas>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -421,7 +443,7 @@ function AdminLanding() {
         {/* ADMIN CALENDAR & RECENT ORDERS */}
         <div className="row mt-4 g-4">
           <div className="col-lg-8">
-            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+            <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4">
                 <h5 className="fw-bold text-dark mb-4" style={{ fontSize: '1.1rem' }}>Calendar</h5>
                 <AdminCalendar orders={allOrders} />
@@ -430,19 +452,25 @@ function AdminLanding() {
           </div>
 
           <div className="col-lg-4">
-            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+            <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4 d-flex flex-column">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Recent Orders</h5>
-                  <Link to="/admin/orders" className="text-success text-decoration-none small fw-bold">View All</Link>
+                  <Link to="/admin/orders" className="text-brand text-decoration-none small fw-bold">View All</Link>
                 </div>
                 <div className="flex-grow-1 d-flex flex-column gap-3 overflow-auto" style={{ maxHeight: '400px' }}>
                   {allOrders.length === 0 ? (
-                    <div className="text-center text-muted my-auto">No orders yet.</div>
+                    <div className="text-center text-muted my-auto py-5">
+                      <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height:'60px'}}>
+                         <i className="fas fa-inbox fs-3 text-secondary"></i>
+                      </div>
+                      <p className="mb-0 fw-bold text-dark">No orders yet</p>
+                      <small>Your recent orders will appear here.</small>
+                    </div>
                   ) : (
                     [...allOrders].reverse().slice(0, 5).map((order, idx) => (
                       <div key={idx} className="d-flex align-items-center p-3 rounded" style={{ backgroundColor: '#f8f9fa', border: '1px solid rgba(0,0,0,0.05)' }}>
-                        <div className="rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0" style={{ width: '40px', height: '40px', backgroundColor: 'rgba(13, 141, 30, 0.1)', color: '#0D8D1E' }}>
+                        <div className="rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0 bg-brand-soft icon-container-md text-brand">
                           <i className="fas fa-shopping-bag"></i>
                         </div>
                         <div className="flex-grow-1 min-w-0">
