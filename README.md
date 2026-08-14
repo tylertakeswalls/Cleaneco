@@ -113,6 +113,13 @@ This document summarizes the recent features and structural updates implemented 
 - **Admin Visibility Updates**: Added a real-time computation in the `OrderDatabase.jsx` to display the "Total Bill with 10% Tax" so administrators are aware of the exact amount the client will be billed at checkout.
 - **Auto-Completion**: Refactored the `upload-documents` endpoint to automatically transition an order's status to "Completed" the moment an admin uploads the post-operation Service Report.
 
+## 18. Codebase Audit Fixes (UI/UX & Architecture)
+- **Impeccable UI Clean-up**: Stripped outdated "AI tells" (e.g. side-tab accents) from the `OngoingOrders.jsx` dashboard, and tokenized hardcoded colors to strictly use our `.text-brand` and `.bg-brand` design system tokens.
+- **Frontend Responsiveness**: Refactored the progress tracker in the Ongoing Orders view using a robust Flexbox layout with `flex-shrink-0` to ensure perfectly round status indicators on mobile devices.
+- **Ponytail Security Hardening**: Added cryptographic signature verification to PayMongo webhooks in `backend/routes/payments.js` using `crypto.createHmac` to prevent spoofed successful payments (with a secure fallback for local development).
+- **Database Optimization**: Refactored multiple N+1 `order.save()` loops into `Promise.all()` concurrent writes within the webhook handler and the order submission route to drastically reduce latency and avoid database lock contention.
+- **Authentication Resilience**: Removed hardcoded JWT secret fallbacks from `backend/routes/auth.js` to ensure the server enforces secure environment configurations.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
