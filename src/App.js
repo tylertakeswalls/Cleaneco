@@ -6,7 +6,6 @@ import AboutUs from './pages/AboutUs';
 import Resources from './pages/Resources';
 import SiphoDeslud from './pages/SiphoDeslud';
 import DeepCleaning from './pages/DeepCleaning';
-import Declogging from './pages/Declogging';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import VerifyEmail from './pages/VerifyEmail';
@@ -39,10 +38,8 @@ function App() {
           <Route path="/resources" element={<Resources />} />
           <Route path="/services/siphoning-desludging" element={<SiphoDeslud />} />
           <Route path="/client/services/siphoning-desludging" element={<SiphoDeslud />} />
-          <Route path="/services/deep-cleaning" element={<DeepCleaning />} />
-          <Route path="/client/services/deep-cleaning" element={<DeepCleaning />} />
-          <Route path="/services/declogging" element={<Declogging />} />
-          <Route path="/client/services/declogging" element={<Declogging />} />
+          <Route path="/services/deep-cleaning-declogging" element={<DeepCleaning />} />
+          <Route path="/client/services/deep-cleaning-declogging" element={<DeepCleaning />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify" element={<VerifyEmail />} />
           <Route path="/login" element={<Login />} />

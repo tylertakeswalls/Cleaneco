@@ -100,6 +100,19 @@ This document summarizes the recent features and structural updates implemented 
 - **Automated Revenue Tracking**: Implemented a secure webhook listener (`/api/payments/webhook`) to parse `checkout_session.payment.paid` events. The backend now automatically updates order statuses to "In Progress" and updates Admin Revenue metrics instantly upon successful payment.
 - **Ponytail Debt Reduction**: Streamlined the architecture by aggressively deleting redundant code. Entirely removed the `VerifyPayments.jsx` admin interface, dropped the secondary `Payment.js` MongoDB schema, and purged obsolete endpoints to ensure the application maintains a lean, single source of truth (`Order.status`) for all revenue calculations.
 
+## 17. Service Operations & Final Pricing Workflow
+- **State-Driven Progress Tracker**: Overhauled the client-side progress tracker in `OngoingOrders.jsx` to dynamically reflect exact state transitions:
+  - **Reserved**: Activates once the initial ₱1000 booking fee is verified.
+  - **For Inspection**: Activates only when the admin assigns a confirmed schedule and a truck team.
+  - **Quoted**: Activates immediately once the admin inputs a miscellaneous/final fee.
+  - **Completed**: Triggers automatically once the admin uploads a Service Report.
+- **Dynamic Payment Logic**: 
+  - Integrated PayMongo to handle the final balance payment using a seamless modal interface on the client dashboard.
+  - The backend dynamically calculates the final remaining balance by appending a 10% service tax to the total price and deducting the ₱1100 initial booking payment.
+  - Added a detailed computation breakdown on the client dashboard to ensure price transparency.
+- **Admin Visibility Updates**: Added a real-time computation in the `OrderDatabase.jsx` to display the "Total Bill with 10% Tax" so administrators are aware of the exact amount the client will be billed at checkout.
+- **Auto-Completion**: Refactored the `upload-documents` endpoint to automatically transition an order's status to "Completed" the moment an admin uploads the post-operation Service Report.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

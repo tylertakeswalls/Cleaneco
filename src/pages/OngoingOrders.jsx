@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { formatDate, getStatusClass } from '../utils/helpers';
 import '../assets/styles/ongoingorders.css';
 import carousel6 from '../assets/styles/images/carousel6.png';
+import paymongoLogo from '../assets/styles/images/paymongo.png';
 
 function OngoingOrders() {
   const [orders, setOrders] = useState([]);
@@ -14,6 +15,9 @@ function OngoingOrders() {
   const [confirmData, setConfirmData] = useState({ id: null, type: null });
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultMessage, setResultMessage] = useState('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedOrderIdToPay, setSelectedOrderIdToPay] = useState(null);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const navigate = useNavigate();
   const loggedInUser = sessionStorage.getItem("loggedInUser");
   const userId = sessionStorage.getItem("userId");
@@ -43,6 +47,33 @@ function OngoingOrders() {
       console.error(err);
       setResultMessage("Error submitting request.");
       setShowResultModal(true);
+    }
+  };
+
+  const openFinalPaymentModal = (orderId) => {
+    setSelectedOrderIdToPay(orderId);
+    setShowPaymentModal(true);
+  };
+
+  const handleFinalPayment = async () => {
+    if (!selectedOrderIdToPay) return;
+    setIsSubmittingPayment(true);
+    try {
+      const response = await api.post('/payments/checkout-final', { order_id: selectedOrderIdToPay });
+      if (response.data.success && response.data.checkout_url) {
+        window.location.href = response.data.checkout_url;
+      } else {
+        setResultMessage(response.data.message || 'Failed to initiate payment.');
+        setShowResultModal(true);
+        setShowPaymentModal(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setResultMessage(err.response?.data?.message || 'Error connecting to PayMongo.');
+      setShowResultModal(true);
+      setShowPaymentModal(false);
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -238,14 +269,69 @@ function OngoingOrders() {
                   data-bs-parent="#ordersAccordion"
                 >
                   <div className="accordion-body p-4 bg-light">
+                    
+                    {/* Progress Tracker */}
+                    {order.status !== 'Cancelled' ? (
+                      <div className="position-relative m-4">
+                        <div className="progress" style={{ height: '4px', position: 'absolute', top: '30%', left: '0', right: '0', zIndex: 1, backgroundColor: '#e9ecef' }}>
+                          <div className="progress-bar bg-success" role="progressbar" style={{ width: order.status === 'Completed' ? '100%' : order.has_final_price ? '66%' : (order.confirmed_date && order.truck_team) ? '33%' : '0%' }}></div>
+                        </div>
+                        <div className="d-flex justify-content-between position-relative" style={{ zIndex: 2 }}>
+                          <div className="text-center" style={{ width: '80px' }}>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${order.status !== 'Pending' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-check"></i></div>
+                            <small className="fw-bold d-block" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Reserved</small>
+                          </div>
+                          <div className="text-center" style={{ width: '80px' }}>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${(order.confirmed_date && order.truck_team) || order.has_final_price || order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-search"></i></div>
+                            <small className="fw-bold d-block" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Inspection</small>
+                          </div>
+                          <div className="text-center" style={{ width: '80px' }}>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${order.has_final_price || order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-file-invoice-dollar"></i></div>
+                            <small className="fw-bold d-block" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Quoted</small>
+                          </div>
+                          <div className="text-center" style={{ width: '80px' }}>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-flag-checkered"></i></div>
+                            <small className="fw-bold d-block" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Completed</small>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="alert alert-danger text-center fw-bold shadow-sm mb-4"><i className="fas fa-ban me-2"></i>This order has been cancelled.</div>
+                    )}
+                    <hr className="my-4 border-secondary opacity-25" />
+
                     <div className="row mb-4">
                       <div className="col-md-6 mb-3 mb-md-0">
                         <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Pref. Schedule</p>
                         <p className="mb-0 fw-medium">{formatDate(order.date)} <br/> {order.time_slot}</p>
                       </div>
                       <div className="col-md-6">
-                        <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Final Price</p>
-                        <p className="mb-0 fw-bold text-success fs-5">{order.price ? `₱${order.price}` : 'Pending Assessment'}</p>
+                        <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Final Price Breakdown</p>
+                        <p className="mb-0 fw-bold text-success fs-5">{order.has_final_price ? `Base Final Price: ₱${order.price}` : 'Pending Assessment'}</p>
+                        {order.has_final_price && order.final_payment_status !== 'Paid' && order.status !== 'Completed' && order.status !== 'Cancelled' && (
+                          <div className="mt-2 bg-white p-3 rounded shadow-sm border">
+                            <div className="d-flex justify-content-between mb-1 small text-muted">
+                              <span>Total with 10% Tax:</span>
+                              <span className="fw-medium">₱{(parseFloat(order.price) * 1.1).toFixed(2)}</span>
+                            </div>
+                            <div className="d-flex justify-content-between mb-2 small text-muted border-bottom pb-2">
+                              <span>Less Reservation Paid:</span>
+                              <span className="text-danger fw-medium">-₱1100.00</span>
+                            </div>
+                            <div className="d-flex justify-content-between mb-3 fw-bold">
+                              <span>Remaining Balance:</span>
+                              <span className="text-success fs-6">₱{((parseFloat(order.price) * 1.1) - 1100).toFixed(2)}</span>
+                            </div>
+                            <button className="btn btn-success btn-sm fw-bold w-100 rounded-pill shadow-sm" onClick={() => openFinalPaymentModal(order.order_id)}>
+                              <i className="fas fa-wallet me-2"></i>Pay Final Amount
+                            </button>
+                          </div>
+                        )}
+                        {order.final_payment_status === 'Paid' && (
+                          <div className="mt-2">
+                            <span className="badge bg-success rounded-pill px-3 py-2"><i className="fas fa-check-circle me-1"></i> Fully Paid</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -398,6 +484,23 @@ function OngoingOrders() {
           </div>
         </div>
       )}
+      {/* Final Payment Modal */}
+      {showPaymentModal && (
+        <div className="modal-backdrop-custom d-flex justify-content-center align-items-center" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+          <div className="bg-white p-4 rounded shadow-lg text-center" style={{ maxWidth: '400px', width: '90%' }}>
+            <img src={paymongoLogo} alt="PayMongo" style={{ height: '40px', marginBottom: '1rem' }} />
+            <h4 className="fw-bold mb-3">Secure Payment</h4>
+            <p className="text-muted small mb-4">You will be securely redirected to PayMongo to complete your final balance. We accept GCash, Maya, GrabPay, and Credit/Debit Cards.</p>
+            <div className="d-flex justify-content-center gap-2">
+              <button className="btn btn-secondary rounded-pill px-4" onClick={() => setShowPaymentModal(false)} disabled={isSubmittingPayment}>Cancel</button>
+              <button className="btn btn-success rounded-pill px-4 fw-bold" onClick={handleFinalPayment} disabled={isSubmittingPayment}>
+                {isSubmittingPayment ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</> : 'Proceed to Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

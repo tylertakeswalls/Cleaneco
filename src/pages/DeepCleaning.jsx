@@ -9,12 +9,11 @@ function DeepCleaning() {
   
   return (
     <div ref={container}>
-      {/* hero section for deep cleaning service */}
+      {/* hero section */}
       <section className="service-hero" data-service="deepcleaning">
         <div className="content">
-          <h1 className="display-4 font-weight-bold">Deep Cleaning Services</h1>
-          <p className="lead">Experience spotless, sanitized spaces with Cleaneco's professional deep cleaning solutions — safe, efficient, and eco-friendly.</p>
-          {/* call-to-action button for new users to register and book */}
+          <h1 className="display-4 font-weight-bold">Deep Cleaning & Declogging</h1>
+          <p className="lead">Experience spotless, sanitized spaces and fast, reliable declogging to restore the smooth flow of your plumbing system.</p>
           <Link to={bookLink} className="btn btn-custom mt-3">Book Now</Link>
         </div>
       </section>
@@ -22,30 +21,28 @@ function DeepCleaning() {
       {/* service benefits and value proposition section */}
       <section className="info-section text-center">
         <div className="container">
-          <h2 className="intro-title mb-4">Why Choose Our Deep Cleaning Services?</h2>
+          <h2 className="intro-title mb-4">Why Choose Our Deep Cleaning & Declogging?</h2>
           <p className="intro-text">
-            Cleaneco's Deep Cleaning Services go beyond the surface, targeting hidden dirt, grime, and bacteria to create a safer and healthier environment. 
-            Perfect for homes, offices, and commercial spaces.
+            Cleaneco provides manual removal of garbage, mud, grease, and solid wastes inside your septic tanks, chipping of walls to make them good as new, and efficient declogging for optimal flow.
           </p>
 
-          {/* key service features and advantages */}
           <div className="row mt-5">
             <div className="col-md-4 mb-4">
               <div className="info-card glass-card p-4 rounded-4 h-100">
                 <h4>✔ Advanced Equipment</h4>
-                <p>We use industry-grade cleaning tools and eco-safe products to ensure a thorough and deep clean without damaging surfaces.</p>
+                <p>We utilize high-pressure water jets, vacuum pumps, and industry-grade cleaning tools for a thorough clean without damaging pipes.</p>
               </div>
             </div>
             <div className="col-md-4 mb-4">
               <div className="info-card glass-card p-4 rounded-4 h-100">
-                <h4>✔ Trained Professionals</h4>
-                <p>Our cleaning experts are skilled in handling all types of spaces, maintaining the highest standards of hygiene and sanitation.</p>
+                <h4>✔ Expert Technicians</h4>
+                <p>Our trained professionals handle all types of drainage issues and hidden grime, maintaining the highest standards of hygiene.</p>
               </div>
             </div>
             <div className="col-md-4 mb-4">
               <div className="info-card glass-card p-4 rounded-4 h-100">
                 <h4>✔ Safe & Eco-Friendly</h4>
-                <p>We use biodegradable and non-toxic cleaning agents to protect your family, staff, and the environment.</p>
+                <p>We use biodegradable, non-toxic, and eco-safe products to protect your health, your staff, and the environment.</p>
               </div>
             </div>
           </div>
@@ -57,33 +54,28 @@ function DeepCleaning() {
         <div className="container">
           <h2 className="intro-title mb-4">How It Works</h2>
           <div className="steps-wrapper">
-            {/* step 1: initial assessment */}
             <div className="step glass-panel p-4 rounded-4 m-2">
               <div className="step-number">1</div>
               <h5>Inspection</h5>
-              <p>We inspect your space to identify problem areas and determine the cleaning requirements.</p>
+              <p>We inspect your septic tanks and pipeline systems to identify blockages and determine cleaning requirements.</p>
             </div>
-            {/* step 2: setup and preparation */}
             <div className="step glass-panel p-4 rounded-4 m-2">
               <div className="step-number">2</div>
               <h5>Preparation</h5>
-              <p>We move or protect furniture, set up cleaning tools, and prepare eco-safe cleaning solutions.</p>
+              <p>We prepare all necessary equipment, eco-safe cleaning solutions, and safety measures for an efficient process.</p>
             </div>
-            {/* step 3: main cleaning operation */}
             <div className="step glass-panel p-4 rounded-4 m-2">
               <div className="step-number">3</div>
-              <h5>Deep Cleaning</h5>
-              <p>Our team cleans every corner — including hard-to-reach spots, tiles, upholstery, and air vents.</p>
+              <h5>Deep Cleaning & Declogging</h5>
+              <p>Our team manually removes solid wastes, chips walls to restore them, and uses pressure jets to clear all pipe debris.</p>
             </div>
-            {/* step 4: quality assurance */}
             <div className="step glass-panel p-4 rounded-4 m-2">
               <div className="step-number">4</div>
-              <h5>Final Inspection</h5>
-              <p>We ensure everything is spotless and sanitized before finishing the service to guarantee satisfaction.</p>
+              <h5>Final Verification</h5>
+              <p>We test your system to ensure complete water flow and a spotless, sanitized environment before finishing.</p>
             </div>
           </div>
-          {/* secondary call-to-action for scheduling service */}
-          <Link to={bookLink} className="btn btn-custom mt-4">Schedule a Cleaning</Link>
+          <Link to={bookLink} className="btn btn-custom mt-4">Schedule a Service</Link>
         </div>
       </section>
     </div>

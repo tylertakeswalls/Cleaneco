@@ -142,16 +142,24 @@
     font-size: 0.95rem;
 }
 
-.form-control, .form-control:focus {
+.form-control, .form-control:focus, .form-select, .form-select:focus {
     border: 1px solid #ccc;
     border-radius: 4px;
     padding: 10px 12px;
     font-size: 0.90rem;
     line-height: 1.4;
-    min-height: 45px;
+    min-height: 45px !important;
+    height: 45px !important;
+    box-sizing: border-box !important;
 }
 
-.form-control:focus {
+textarea.form-control, textarea.form-control:focus {
+    height: 120px !important;
+    min-height: 120px !important;
+    resize: none;
+}
+
+.form-control:focus, .form-select:focus {
     border-color: #0D8D1E;
     box-shadow: 0 0 0 0.2rem rgba(33, 136, 56, 0.15);
 }

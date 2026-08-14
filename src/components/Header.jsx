@@ -146,11 +146,9 @@ function Header() {
               Our Services
             </button>
             <div className="dropdown-menu">
-              <Link className="dropdown-item" to="/client/services/siphoning-desludging">Siphoning / Desludging</Link>
+              <Link className="dropdown-item" to="/client/services/siphoning-desludging">Siphoning & Desludging</Link>
               <div className="dropdown-divider"></div>
-              <Link className="dropdown-item" to="/client/services/deep-cleaning">Deep Cleaning</Link>
-              <div className="dropdown-divider"></div>
-              <Link className="dropdown-item" to="/client/services/declogging">Declogging</Link>
+              <Link className="dropdown-item" to="/client/services/deep-cleaning-declogging">Deep Cleaning & Declogging</Link>
             </div>
           </li>
           <li className="nav-item">
@@ -169,11 +167,9 @@ function Header() {
         <li className="nav-item dropdown">
           <button className="nav-link dropdown-toggle btn btn-link" id="servicesDropdown" data-bs-toggle="dropdown">Our Services</button>
           <div className="dropdown-menu">
-            <Link className="dropdown-item" to="/services/siphoning-desludging">Siphoning / Desludging</Link>
+            <Link className="dropdown-item" to="/services/siphoning-desludging">Siphoning & Desludging</Link>
             <div className="dropdown-divider"></div>
-            <Link className="dropdown-item" to="/services/deep-cleaning">Deep Cleaning</Link>
-            <div className="dropdown-divider"></div>
-            <Link className="dropdown-item" to="/services/declogging">Declogging</Link>
+            <Link className="dropdown-item" to="/services/deep-cleaning-declogging">Deep Cleaning & Declogging</Link>
           </div>
         </li>
         <li className="nav-item"><Link className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} to="/about">About Us</Link></li>

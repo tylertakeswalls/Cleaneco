@@ -17,7 +17,8 @@ function OrderDatabase() {
   const [editModal, setEditModal] = useState({ show: false, order: null });
   const [editForm, setEditForm] = useState({ 
     status: '', price: '', request_type: '', approval_fee: '',
-    confirmed_date: '', confirmed_time_slot: '', truck_team: ''
+    confirmed_date: '', confirmed_time_slot: '', truck_team: '',
+    misc_fee: '', internal_notes: ''
   });
   const [activeTab, setActiveTab] = useState('details');
   const [quotationFile, setQuotationFile] = useState(null);
@@ -132,7 +133,9 @@ function OrderDatabase() {
       approval_fee: order.approval_fee || '',
       confirmed_date: order.confirmed_date ? new Date(order.confirmed_date).toISOString().split('T')[0] : '',
       confirmed_time_slot: order.confirmed_time_slot || '',
-      truck_team: order.truck_team || ''
+      truck_team: order.truck_team || '',
+      misc_fee: order.misc_fee || '',
+      internal_notes: order.internal_notes || ''
     });
     setQuotationFile(null);
     setServiceReportFile(null);
@@ -174,12 +177,15 @@ function OrderDatabase() {
       // 1. Update basic fields
       await api.put('/orders/' + editModal.order.id, {
         status: editForm.status,
-        price: editForm.price,
         request_type: editForm.request_type,
         approval_fee: editForm.approval_fee,
         confirmed_date: editForm.confirmed_date,
         confirmed_time_slot: editForm.confirmed_time_slot,
-        truck_team: editForm.truck_team
+        truck_team: editForm.truck_team,
+        misc_fee: editForm.misc_fee,
+        internal_notes: editForm.internal_notes,
+        final_price: (editModal.order.base_estimate || 0) + (parseFloat(editForm.misc_fee) || 0),
+        price: (editModal.order.base_estimate || 0) + (parseFloat(editForm.misc_fee) || 0)
       });
 
       // 2. Upload documents if any
@@ -342,7 +348,12 @@ function OrderDatabase() {
                     <tr key={order.id}>
                       <td>{order.order_id}</td>
                       <td>{order.first_name} {order.last_name}</td>
-                      <td>{order.service_name || order.service_type}</td>
+                      <td>
+                        {order.service_name || order.service_type}
+                        {order.estimate_inputs && order.estimate_inputs.accessibility === 'difficult' && (
+                          <div className="badge bg-danger mt-1 d-block"><i className="fas fa-exclamation-triangle me-1"></i>Requires Extension Hoses</div>
+                        )}
+                      </td>
                       <td>{formatDate(order.date)}</td>
                       <td className={`status-cell ${getStatusClass(order.status)}`}>
                         {order.status}
@@ -424,14 +435,49 @@ function OrderDatabase() {
                         </div>
 
                         <div className="form-group mb-3">
-                          <label className="form-label fw-bold small text-muted">Final Price (₱)</label>
+                          <label className="form-label fw-bold small text-muted">Base Estimate (₱)</label>
                           <input 
                             type="number" 
-                            name="price"
                             className="form-control bg-light border-0 shadow-sm" 
-                            placeholder="Enter final total price"
-                            value={editForm.price}
+                            value={editModal.order?.base_estimate || 0} 
+                            readOnly 
+                          />
+                        </div>
+
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Misc Fee (₱)</label>
+                          <input 
+                            type="number" 
+                            name="misc_fee"
+                            className="form-control bg-light border-0 shadow-sm" 
+                            placeholder="Enter any additional fees"
+                            value={editForm.misc_fee}
                             onChange={handleEditChange}
+                          />
+                        </div>
+
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Calculated Final Price (₱)</label>
+                          <input 
+                            type="number" 
+                            className="form-control bg-light border-0 shadow-sm fw-bold text-success" 
+                            value={(editModal.order?.base_estimate || 0) + (parseFloat(editForm.misc_fee) || 0)} 
+                            readOnly 
+                          />
+                          <small className="text-muted d-block mt-1">
+                            Total Bill with 10% Tax: <strong>₱{(((editModal.order?.base_estimate || 0) + (parseFloat(editForm.misc_fee) || 0)) * 1.1).toFixed(2)}</strong>
+                          </small>
+                        </div>
+
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Internal Notes</label>
+                          <textarea 
+                            name="internal_notes"
+                            className="form-control bg-light border-0 shadow-sm" 
+                            placeholder="Private notes (client will not see this)"
+                            value={editForm.internal_notes}
+                            onChange={handleEditChange}
+                            rows="2"
                           />
                         </div>
                         

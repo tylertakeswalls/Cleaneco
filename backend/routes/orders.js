@@ -46,10 +46,17 @@ router.get('/stats', async (req, res) => {
       { $group: { _id: "$status", count: { $sum: 1 } } }
     ]);
     const revenueData = await Order.aggregate([
-      { $match: { status: "Completed" } },
+      { $match: { status: { $nin: ['Pending', 'Cancelled'] } } },
       { $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-          total: { $sum: "$price" }
+          total: { 
+            $sum: { 
+              $add: [
+                1100, // Reservation Fee + Tax
+                { $cond: [ { $eq: ["$final_payment_status", "Paid"] }, { $subtract: [ { $add: ["$final_price", { $multiply: ["$final_price", 0.1] }] }, 1100 ] }, 0 ] }
+              ]
+            } 
+          }
       }},
       { $sort: { "_id": 1 } }
     ]);
@@ -97,10 +104,15 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-router.post('/submit', upload.none(), async (req, res) => {
+router.post('/submit', upload.single('site_photo'), async (req, res) => {
   try {
     const data = req.body;
     let serviceIds = [];
+    
+    let sitePhotoUrl = null;
+    if (req.file) {
+      sitePhotoUrl = `/uploads/${req.file.filename}`;
+    }
     
     if (data.service_ids) {
       if (Array.isArray(data.service_ids)) {
@@ -123,7 +135,7 @@ router.post('/submit', upload.none(), async (req, res) => {
 
     const orderId = 'ORD' + Date.now() + Math.floor(Math.random() * 1000);
     const orderItems = [];
-    const totalAmount = 2200; // 2000 fee + 200 tax
+    const totalAmount = 1100; // 1000 fee + 100 tax
 
     const parsedUserId = (data.user_id && data.user_id !== 'null' && data.user_id !== 'undefined') ? data.user_id : null;
 
@@ -136,14 +148,18 @@ router.post('/submit', upload.none(), async (req, res) => {
         last_name: data.lastName,
         email: data.email,
         phone: data.phone,
-        address: data.address,
+        address: data.region ? `${data.address}, ${data.region}` : data.address,
+        landmark: data.landmark || '',
         service_type: service.name,
         date: new Date(data.date),
         time_slot: data.timeSlot,
         notes: data.notes,
-        price: 2000,
-        tax_amount: 200,
-        discount_amount: 0
+        price: 1000,
+        tax_amount: 100,
+        discount_amount: 0,
+        base_estimate: data.base_estimate ? parseFloat(data.base_estimate) : 0,
+        estimate_inputs: data.estimate_inputs ? JSON.parse(data.estimate_inputs) : {},
+        site_photo_url: sitePhotoUrl
       });
       await order.save();
       orderItems.push({
@@ -207,7 +223,7 @@ router.post('/submit', upload.none(), async (req, res) => {
       lastName: data.lastName,
       email: data.email,
       phone: data.phone,
-      address: data.address,
+      address: data.region ? `${data.address}, ${data.region}` : data.address,
       date: data.date,
       timeSlot: data.timeSlot,
       status: 'Pending',
@@ -233,6 +249,7 @@ router.post('/:id/upload-documents', upload.fields([{ name: 'quotation' }, { nam
     }
     if (req.files['service_report']) {
       order.service_report_pdf_url = `/uploads/${req.files['service_report'][0].filename}`;
+      order.status = 'Completed';
     }
     
     await order.save();
@@ -249,6 +266,11 @@ router.put('/:id', async (req, res) => {
     
     if (updateData.request_type === '') updateData.request_type = null;
     if (updateData.price === '') updateData.price = null;
+    
+    // If admin is saving and misc_fee is provided, we assume final price has been inputted
+    if (updateData.misc_fee !== undefined && updateData.misc_fee !== '') {
+        updateData.has_final_price = true;
+    }
     
     const oldOrder = await Order.findById(id);
     if (!oldOrder) {

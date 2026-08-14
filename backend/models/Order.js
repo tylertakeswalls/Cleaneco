@@ -9,6 +9,7 @@ const orderSchema = new mongoose.Schema({
   email: { type: String, required: true },
   phone: { type: String, required: true },
   address: { type: String, required: true },
+  landmark: { type: String },
   service_type: { type: String, required: true },
   date: { type: Date, required: true },
   time_slot: { type: String, enum: ['Morning', 'Afternoon', 'Evening'], required: true },
@@ -24,7 +25,14 @@ const orderSchema = new mongoose.Schema({
   truck_team: { type: String },
   service_report_pdf_url: { type: String },
   final_price: { type: Number },
-  notes: { type: String }
+  notes: { type: String },
+  internal_notes: { type: String },
+  base_estimate: { type: Number, default: 0 },
+  misc_fee: { type: Number, default: 0 },
+  estimate_inputs: { type: mongoose.Schema.Types.Mixed },
+  site_photo_url: { type: String },
+  final_payment_status: { type: String, enum: ['Pending', 'Paid'], default: 'Pending' },
+  has_final_price: { type: Boolean, default: false }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 module.exports = mongoose.model('Order', orderSchema);

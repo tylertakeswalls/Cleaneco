@@ -13,12 +13,16 @@ function OrderForm() {
         lastName: '',
         email: '',
         phone: '',
+        region: 'NCR',
         address: '',
+        landmark: '',
         service_ids: [],
         date: '',
         timeSlot: '',
         notes: ''
     });
+    // eslint-disable-next-line no-unused-vars
+    const [sitePhoto, setSitePhoto] = useState(null);
 
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -27,6 +31,10 @@ function OrderForm() {
     // Payment specific state
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Estimate state
+    const [estimateInputs, setEstimateInputs] = useState({});
+    const [baseEstimate, setBaseEstimate] = useState(0);
 
     const navigate = useNavigate();
 
@@ -116,6 +124,45 @@ function OrderForm() {
         }));
     };
 
+    const handleEstimateInputChange = (serviceId, field, value) => {
+        setEstimateInputs(prev => ({
+            ...prev,
+            [serviceId]: {
+                ...(prev[serviceId] || {}),
+                [field]: value
+            }
+        }));
+    };
+
+    useEffect(() => {
+        let totalEstimate = 0;
+        (formData.service_ids || []).forEach(serviceId => {
+            const service = services.find(s => s.id === serviceId || s._id === serviceId);
+            if (service) {
+                const name = service.name.toLowerCase();
+                const inputs = estimateInputs[serviceId] || {};
+                
+                if (name.includes('siphon') || name.includes('desludg')) {
+                    const numTanks = parseInt(inputs.numTanks || 1);
+                    const capacityType = parseInt(inputs.capacityType || 1);
+                    const accessibility = inputs.accessibility || 'easy';
+                    const trips = numTanks * capacityType;
+                    let cost = trips * 8000;
+                    if (accessibility === 'difficult') {
+                        cost += 1500;
+                    }
+                    totalEstimate += cost;
+                } else if (name.includes('deep clean') || name.includes('declog')) {
+                    const numTanks = parseInt(inputs.numTanks || 1);
+                    totalEstimate += numTanks * 8000;
+                } else {
+                    totalEstimate += service.base_price || 0;
+                }
+            }
+        });
+        setBaseEstimate(totalEstimate);
+    }, [formData.service_ids, estimateInputs, services]);
+
     const handleServiceToggle = (serviceId) => {
         setFormData(prev => {
             const currentIds = prev.service_ids || [];
@@ -171,11 +218,18 @@ function OrderForm() {
             submitData.append('lastName', formData.lastName);
             submitData.append('email', formData.email);
             submitData.append('phone', formData.phone);
+            submitData.append('region', formData.region);
             submitData.append('address', formData.address);
+            submitData.append('landmark', formData.landmark);
             submitData.append('date', formData.date);
             submitData.append('timeSlot', formData.timeSlot);
             submitData.append('notes', formData.notes);
             submitData.append('service_ids', JSON.stringify(formData.service_ids));
+            submitData.append('base_estimate', baseEstimate);
+            submitData.append('estimate_inputs', JSON.stringify(estimateInputs));
+            if (sitePhoto) {
+                submitData.append('site_photo', sitePhoto);
+            }
 
             const response = await api.post('/orders/submit', submitData, {
                 headers: {
@@ -213,11 +267,11 @@ function OrderForm() {
                             <button type="button" className="btn-close btn-close-white" onClick={() => setShowPaymentModal(false)}></button>
                         </div>
                         <div className="modal-body text-center p-4">
-                            <p className="text-muted mb-3">To secure your booking, a reservation fee of <strong>₱2,200</strong> is required.</p>
+                            <p className="text-muted mb-3">To secure your booking, a reservation fee of <strong>₱1,100</strong> is required.</p>
                             <img src={paymongoLogo} alt="PayMongo Options" className="img-fluid mb-4 px-2" style={{ width: '100%', objectFit: 'contain' }} />
                             <div className="alert alert-info text-start small mb-4" role="alert">
                                 <i className="fas fa-info-circle me-2"></i>
-                                <strong>Instructions:</strong> Please click the button below to pay securely via PayMongo. You can use credit/debit cards, GCash, or Maya. This ₱2000 fee (plus 10% tax) will be deducted from your final bill.
+                                <strong>Instructions:</strong> Please click the button below to pay securely via PayMongo. You can use credit/debit cards, GCash, or Maya. This ₱1000 fee (plus 10% tax) will be deducted from your final bill.
                             </div>
                         </div>
                         <div className="modal-footer border-0 p-4 pt-0 d-flex flex-column gap-2">
@@ -307,16 +361,43 @@ function OrderForm() {
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label className="form-label">Address</label>
+                    <div className="contact-row">
+                        <div className="form-group">
+                            <label className="form-label">Region</label>
+                            <select 
+                                className="form-select"
+                                id="region"
+                                value={formData.region}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="NCR">NCR</option>
+                                <option value="CALABARZON">CALABARZON</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Full Address</label>
+                            <input 
+                                type="text"
+                                className="form-control"
+                                id="address"
+                                placeholder="Full Address"
+                                value={formData.address}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="form-group mb-4">
+                        <label className="form-label">Nearest Landmark (Optional)</label>
                         <input 
                             type="text"
                             className="form-control"
-                            id="address"
-                            placeholder="Full Address"
-                            value={formData.address}
+                            id="landmark"
+                            placeholder="e.g. Near Brgy Hall, Beside 7-Eleven..."
+                            value={formData.landmark}
                             onChange={handleChange}
-                            required
                         />
                     </div>
 
@@ -355,6 +436,78 @@ function OrderForm() {
                                             <p className="text-secondary small mb-3" style={{ flexGrow: 1, minHeight: '40px' }}>
                                                 {service.description || 'No description available'}
                                             </p>
+                                            {isSelected && (
+                                                <div className="mt-3 p-3 rounded" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }} onClick={(e) => e.stopPropagation()}>
+                                                    {service.name.toLowerCase().includes('siphon') || service.name.toLowerCase().includes('desludg') ? (
+                                                        <>
+                                                            <div className="form-group mb-3">
+                                                                <label className="form-label small mb-1 fw-bold">Number of Septic Tanks</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    className="form-control form-control-sm"
+                                                                    placeholder="e.g. 1"
+                                                                    min="1"
+                                                                    value={estimateInputs[service.id || service._id]?.numTanks || '1'}
+                                                                    onChange={(e) => handleEstimateInputChange(service.id || service._id, 'numTanks', e.target.value)}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group mb-3">
+                                                                <label className="form-label small mb-1 fw-bold">Estimated Tank Capacity / Type</label>
+                                                                <select 
+                                                                    className="form-select form-select-sm"
+                                                                    value={estimateInputs[service.id || service._id]?.capacityType || '1'}
+                                                                    onChange={(e) => handleEstimateInputChange(service.id || service._id, 'capacityType', e.target.value)}
+                                                                >
+                                                                    <option value="1">Standard Residential (1 Trip / ~10 cu.m)</option>
+                                                                    <option value="2">Large Commercial / Multi-tank (2+ Trips)</option>
+                                                                </select>
+                                                            </div>
+                                                            <div className="form-group mb-0">
+                                                                <label className="form-label small mb-1 fw-bold">Site Accessibility</label>
+                                                                <select 
+                                                                    className="form-select form-select-sm"
+                                                                    value={estimateInputs[service.id || service._id]?.accessibility || 'easy'}
+                                                                    onChange={(e) => handleEstimateInputChange(service.id || service._id, 'accessibility', e.target.value)}
+                                                                >
+                                                                    <option value="easy">Easy (Truck can park within 10–20 meters)</option>
+                                                                    <option value="difficult">Difficult / Deep (Needs long extension hoses or narrow alley access)</option>
+                                                                </select>
+                                                            </div>
+                                                            {estimateInputs[service.id || service._id]?.accessibility === 'difficult' && (
+                                                                <div className="form-group mb-0 mt-3">
+                                                                    <label className="form-label small mb-1 fw-bold text-danger"><i className="fas fa-camera me-1"></i>Upload Photo of Site/Driveway (Optional)</label>
+                                                                    <input 
+                                                                        type="file" 
+                                                                        className="form-control form-control-sm"
+                                                                        accept="image/*"
+                                                                        onChange={(e) => {
+                                                                            if(e.target.files[0] && e.target.files[0].size > 5 * 1024 * 1024) {
+                                                                                showAlert("File Too Large", "Please upload an image smaller than 5MB.", "warning");
+                                                                                e.target.value = "";
+                                                                            } else {
+                                                                                setSitePhoto(e.target.files[0]);
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>Max size 5MB. Helps our team prepare extension hoses.</small>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : service.name.toLowerCase().includes('deep clean') || service.name.toLowerCase().includes('declog') ? (
+                                                        <div className="form-group mb-0">
+                                                            <label className="form-label small mb-1 fw-bold">Number of Septic Tanks</label>
+                                                            <input 
+                                                                type="number" 
+                                                                className="form-control form-control-sm"
+                                                                placeholder="e.g. 1"
+                                                                min="1"
+                                                                value={estimateInputs[service.id || service._id]?.numTanks || '1'}
+                                                                onChange={(e) => handleEstimateInputChange(service.id || service._id, 'numTanks', e.target.value)}
+                                                            />
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -379,19 +532,27 @@ function OrderForm() {
                         <div className="card border-0 p-3 mb-4 shadow-sm" style={{ background: '#f8fafc', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
                             <h6 className="fw-bold text-dark mb-3"><i className="fas fa-receipt me-2 text-success"></i>Reservation Summary</h6>
                             <div className="d-flex justify-content-between align-items-center mb-1 small text-muted">
-                                <span>Reservation Fee</span>
-                                <span>₱2000.00</span>
+                                <span>Estimated Base Cost</span>
+                                <span>₱{baseEstimate.toFixed(2)}</span>
                             </div>
                             <div className="d-flex justify-content-between align-items-center mb-1 small text-muted">
-                                <span>Service Tax (10%)</span>
-                                <span>₱200.00</span>
+                                <span>Reservation & Inspection Fee</span>
+                                <span>₱1000.00</span>
+                            </div>
+                            <div className="d-flex justify-content-between align-items-center mb-1 small text-muted">
+                                <span>Service Tax (10% of Reservation & Inspection Fee)</span>
+                                <span>₱100.00</span>
                             </div>
                             <hr className="my-2" />
                             <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                                 <span className="fw-bolder fs-5 text-dark">Total Amount Due Now:</span>
                                 <span className="fw-bolder fs-5 text-success" style={{ color: '#0D8D1E' }}>
-                                    ₱2200.00
+                                    ₱1100.00
                                 </span>
+                            </div>
+                            <div className="alert alert-warning mt-3 mb-0 small py-2">
+                                <i className="fas fa-exclamation-triangle me-2"></i>
+                                Note: The Estimated Base Cost is subject to change upon physical inspection. The ₱1100 payment today secures your booking and is deducted from the final bill.
                             </div>
                         </div>
                     )}
