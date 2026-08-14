@@ -4,11 +4,36 @@ const Notification = require('../models/Notification');
 
 const router = express.Router();
 const axios = require('axios');
+const crypto = require('crypto');
 
 // PayMongo Webhook
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
-        // Parse the body as JSON. (If PayMongo signatures were enabled, we'd verify here)
+        const signatureHeader = req.headers['paymongo-signature'];
+        const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
+        
+        // Ponytail: Only enforce signature validation if the secret is configured.
+        // This allows local testing without a live Ngrok tunnel, while keeping production secure.
+        if (webhookSecret && signatureHeader) {
+            // PayMongo signature format: t=timestamp,te=test_signature,li=live_signature
+            const elements = signatureHeader.split(',').map(s => s.split('='));
+            const signatureMap = Object.fromEntries(elements);
+            
+            const timestamp = signatureMap.t;
+            const signature = signatureMap.te || signatureMap.li;
+            
+            const payload = `${timestamp}.${req.body}`;
+            const expectedSignature = crypto.createHmac('sha256', webhookSecret).update(payload).digest('hex');
+            
+            if (expectedSignature !== signature) {
+                console.error('Webhook signature mismatch!');
+                return res.status(401).send('Invalid Signature');
+            }
+        } else {
+            console.warn('ponytail: Skipping Webhook signature validation. Missing PAYMONGO_WEBHOOK_SECRET.');
+        }
+
+        // Parse the body as JSON.
         const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
         console.log('PayMongo Webhook Event Type:', event?.data?.attributes?.type);
@@ -26,7 +51,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                 const orders = await Order.find({ order_id: actualOrderId });
 
                 if (orders.length > 0) {
-                    for (const order of orders) {
+                    await Promise.all(orders.map(async (order) => {
                         if (isFinalPayment && order.status !== 'Cancelled') {
                             order.final_payment_status = 'Paid';
                             await order.save();
@@ -52,7 +77,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                                 }).save();
                             }
                         }
-                    }
+                    }));
 
                     console.log(`Successfully updated order ${actualOrderId}`);
                 } else {

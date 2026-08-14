@@ -226,11 +226,11 @@ function OngoingOrders() {
   }
 
   return (
-    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingBottom: '3rem' }}>
-      <img src={carousel6} alt="Banner" className="banner-img w-100" style={{ height: '300px', objectFit: 'cover' }} />
+    <div className="bg-light" style={{ minHeight: '100vh', paddingBottom: '3rem' }}>
+      <img src={carousel6} alt="Banner" className="img-fluid banner-img w-100" />
 
       <div className="container py-5">
-        <h3 className="fw-bold mb-4" style={{ color: '#0D8D1E' }}>My Ongoing Orders</h3>
+        <h3 className="fw-bold mb-4 text-success">My Ongoing Orders</h3>
         
         {orders.length === 0 ? (
           <div className="alert alert-info shadow-sm">No ongoing orders found.</div>
@@ -251,7 +251,7 @@ function OngoingOrders() {
                     <div className="d-flex justify-content-between align-items-center w-100 me-3">
                       <div>
                         <span className="text-muted small d-block mb-1">Order #{order.order_id}</span>
-                        <span className="fs-5" style={{ color: '#0D8D1E' }}>{order.service_name || order.service_type}</span>
+                        <span className="fs-5 text-success fw-bold">{order.service_name || order.service_type}</span>
                       </div>
                       <div className="text-end">
                         <span className={`badge rounded-pill ${getStatusClass(order.status)} mb-1 d-block`} style={{ fontSize: '0.85rem' }}>
@@ -272,26 +272,26 @@ function OngoingOrders() {
                     
                     {/* Progress Tracker */}
                     {order.status !== 'Cancelled' ? (
-                      <div className="position-relative m-4">
-                        <div className="progress" style={{ height: '4px', position: 'absolute', top: '30%', left: '0', right: '0', zIndex: 1, backgroundColor: '#e9ecef' }}>
+                      <div className="position-relative mx-2 my-4">
+                        <div className="progress" style={{ height: '4px', position: 'absolute', top: '20px', left: '10%', right: '10%', zIndex: 1, backgroundColor: '#e9ecef' }}>
                           <div className="progress-bar bg-success" role="progressbar" style={{ width: order.status === 'Completed' ? '100%' : order.has_final_price ? '66%' : (order.confirmed_date && order.truck_team) ? '33%' : '0%' }}></div>
                         </div>
-                        <div className="d-flex justify-content-between position-relative" style={{ zIndex: 2 }}>
-                          <div className="text-center" style={{ width: '80px' }}>
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${order.status !== 'Pending' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-check"></i></div>
-                            <small className="fw-bold d-block" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Reserved</small>
+                        <div className="d-flex justify-content-between position-relative text-center" style={{ zIndex: 2 }}>
+                          <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${order.status !== 'Pending' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-check"></i></div>
+                            <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Reserved</small>
                           </div>
-                          <div className="text-center" style={{ width: '80px' }}>
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${(order.confirmed_date && order.truck_team) || order.has_final_price || order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-search"></i></div>
-                            <small className="fw-bold d-block" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Inspection</small>
+                          <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${(order.confirmed_date && order.truck_team) || order.has_final_price || order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-search"></i></div>
+                            <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Inspection</small>
                           </div>
-                          <div className="text-center" style={{ width: '80px' }}>
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${order.has_final_price || order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-file-invoice-dollar"></i></div>
-                            <small className="fw-bold d-block" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Quoted</small>
+                          <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${order.has_final_price || order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-file-invoice-dollar"></i></div>
+                            <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Quoted</small>
                           </div>
-                          <div className="text-center" style={{ width: '80px' }}>
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-flag-checkered"></i></div>
-                            <small className="fw-bold d-block" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Completed</small>
+                          <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                            <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-flag-checkered"></i></div>
+                            <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Completed</small>
                           </div>
                         </div>
                       </div>
@@ -335,8 +335,8 @@ function OngoingOrders() {
                       </div>
                     </div>
 
-                    <div className="p-3 mb-4 rounded bg-white shadow-sm" style={{ borderLeft: '4px solid #0D8D1E' }}>
-                      <h6 className="fw-bold mb-3 text-success border-bottom pb-2 border-success border-opacity-25">
+                    <div className="p-4 mb-4 rounded bg-white shadow-sm border">
+                      <h6 className="fw-bold mb-3 text-success border-bottom pb-2 border-opacity-25">
                         <i className="fas fa-clipboard-check me-2"></i>Status & Updates
                       </h6>
                       
@@ -420,8 +420,8 @@ function OngoingOrders() {
             <div className="row">
               {steps.map((step, index) => (
                 <div className="col-md-6 mb-4" key={index}>
-                  <div className="d-flex align-items-start bg-white p-3 h-100 rounded shadow-sm" style={{ borderLeft: '4px solid #0D8D1E' }}>
-                    <div className="rounded-circle bg-success text-white d-flex justify-content-center align-items-center me-3 flex-shrink-0 fw-bold" style={{ width: '32px', height: '32px', backgroundColor: '#0D8D1E' }}>
+                  <div className="d-flex align-items-start bg-white p-4 h-100 rounded shadow-sm border">
+                    <div className="rounded-circle bg-success text-white d-flex justify-content-center align-items-center me-3 flex-shrink-0 fw-bold shadow-sm" style={{ width: '32px', height: '32px' }}>
                       {index + 1}
                     </div>
                     <div>

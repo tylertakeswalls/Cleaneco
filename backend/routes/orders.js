@@ -134,12 +134,11 @@ router.post('/submit', upload.single('site_photo'), async (req, res) => {
     }
 
     const orderId = 'ORD' + Date.now() + Math.floor(Math.random() * 1000);
-    const orderItems = [];
     const totalAmount = 1100; // 1000 fee + 100 tax
 
     const parsedUserId = (data.user_id && data.user_id !== 'null' && data.user_id !== 'undefined') ? data.user_id : null;
 
-    for (const service of services) {
+    const orderItems = await Promise.all(services.map(async (service) => {
       const order = new Order({
         order_id: orderId,
         user_id: parsedUserId,
@@ -162,12 +161,12 @@ router.post('/submit', upload.single('site_photo'), async (req, res) => {
         site_photo_url: sitePhotoUrl
       });
       await order.save();
-      orderItems.push({
+      return {
         ...order.toObject(),
         service_name: service.name,
         base_price: service.base_price
-      });
-    }
+      };
+    }));
 
     const servicesStr = services.map(s => s.name).join(', ');
     const description = `Cleaneco Service Booking - ${servicesStr}`;

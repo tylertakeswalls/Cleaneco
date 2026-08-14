@@ -97,9 +97,14 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Please verify your email address to log in.', notVerified: true, email: user.email });
     }
 
+    if (!process.env.JWT_SECRET) {
+      console.error('CRITICAL: JWT_SECRET environment variable is missing.');
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
     const token = jwt.sign(
       { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || 'cleaneco_secure_jwt_secret_key_2026',
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
