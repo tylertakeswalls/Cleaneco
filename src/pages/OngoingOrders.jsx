@@ -365,7 +365,7 @@ function OngoingOrders() {
                     <h6 className="fw-bold mb-3">Documents</h6>
                     <div className="d-flex gap-2 flex-wrap mb-4">
                       {order.quotation_pdf_url ? (
-                        <a href={`http://localhost:5000${order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary-solid rounded-pill shadow-sm">
+                        <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary-solid rounded-pill shadow-sm">
                           <i className="fas fa-file-pdf me-1"></i>Approved P.O. / Quotation
                         </a>
                       ) : (
@@ -375,7 +375,7 @@ function OngoingOrders() {
                       )}
                       
                       {order.service_report_pdf_url ? (
-                        <a href={`http://localhost:5000${order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-cleaneco rounded-pill shadow-sm">
+                        <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-cleaneco rounded-pill shadow-sm">
                           <i className="fas fa-file-invoice me-1"></i>Service Report
                         </a>
                       ) : (

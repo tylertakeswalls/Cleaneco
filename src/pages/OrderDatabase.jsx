@@ -569,7 +569,7 @@ function OrderDatabase() {
                         />
                         {editModal.order.quotation_pdf_url && (
                           <div className="mt-2 small">
-                            <a href={`http://localhost:5000${editModal.order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
+                            <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editModal.order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
                               <i className="fas fa-file-pdf me-1"></i>View Current Quotation
                             </a>
                           </div>
@@ -586,7 +586,7 @@ function OrderDatabase() {
                         />
                         {editModal.order.service_report_pdf_url && (
                           <div className="mt-2 small">
-                            <a href={`http://localhost:5000${editModal.order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
+                            <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editModal.order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
                               <i className="fas fa-file-pdf me-1"></i>View Current Service Report
                             </a>
                           </div>
