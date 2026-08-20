@@ -144,7 +144,7 @@ router.post('/checkout-final', async (req, res) => {
                         send_email_receipt: true,
                         show_description: true,
                         show_line_items: true,
-                        cancel_url: `http://localhost:3000/payment-cancel`,
+                        cancel_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/payment-cancel`,
                         description: `Cleaneco Final Payment - ${servicesNames.join(', ')}`,
                         line_items: [
                             {
@@ -157,7 +157,7 @@ router.post('/checkout-final', async (req, res) => {
                         ],
                         payment_method_types: ['card', 'paymaya', 'gcash', 'grab_pay'],
                         reference_number: `${order_id}_FINAL`,
-                        success_url: `http://localhost:3000/payment-success`
+                        success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/payment-success`
                     }
                 }
             }

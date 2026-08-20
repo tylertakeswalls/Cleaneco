@@ -169,7 +169,7 @@ const sendConfirmationEmail = async (orderId, clientInfo, orderItems, statusChan
 };
 
 const sendVerificationEmail = async (email, token, firstName) => {
-  const verificationLink = `http://localhost:3000/verify?token=${token}`;
+  const verificationLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/verify?token=${token}`;
   const subject = 'Verify Your Cleaneco Account';
   
   const contentHtml = `

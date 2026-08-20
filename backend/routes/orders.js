@@ -186,8 +186,8 @@ router.post('/submit', upload.single('site_photo'), async (req, res) => {
                     send_email_receipt: true,
                     show_description: true,
                     show_line_items: true,
-                    cancel_url: 'http://localhost:3000/payment-cancel',
-                    success_url: 'http://localhost:3000/payment-success',
+                    cancel_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/payment-cancel`,
+                    success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/payment-success`,
                     description: description,
                     line_items: [
                         {
