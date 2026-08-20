@@ -10,7 +10,7 @@ const crypto = require('crypto');
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
         const signatureHeader = req.headers['paymongo-signature'];
-        const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
+        const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET_KEY;
         
         // Ponytail: Only enforce signature validation if the secret is configured.
         // This allows local testing without a live Ngrok tunnel, while keeping production secure.
