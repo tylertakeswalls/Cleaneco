@@ -86,20 +86,18 @@ function Login() {
           sessionStorage.setItem("token", data.token);
         }
 
-        // Conditionally store in localStorage if Remember Me was selected
-        if (rememberMe) {
-          localStorage.setItem("loggedInUser", data.user.username);
-          localStorage.setItem("userId", data.user.id);
-          localStorage.setItem("userRole", data.user.role);
-          localStorage.setItem("userEmail", data.user.email);
-          localStorage.setItem("userName", `${data.user.first_name} ${data.user.last_name}`);
-          if (data.user.date_of_birth) {
-            localStorage.setItem("userDob", data.user.date_of_birth);
-          }
-          
-          if (data.token) {
-            localStorage.setItem("token", data.token);
-          }
+        // Store in localStorage persistently so cross-domain redirects (e.g. PayMongo) don't drop the session
+        localStorage.setItem("loggedInUser", data.user.username);
+        localStorage.setItem("userId", data.user.id);
+        localStorage.setItem("userRole", data.user.role);
+        localStorage.setItem("userEmail", data.user.email);
+        localStorage.setItem("userName", `${data.user.first_name} ${data.user.last_name}`);
+        if (data.user.date_of_birth) {
+          localStorage.setItem("userDob", data.user.date_of_birth);
+        }
+        
+        if (data.token) {
+          localStorage.setItem("token", data.token);
         }
         
         setMessage("Login successful! Redirecting...");
@@ -184,19 +182,7 @@ function Login() {
           </div>
         </div>
 
-        <div className="form-group d-flex justify-content-between align-items-center">
-          <div className="form-check">
-            <input 
-              type="checkbox" 
-              className="form-check-input" 
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-            />
-            <label className="form-check-label" htmlFor="rememberMe">
-              Remember me
-            </label>
-          </div>
+        <div className="form-group d-flex justify-content-end align-items-center">
           <button 
             type="button" 
             className="btn btn-link p-0"
