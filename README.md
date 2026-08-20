@@ -163,3 +163,15 @@ Follow these steps exactly to set up and run the project after you have extracte
    npm start
    ```
    *The application should automatically open in your default web browser at `http://localhost:3000`.*
+
+ # #   1 9 .   P r o d u c t i o n   D e p l o y m e n t   &   I n f r a s t r u c t u r e 
+ -   * * B a c k e n d   D e p l o y m e n t   ( R e n d e r ) * * :   S u c c e s s f u l l y   d e p l o y e d   t h e   E x p r e s s   b a c k e n d   a s   a   l i v e   W e b   S e r v i c e   o n   R e n d e r ,   t r a n s i t i o n i n g   f r o m   l o c a l   d e v e l o p m e n t .   C o n f i g u r e d   p r o d u c t i o n   e n v i r o n m e n t   v a r i a b l e s   a n d   w h i t e l i s t e d   t h e   R e n d e r   I P   i n   M o n g o D B   A t l a s . 
+ -   * * F r o n t e n d   D e p l o y m e n t   ( V e r c e l ) * * :   D e p l o y e d   t h e   R e a c t   f r o n t e n d   a p p l i c a t i o n   t o   V e r c e l .   C o n f i g u r e d   g l o b a l   r o u t i n g   t o   e n s u r e   s t a n d a r d   S P A   b e h a v i o r . 
+ -   * * P a y M o n g o   W e b h o o k   I n f r a s t r u c t u r e * * :   
+     -   I n t e g r a t e d   l i v e   P a y M o n g o   w e b h o o k s   t o   s e c u r e l y   l i s t e n   f o r   c h e c k o u t   s u c c e s s   e v e n t s . 
+     -   R e s o l v e d   c o m p l e x   E x p r e s s   b o d y   p a r s i n g   l i m i t a t i o n s   b y   c a p t u r i n g   \  e q . r a w B o d y \   g l o b a l l y   t o   e n s u r e   c r y p t o g r a p h i c   w e b h o o k   s i g n a t u r e s   p e r f e c t l y   m a t c h   P a y M o n g o ' s   r e q u i r e m e n t s . 
+ -   * * C r o s s - D o m a i n   S e s s i o n   A r c h i t e c t u r e * * :   
+     -   O v e r h a u l e d   t h e   a u t h e n t i c a t i o n   f l o w   i n   \ L o g i n . j s x \   t o   s t r i c t l y   e n f o r c e   \ l o c a l S t o r a g e \   a s   t h e   d e f a u l t   s e s s i o n   s t o r a g e   m e d i u m . 
+     -   T h i s   p r e v e n t s   m o d e r n   b r o w s e r   I n t e l l i g e n t   T r a c k i n g   P r e v e n t i o n   ( I T P )   f r o m   a c c i d e n t a l l y   d r o p p i n g   u s e r   s e s s i o n s   w h e n   r e d i r e c t i n g   b a c k   f r o m   e x t e r n a l   p a y m e n t   g a t e w a y s   a c r o s s   d i f f e r e n t   s u b d o m a i n s . 
+ -   * * E n v i r o n m e n t   P a r i t y * * :   S y n c h r o n i z e d   A P I   e n d p o i n t s   d y n a m i c a l l y   v i a   \ R E A C T _ A P P _ A P I _ U R L \   t o   s e a m l e s s l y   s w i t c h   b e t w e e n   l o c a l   e n v i r o n m e n t s   a n d   t h e   p r o d u c t i o n   b a c k e n d .  
+ 
