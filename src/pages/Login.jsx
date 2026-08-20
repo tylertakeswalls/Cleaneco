@@ -10,7 +10,6 @@ function Login() {
   const [unverifiedEmail, setUnverifiedEmail] = useState(null);
   const [resending, setResending] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [lockdownTimer, setLockdownTimer] = useState(0);
   const navigate = useNavigate();
