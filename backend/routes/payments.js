@@ -7,7 +7,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 // PayMongo Webhook
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
     try {
         const signatureHeader = req.headers['paymongo-signature'];
         const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET_KEY;
@@ -22,7 +22,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             const timestamp = signatureMap.t;
             const signature = signatureMap.te || signatureMap.li;
             
-            const payload = `${timestamp}.${req.body}`;
+            const payload = `${timestamp}.${req.rawBody.toString('utf8')}`;
             const expectedSignature = crypto.createHmac('sha256', webhookSecret).update(payload).digest('hex');
             
             if (expectedSignature !== signature) {
@@ -33,8 +33,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             console.warn('ponytail: Skipping Webhook signature validation. Missing PAYMONGO_WEBHOOK_SECRET.');
         }
 
-        // Parse the body as JSON.
-        const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        const event = req.body;
 
         console.log('PayMongo Webhook Event Type:', event?.data?.attributes?.type);
 
