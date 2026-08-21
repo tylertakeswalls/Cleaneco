@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatDate, getStatusClass } from '../utils/helpers';
 import '../assets/styles/ongoingorders.css';
 import carousel6 from '../assets/styles/images/carousel6.png';
@@ -18,6 +16,7 @@ function OngoingOrders() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedOrderIdToPay, setSelectedOrderIdToPay] = useState(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [receiptOrder, setReceiptOrder] = useState(null);
   const navigate = useNavigate();
   const loggedInUser = sessionStorage.getItem("loggedInUser");
   const userId = sessionStorage.getItem("userId");
@@ -98,109 +97,11 @@ function OngoingOrders() {
     loadOrders();
   }, [loggedInUser, navigate, userId]);
 
-  const generateReceipt = async (order) => {
-    const doc = new jsPDF();
-    
-    let y = 40; // Default starting Y
-    // Add header image
-    try {
-      const response = await fetch('/header.png');
-      const blob = await response.blob();
-      const reader = new FileReader();
-      const base64data = await new Promise((resolve) => {
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
-      });
-      
-      const img = new Image();
-      img.src = base64data;
-      await new Promise(resolve => { img.onload = resolve; });
-      
-      const imgWidth = 180;
-      const imgHeight = (img.height * imgWidth) / img.width;
-      
-      doc.addImage(base64data, 'PNG', 15, 10, imgWidth, imgHeight);
-      y = 10 + imgHeight + 5; // Start text just below the image
-    } catch (err) {
-      console.warn("Could not load header image", err);
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(128, 128, 128); // gray
-    doc.text('CLEANECO WASTE MANAGEMENT SERVICES', 15, y);
-    
-    y += 5;
-    doc.setTextColor(13, 141, 30); // green
-    doc.text('Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields, Brgy. Mambog IV, Bacoor City, Cavite', 15, y);
-    y += 5;
-    doc.text('Tel. Nos.: (046) 477-0354 • 09173044157', 15, y);
-    y += 5;
-    doc.text('E-mail: cleaneco@cwms.com.ph', 15, y);
-    y += 5;
-    doc.text('Website: www.cwms.com.ph', 15, y);
-
-    y += 15;
-    doc.setTextColor(0, 0, 0); // black
-    doc.setFont('times', 'normal');
-    doc.setFontSize(11);
-    
-    // Date
-    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    doc.text(`Date: ${dateStr}`, 15, y);
-    
-    y += 10;
-    doc.text('Cleaneco Management', 15, y);
-    y += 5;
-    doc.text('Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields', 15, y);
-    y += 5;
-    doc.text('Bacoor City, Cavite', 15, y);
-
-    y += 15;
-    doc.setFont('times', 'bold');
-    const customerName = `${order.first_name || sessionStorage.getItem('userName')} ${order.last_name || ''}`.trim();
-    doc.text(`ATTENTION: ${customerName}`, 15, y);
-
-    y += 15;
-    doc.setFontSize(12);
-    doc.text('Official Receipt', 105, y, { align: 'center' });
-    // Underline
-    const titleWidth = doc.getTextWidth('Official Receipt');
-    doc.setLineWidth(0.5);
-    doc.line(105 - (titleWidth/2), y + 1, 105 + (titleWidth/2), y + 1);
-
-    y += 15;
-    doc.setFont('times', 'normal');
-    doc.setFontSize(11);
-    doc.text(`This receipt confirms the completion and payment for Order ID: ${order.order_id}.`, 15, y);
-    y += 5;
-    doc.text(`Service provided: ${order.service_name || order.service_type}`, 15, y);
-    y += 5;
-    doc.text(`Service date: ${formatDate(order.date)} at ${order.time_slot}`, 15, y);
-
-    const basePrice = order.price ? parseFloat(order.price) : 0;
-    const tax = order.tax_amount ? parseFloat(order.tax_amount) : (basePrice * 0.10);
-    const total = basePrice + tax;
-
-    autoTable(doc, {
-      startY: y + 10,
-      head: [['Description', 'Amount']],
-      body: [
-        ['Base Service Fee', `PHP ${basePrice.toFixed(2)}`],
-        ['Service Tax (10%)', `PHP ${tax.toFixed(2)}`],
-      ],
-      foot: [['Total Paid', `PHP ${total.toFixed(2)}`]],
-      theme: 'grid',
-      headStyles: { fillColor: [13, 141, 30] },
-      footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] },
-      margin: { left: 15, right: 15 }
-    });
-
-    const finalY = doc.lastAutoTable.finalY || y + 40;
-    
-    doc.setFont('times', 'normal');
-    doc.text('Thank you very much!', 15, finalY + 15);
-
-    doc.save(`Cleaneco_Receipt_${order.order_id}.pdf`);
+  const generateReceipt = (order) => {
+    setReceiptOrder(order);
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const steps = [
@@ -498,6 +399,57 @@ function OngoingOrders() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {receiptOrder && (
+        <div id="print-receipt" style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+          <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+            <h2 style={{ color: 'gray', margin: 0, fontSize: '16px' }}>CLEANECO WASTE MANAGEMENT SERVICES</h2>
+            <p style={{ color: 'green', margin: '5px 0' }}>Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields, Bacoor City, Cavite</p>
+            <p style={{ margin: 0 }}>Tel: (046) 477-0354 • 09173044157</p>
+            <p style={{ margin: 0 }}>E-mail: cleaneco@cwms.com.ph</p>
+          </div>
+          
+          <hr />
+          
+          <div style={{ margin: '20px 0' }}>
+            <p><strong>Date:</strong> {new Date().toLocaleDateString('en-US')}</p>
+            <p><strong>ATTENTION:</strong> {receiptOrder.first_name || sessionStorage.getItem('userName')} {receiptOrder.last_name || ''}</p>
+          </div>
+
+          <h3 style={{ textAlign: 'center', textDecoration: 'underline', marginBottom: '20px' }}>Official Receipt</h3>
+          
+          <p>This receipt confirms the completion and payment for Order ID: <strong>{receiptOrder.order_id}</strong>.</p>
+          <p>Service provided: {receiptOrder.service_name || receiptOrder.service_type}</p>
+          <p>Service date: {formatDate(receiptOrder.date)} at {receiptOrder.time_slot}</p>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'green', color: 'white' }}>
+                <th style={{ padding: '10px', border: '1px solid #ccc' }}>Description</th>
+                <th style={{ padding: '10px', border: '1px solid #ccc' }}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #ccc' }}>Base Service Fee</td>
+                <td style={{ padding: '10px', border: '1px solid #ccc' }}>PHP {parseFloat(receiptOrder.price || 0).toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #ccc' }}>Service Tax (10%)</td>
+                <td style={{ padding: '10px', border: '1px solid #ccc' }}>PHP {parseFloat(receiptOrder.tax_amount || (parseFloat(receiptOrder.price || 0) * 0.1)).toFixed(2)}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
+                <td style={{ padding: '10px', border: '1px solid #ccc' }}>Total Paid</td>
+                <td style={{ padding: '10px', border: '1px solid #ccc' }}>PHP {(parseFloat(receiptOrder.price || 0) + parseFloat(receiptOrder.tax_amount || (parseFloat(receiptOrder.price || 0) * 0.1))).toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <p style={{ marginTop: '40px' }}>Thank you very much!</p>
         </div>
       )}
 

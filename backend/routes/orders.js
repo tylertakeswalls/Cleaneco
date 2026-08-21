@@ -1,5 +1,5 @@
 const express = require('express');
-const axios = require('axios');
+
 const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
@@ -205,8 +205,14 @@ router.post('/submit', upload.single('site_photo'), async (req, res) => {
         }
     };
 
-    const paymongoResponse = await axios.request(options);
-    const checkout_url = paymongoResponse.data.data.attributes.checkout_url;
+    const paymongoResponse = await fetch(options.url, {
+      method: options.method,
+      headers: options.headers,
+      body: JSON.stringify(options.data)
+    });
+    const paymongoData = await paymongoResponse.json();
+    if (!paymongoResponse.ok) throw new Error(JSON.stringify(paymongoData));
+    const checkout_url = paymongoData.data.attributes.checkout_url;
 
     const notifMsg = `New booking with payment from ${data.firstName} ${data.lastName} (#${orderId})`;
     const notifDetails = `Services: ${servicesStr} on ${data.date} (${data.timeSlot})`;

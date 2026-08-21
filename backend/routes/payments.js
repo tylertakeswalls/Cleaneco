@@ -3,7 +3,7 @@ const Order = require('../models/Order');
 const Notification = require('../models/Notification');
 
 const router = express.Router();
-const axios = require('axios');
+
 const crypto = require('crypto');
 
 // PayMongo Webhook
@@ -162,8 +162,14 @@ router.post('/checkout-final', async (req, res) => {
             }
         };
 
-        const paymongoResponse = await axios.request(options);
-        const checkoutUrl = paymongoResponse.data.data.attributes.checkout_url;
+        const paymongoResponse = await fetch(options.url, {
+            method: options.method,
+            headers: options.headers,
+            body: JSON.stringify(options.data)
+        });
+        const paymongoData = await paymongoResponse.json();
+        if (!paymongoResponse.ok) throw new Error(JSON.stringify(paymongoData));
+        const checkoutUrl = paymongoData.data.attributes.checkout_url;
 
         res.json({ success: true, checkout_url: checkoutUrl });
 
