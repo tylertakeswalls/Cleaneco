@@ -174,3 +174,10 @@ Follow these steps exactly to set up and run the project after you have extracte
   - Overhauled the authentication flow in `Login.jsx` to strictly enforce `localStorage` as the default session storage medium.
   - This prevents modern browser Intelligent Tracking Prevention (ITP) from accidentally dropping user sessions when redirecting back from external payment gateways across different subdomains.
 - **Environment Parity**: Synchronized API endpoints dynamically via `REACT_APP_API_URL` to seamlessly switch between local environments and the production backend.
+
+## 20. Codebase Debloating & Native Replacements (Ponytail Audit)
+- **PDF Generation Overhaul**: Removed heavy third-party PDF libraries (`jspdf`, `jspdf-autotable`) from the frontend. Replaced the client-side receipt generation in `OngoingOrders.jsx` with a lean, CSS-driven `@media print` layout utilizing the browser's native `window.print()` functionality, significantly reducing bundle size.
+- **API Networking Modernization**: Completely removed `axios` across both the frontend and backend. 
+  - Rewrote the frontend API configuration (`axiosConfig.js`) into a zero-dependency, drop-in `fetch` wrapper that natively handles Bearer tokens and JSON parsing.
+  - Replaced all PayMongo API calls in the backend (`payments.js`, `orders.js`) with the native Node.js `fetch` API.
+- **Dependency Purge**: Net reduction of 3 heavy npm packages (`axios`, `jspdf`, `jspdf-autotable`), shedding dead weight and minimizing the application's attack surface and build time.
