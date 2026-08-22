@@ -195,9 +195,7 @@ function OrderDatabase() {
         if (quotationFile) formData.append('quotation', quotationFile);
         if (serviceReportFile) formData.append('service_report', serviceReportFile);
 
-        await api.post(`/orders/${editModal.order.id}/upload-documents`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        await api.post(`/orders/${editModal.order.id}/upload-documents`, formData);
       }
 
       // 3. Reload orders to get updated URLs

@@ -81,9 +81,7 @@ function AdminSettings() {
       const formData = new FormData();
       formData.append('tosPdf', selectedFile);
 
-      const response = await api.post('/settings/tos/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const response = await api.post('/settings/tos/upload', formData);
       
       if (response.data.success) {
         showAlert('success', 'Terms and Conditions PDF updated successfully!');

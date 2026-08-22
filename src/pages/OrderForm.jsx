@@ -231,11 +231,7 @@ function OrderForm() {
                 submitData.append('site_photo', sitePhoto);
             }
 
-            const response = await api.post('/orders/submit', submitData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
+            const response = await api.post('/orders/submit', submitData);
             
             if (response.data.success && response.data.checkout_url) {
                 window.location.href = response.data.checkout_url;
