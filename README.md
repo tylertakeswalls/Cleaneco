@@ -181,3 +181,8 @@ Follow these steps exactly to set up and run the project after you have extracte
   - Rewrote the frontend API configuration (`axiosConfig.js`) into a zero-dependency, drop-in `fetch` wrapper that natively handles Bearer tokens and JSON parsing.
   - Replaced all PayMongo API calls in the backend (`payments.js`, `orders.js`) with the native Node.js `fetch` API.
 - **Dependency Purge**: Net reduction of 3 heavy npm packages (`axios`, `jspdf`, `jspdf-autotable`), shedding dead weight and minimizing the application's attack surface and build time.
+
+## 21. Payment & Form Processing Fixes
+- **PayMongo Checkout Standardization**: Removed the unsupported `dob` (Direct Online Banking) payment method type from the reservation fee checkout request in `backend/routes/orders.js`. This resolves an issue where live PayMongo accounts without this specific activation would trigger a 400 Bad Request error.
+- **PayMongo Secret Key Resilience**: Implemented a fallback mechanism for the `PAYMONGO_SECRET_KEY` in the checkout session authorization header to prevent catastrophic crashes if environment variables fail to load correctly.
+- **FormData Boundary Resolution**: Removed explicit `Content-Type: multipart/form-data` headers across multiple frontend components (`OrderForm.jsx`, `OrderDatabase.jsx`, `AdminSettings.jsx`). This allows the native `fetch` API to automatically generate the necessary multipart boundary strings, fixing `Multer` parsing crashes ("Multipart: Boundary not found") on the Express backend.
