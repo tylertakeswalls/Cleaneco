@@ -178,7 +178,7 @@ router.post('/submit', upload.single('site_photo'), async (req, res) => {
         headers: {
             accept: 'application/json',
             'Content-Type': 'application/json',
-            authorization: `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY + ':').toString('base64')}`
+            authorization: `Basic ${Buffer.from((process.env.PAYMONGO_SECRET_KEY || 'sk_test_w3hVvJThf4Jv5M1h4qL67jG1') + ':').toString('base64')}`
         },
         data: {
             data: {
@@ -198,7 +198,7 @@ router.post('/submit', upload.single('site_photo'), async (req, res) => {
                             quantity: 1
                         }
                     ],
-                    payment_method_types: ['card', 'gcash', 'paymaya', 'grab_pay', 'dob'],
+                    payment_method_types: ['card', 'gcash', 'paymaya', 'grab_pay'],
                     reference_number: orderId
                 }
             }
