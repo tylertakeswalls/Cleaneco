@@ -4,8 +4,6 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
-const xss = require('xss-clean');
-const hpp = require('hpp');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
@@ -40,12 +38,6 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Data sanitization against NoSQL query injection
 app.use(mongoSanitize());
-
-// Data sanitization against XSS
-app.use(xss());
-
-// Prevent parameter pollution
-app.use(hpp());
 
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 
