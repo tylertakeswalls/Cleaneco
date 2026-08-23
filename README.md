@@ -191,3 +191,47 @@ Follow these steps exactly to set up and run the project after you have extracte
 - **Secure HTTP Headers (Helmet)**: Integrated `helmet()` middleware into the global Express pipeline to automatically set secure HTTP headers (e.g., Content Security Policy, X-Frame-Options, X-XSS-Protection) protecting the application against well-known web vulnerabilities.
 - **Strict CORS Policy**: Replaced the wildcard CORS configuration with a strict whitelist. The API now securely accepts cross-origin requests exclusively from the trusted frontend production domain (`https://cleaneco-kappa.vercel.app`) and local development ports (`5173`, `3000`).
 - **Global Rate Limiting**: Deployed `express-rate-limit` across all `/api` routes, restricting inbound traffic to 100 requests per 15-minute window per IP address. This mitigates brute-force authentication attacks and DDoS vectors.
+
+## Prerequisites & Installation Dependencies
+
+Before running the project, please ensure you have the following installed on your system:
+- **Node.js** (v18 or higher recommended) - [Download here](https://nodejs.org/)
+- **npm** (Node Package Manager) - installed automatically with Node.js.
+
+> **Note**: A local MongoDB installation is not required as this project connects to a cloud-hosted MongoDB Atlas database. The connection string and other environment variables are pre-configured in the `backend/.env` file.
+
+## How to Run Locally (After Extraction)
+
+Follow these steps exactly to set up and run the project after you have extracted the provided files.
+
+### Step 1: Backend Setup (Node.js/Express)
+1. Open a terminal or command prompt.
+2. Navigate to the extracted project folder, then into the `backend/` directory:
+   ```bash
+   cd path/to/extracted/folder/backend
+   ```
+3. Install the required backend dependencies:
+   ```bash
+   npm install
+   ```
+4. Start the backend server:
+   ```bash
+   npm run dev
+   ```
+   *The server should start and display a message indicating it's connected to MongoDB and running on port 5000.*
+
+### Step 2: Frontend Setup (React)
+1. Open a **new, separate terminal window** (keep the backend terminal running).
+2. Navigate to the root of the extracted project folder:
+   ```bash
+   cd path/to/extracted/folder
+   ```
+3. Install the required frontend dependencies:
+   ```bash
+   npm install
+   ```
+4. Start the frontend React application:
+   ```bash
+   npm start
+   ```
+   *The application should automatically open in your default web browser at `http://localhost:3000`.*
