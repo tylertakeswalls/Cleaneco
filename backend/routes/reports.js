@@ -61,12 +61,7 @@ router.get('/generate', async (req, res) => {
 
     doc.y = 110; // Ensure text starts below the header image
     
-    // Use Arial Rounded MT Bold for the header text
-    try {
-      doc.registerFont('ArialRoundedMT', 'C:/Windows/Fonts/ARLRDBD.TTF');
-    } catch(err) { console.warn("Arial Rounded MT font not found, falling back."); }
-    
-    const headerFont = 'ArialRoundedMT'; // fallback is handled implicitly if not found
+    const headerFont = 'Helvetica-Bold';
     
     doc.font(headerFont).fontSize(9).fillColor('gray').text('CLEANECO WASTE MANAGEMENT SERVICES', { align: 'left' });
     doc.moveDown(0.3);
