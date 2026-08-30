@@ -148,6 +148,14 @@ This document summarizes the recent features and structural updates implemented 
 - **Strict CORS Policy**: Replaced the wildcard CORS configuration with a strict whitelist. The API now securely accepts cross-origin requests exclusively from the trusted frontend production domain (`https://cleaneco-kappa.vercel.app`) and local development ports (`5173`, `3000`).
 - **Global Rate Limiting**: Deployed `express-rate-limit` across all `/api` routes, restricting inbound traffic to 100 requests per 15-minute window per IP address. This mitigates brute-force authentication attacks and DDoS vectors.
 
+## 23. ISO/IEC 25010 Paper Alignment & Email Infrastructure Overhaul
+- **Contact/Complaint System**: Implemented a dedicated "Contact Us" form accessible to both authenticated users and guests. This directly satisfies the research paper requirement for "complaint and request handling to manage client concerns" to align with ISO/IEC 25010:2011 assessment criteria.
+- **Render Firewall Bypass (EmailJS)**: 
+  - Completely removed `nodemailer` to circumvent Render's strict free-tier outbound SMTP firewall (which blocks ports 25, 465, and 587).
+  - Migrated the entire email notification infrastructure to **EmailJS**, transmitting payloads securely over standard HTTPS (port 443).
+- **Dynamic HTML Templates**: Retained the beautiful, custom HTML email designs by dynamically injecting full HTML strings directly into EmailJS templates using the `{{{html_content}}}` variable, avoiding any loss in visual quality.
+- **Proxy Configuration**: Configured `app.set('trust proxy', 1)` in the Express backend to ensure the global rate limiter correctly identifies client IP addresses when deployed behind Render's reverse proxy, preventing `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` crashes.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
