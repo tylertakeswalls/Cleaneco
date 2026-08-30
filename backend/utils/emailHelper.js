@@ -200,7 +200,7 @@ const sendVerificationEmail = async (email, token, firstName) => {
 
 const sendContactEmail = async (name, email, subject, message) => {
   const contentHtml = `
-      <h2 class='section-title'>New Contact/Complaint Submission</h2>
+      <h2 class='section-title'>New ${subject} Submission</h2>
       <div class='grid'>
           <div class='grid-col'>
               <p><strong>Name:</strong> ${name}</p>
