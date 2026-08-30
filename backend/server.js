@@ -8,6 +8,9 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust the reverse proxy (Render) so rate limiting uses the correct IP
+app.set('trust proxy', 1);
+
 // Middleware
 // Set security HTTP headers
 app.use(helmet());
