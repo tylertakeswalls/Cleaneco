@@ -46,7 +46,7 @@ const baseEmailTemplate = ({ subject, title, headerSubtitle, contentHtml }) => `
         </div>
         <div class='footer'>
             <p>&copy; ${new Date().getFullYear()} Cleaneco Waste Management Services. All rights reserved.</p>
-            <p>For inquiries, please contact us at support@cleaneco.com or +63 9216214712.</p>
+            <p>For inquiries, please contact us at cleanecowmss@gmail.com or +63 9216214712.</p>
         </div>
     </div>
 </body>
