@@ -1,21 +1,3 @@
-const nodemailer = require('nodemailer');
-const path = require('path');
-const dns = require('dns');
-
-// Force IPv4 resolution to prevent ENETUNREACH errors on cloud providers without full IPv6 routing
-dns.setDefaultResultOrder('ipv4first');
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports (will use STARTTLS)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  family: 4 // Force IPv4 to bypass ENETUNREACH on IPv6
-});
-
 const primaryColor = '#0D8D1E';
 
 const baseEmailTemplate = ({ subject, title, headerSubtitle, contentHtml }) => `
@@ -55,7 +37,7 @@ const baseEmailTemplate = ({ subject, title, headerSubtitle, contentHtml }) => `
 <body>
     <div class='container'>
         <div class='header'>
-            ${title ? `<h1>${title}</h1>` : `<img src="cid:cleanecologo" alt="Cleaneco Logo" />`}
+            ${title ? `<h1>${title}</h1>` : `<h1>Cleaneco Waste Management</h1>`}
             <p>${headerSubtitle}</p>
         </div>
         <div class='content'>
@@ -69,6 +51,35 @@ const baseEmailTemplate = ({ subject, title, headerSubtitle, contentHtml }) => `
 </body>
 </html>
 `;
+
+const sendEmailJS = async (templateId, templateParams) => {
+  const payload = {
+    service_id: 'service_6ol570a',
+    template_id: templateId,
+    user_id: 'J0YFAj4XiDUXldQ0F',
+    accessToken: '4dsISR2NxP2JjPAwVzAS8',
+    template_params: templateParams
+  };
+
+  try {
+    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`EmailJS Error: ${response.status} ${text}`);
+      throw new Error(`EmailJS Error: ${response.status} ${text}`);
+    }
+    
+    console.log(`Email successfully sent via EmailJS (Template: ${templateId})`);
+  } catch (error) {
+    console.error('Email sending failed:', error);
+    throw error; // Rethrow to let the caller handle it
+  }
+};
 
 const sendConfirmationEmail = async (orderId, clientInfo, orderItems, statusChange = false) => {
   let totalPrice = 0;
@@ -151,32 +162,16 @@ const sendConfirmationEmail = async (orderId, clientInfo, orderItems, statusChan
       contentHtml
   });
 
-  const mailOptions = {
-    from: '"Cleaneco Waste Management Services" <noreply@cleaneco.com>',
-    to: clientInfo.email,
+  // Template 2: Universal Client Template
+  await sendEmailJS('template_ns5zlcs', {
+    to_email: clientInfo.email,
     subject: subject,
-    html: htmlMessage,
-    attachments: [{
-      filename: 'logo_fixed.png',
-      path: path.join(__dirname, '../../src/assets/styles/images/logo_fixed.png'),
-      cid: 'cleanecologo'
-    }]
-  };
-
-  try {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      await transporter.sendMail(mailOptions);
-      console.log(`Confirmation email sent to ${clientInfo.email}`);
-    } else {
-      console.log(`[DEV] Email would be sent to ${clientInfo.email} with subject: ${subject}`);
-    }
-  } catch (error) {
-    console.error('Error sending email:', error);
-  }
+    html_content: htmlMessage
+  });
 };
 
 const sendVerificationEmail = async (email, token, firstName) => {
-  const verificationLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/verify?token=${token}`;
+  const verificationLink = `${process.env.CLIENT_URL || 'https://cleaneco-kappa.vercel.app'}/verify?token=${token}`;
   const subject = 'Verify Your Cleaneco Account';
   
   const contentHtml = `
@@ -190,33 +185,17 @@ const sendVerificationEmail = async (email, token, firstName) => {
 
   const htmlMessage = baseEmailTemplate({
       subject,
-      title: null, // use logo
+      title: 'Cleaneco Waste Management Services',
       headerSubtitle: "Account Verification",
       contentHtml
   });
 
-  const mailOptions = {
-    from: '"Cleaneco Waste Management Services" <noreply@cleaneco.com>',
-    to: email,
+  // Template 2: Universal Client Template
+  await sendEmailJS('template_ns5zlcs', {
+    to_email: email,
     subject: subject,
-    html: htmlMessage,
-    attachments: [{
-      filename: 'logo_fixed.png',
-      path: path.join(__dirname, '../../src/assets/styles/images/logo_fixed.png'),
-      cid: 'cleanecologo'
-    }]
-  };
-
-  try {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && !process.env.EMAIL_USER.includes('your_email')) {
-      await transporter.sendMail(mailOptions);
-      console.log(`Verification email sent to ${email}`);
-    } else {
-      console.log(`[DEV] Verification email would be sent to ${email} with link: ${verificationLink}`);
-    }
-  } catch (error) {
-    console.error('Error sending verification email:', error);
-  }
+    html_content: htmlMessage
+  });
 };
 
 const sendContactEmail = async (name, email, subject, message) => {
@@ -243,30 +222,13 @@ const sendContactEmail = async (name, email, subject, message) => {
       contentHtml
   });
 
-  const mailOptions = {
-    from: '"Cleaneco Website" <noreply@cleaneco.com>',
-    replyTo: email,
-    to: 'cleanecowmss@gmail.com',
-    subject: `[Contact Form] ${subject} from ${name}`,
-    html: htmlMessage,
-    attachments: [{
-      filename: 'logo_fixed.png',
-      path: path.join(__dirname, '../../src/assets/styles/images/logo_fixed.png'),
-      cid: 'cleanecologo'
-    }]
-  };
-
-  try {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && !process.env.EMAIL_USER.includes('your_email')) {
-      await transporter.sendMail(mailOptions);
-      console.log(`Contact email sent from ${email}`);
-    } else {
-      console.log(`[DEV] Contact email from ${email} would be sent to cleanecowmss@gmail.com`);
-    }
-  } catch (error) {
-    console.error('Error sending contact email:', error);
-    throw error;
-  }
+  // Template 1: Contact Form
+  await sendEmailJS('template_kg1a2go', {
+    name: name,
+    subject: subject,
+    reply_to: email,
+    html_content: htmlMessage
+  });
 };
 
 module.exports = { sendConfirmationEmail, sendVerificationEmail, sendContactEmail };
