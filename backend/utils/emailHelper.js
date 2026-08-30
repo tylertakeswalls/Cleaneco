@@ -212,4 +212,54 @@ const sendVerificationEmail = async (email, token, firstName) => {
   }
 };
 
-module.exports = { sendConfirmationEmail, sendVerificationEmail };
+const sendContactEmail = async (name, email, subject, message) => {
+  const contentHtml = `
+      <h2 class='section-title'>New Contact/Complaint Submission</h2>
+      <div class='grid'>
+          <div class='grid-col'>
+              <p><strong>Name:</strong> ${name}</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Subject:</strong> ${subject}</p>
+          </div>
+      </div>
+      
+      <h2 class='section-title'>Message</h2>
+      <div class='notes-box'>
+          ${message.replace(/\n/g, '<br>')}
+      </div>
+  `;
+
+  const htmlMessage = baseEmailTemplate({
+      subject: `New Contact Submission: ${subject}`,
+      title: 'Cleaneco Website Contact Form',
+      headerSubtitle: "New Message Received",
+      contentHtml
+  });
+
+  const mailOptions = {
+    from: '"Cleaneco Website" <noreply@cleaneco.com>',
+    replyTo: email,
+    to: 'cleanecowmss@gmail.com',
+    subject: `[Contact Form] ${subject} from ${name}`,
+    html: htmlMessage,
+    attachments: [{
+      filename: 'logo_fixed.png',
+      path: path.join(__dirname, '../../src/assets/styles/images/logo_fixed.png'),
+      cid: 'cleanecologo'
+    }]
+  };
+
+  try {
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && !process.env.EMAIL_USER.includes('your_email')) {
+      await transporter.sendMail(mailOptions);
+      console.log(`Contact email sent from ${email}`);
+    } else {
+      console.log(`[DEV] Contact email from ${email} would be sent to cleanecowmss@gmail.com`);
+    }
+  } catch (error) {
+    console.error('Error sending contact email:', error);
+    throw error;
+  }
+};
+
+module.exports = { sendConfirmationEmail, sendVerificationEmail, sendContactEmail };

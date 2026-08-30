@@ -155,6 +155,9 @@ function Header() {
             <Link className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} to="/about">About Us</Link>
           </li>
           <li className="nav-item">
+            <Link className={`nav-link ${location.pathname === '/client/contact' || location.pathname === '/contact' ? 'active' : ''}`} to="/client/contact">Contact Us</Link>
+          </li>
+          <li className="nav-item">
             <Link className={`nav-link ${location.pathname === '/resources' ? 'active' : ''}`} to="/resources">Resources</Link>
           </li>
         </>
@@ -173,6 +176,7 @@ function Header() {
           </div>
         </li>
         <li className="nav-item"><Link className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} to="/about">About Us</Link></li>
+        <li className="nav-item"><Link className={`nav-link ${location.pathname === '/contact' ? 'active' : ''}`} to="/contact">Contact Us</Link></li>
         <li className="nav-item"><Link className={`nav-link ${location.pathname === '/resources' ? 'active' : ''}`} to="/resources">Resources</Link></li>
       </>
     );

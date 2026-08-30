@@ -23,6 +23,7 @@ import AdminLayout from './components/AdminLayout';
 
 import AdminProfile from './pages/AdminProfile';
 import ClientProfile from './pages/ClientProfile';
+import ContactUs from './pages/ContactUs';
 import { ConfirmProvider } from './context/ConfirmContext';
 
 function App() {
@@ -35,6 +36,8 @@ function App() {
           <Route path="/client" element={<HomePage />} />
           <Route path="/client/profile" element={<ClientProfile />} />
           <Route path="/about" element={<AboutUs />} />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route path="/client/contact" element={<ContactUs />} />
           <Route path="/resources" element={<Resources />} />
           <Route path="/services/siphoning-desludging" element={<SiphoDeslud />} />
           <Route path="/client/services/siphoning-desludging" element={<SiphoDeslud />} />

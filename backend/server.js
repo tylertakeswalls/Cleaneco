@@ -46,6 +46,7 @@ const settingsRoutes = require('./routes/settings');
 const usersRoutes = require('./routes/users');
 const reportsRoutes = require('./routes/reports');
 const paymentsRoutes = require('./routes/payments');
+const contactRoutes = require('./routes/contact');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/services', servicesRoutes);
@@ -55,6 +56,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Error Handling Middleware (must be after all routes)
 const errorHandler = require('./middleware/errorHandler');
