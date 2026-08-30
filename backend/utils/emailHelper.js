@@ -1,5 +1,9 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
+const dns = require('dns');
+
+// Force IPv4 resolution to prevent ENETUNREACH errors on cloud providers without full IPv6 routing
+dns.setDefaultResultOrder('ipv4first');
 
 const transporter = nodemailer.createTransport({
   service: 'gmail', // You can change this to your email service provider
