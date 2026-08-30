@@ -37,6 +37,7 @@ const baseEmailTemplate = ({ subject, title, headerSubtitle, contentHtml }) => `
 <body>
     <div class='container'>
         <div class='header'>
+            <img src="https://cleaneco-kappa.vercel.app/logo_fixed.png" alt="Cleaneco Logo" />
             ${title ? `<h1>${title}</h1>` : `<h1>Cleaneco Waste Management</h1>`}
             <p>${headerSubtitle}</p>
         </div>
