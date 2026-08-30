@@ -134,9 +134,10 @@ This document summarizes the recent features and structural updates implemented 
 ## 20. Codebase Debloating & Native Replacements (Ponytail Audit)
 - **PDF Generation Overhaul**: Removed heavy third-party PDF libraries (`jspdf`, `jspdf-autotable`) from the frontend. Replaced the client-side receipt generation in `OngoingOrders.jsx` with a lean, CSS-driven `@media print` layout utilizing the browser's native `window.print()` functionality, significantly reducing bundle size.
 - **API Networking Modernization**: Completely removed `axios` across both the frontend and backend. 
-  - Rewrote the frontend API configuration (`api.js`) into a zero-dependency, drop-in `fetch` wrapper that natively handles Bearer tokens and JSON parsing.
+  - Rewrote the frontend API configuration (now strictly named `api.js` instead of `axiosConfig.js`) into a zero-dependency, drop-in `fetch` wrapper that natively handles Bearer tokens and JSON parsing.
   - Replaced all PayMongo API calls in the backend (`payments.js`, `orders.js`) with the native Node.js `fetch` API.
 - **Dependency Purge**: Net reduction of 3 heavy npm packages (`axios`, `jspdf`, `jspdf-autotable`), shedding dead weight and minimizing the application's attack surface and build time.
+- **Dead Code & Asset Purge**: Ran an exhaustive repository audit to clear out bloated historical fragments. Deleted over 25+ dead files including deprecated backup components (`old_orderdatabase.jsx`), legacy text documents, and a massive batch of unused test image uploads from the backend. Added strict `.gitignore` rules for `/uploads` to prevent future asset pollution in source control.
 
 ## 21. Payment & Form Processing Fixes
 - **PayMongo Checkout Standardization**: Removed the unsupported `dob` (Direct Online Banking) payment method type from the reservation fee checkout request in `backend/routes/orders.js`. This resolves an issue where live PayMongo accounts without this specific activation would trigger a 400 Bad Request error.
