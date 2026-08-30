@@ -134,7 +134,7 @@ This document summarizes the recent features and structural updates implemented 
 ## 20. Codebase Debloating & Native Replacements (Ponytail Audit)
 - **PDF Generation Overhaul**: Removed heavy third-party PDF libraries (`jspdf`, `jspdf-autotable`) from the frontend. Replaced the client-side receipt generation in `OngoingOrders.jsx` with a lean, CSS-driven `@media print` layout utilizing the browser's native `window.print()` functionality, significantly reducing bundle size.
 - **API Networking Modernization**: Completely removed `axios` across both the frontend and backend. 
-  - Rewrote the frontend API configuration (`axiosConfig.js`) into a zero-dependency, drop-in `fetch` wrapper that natively handles Bearer tokens and JSON parsing.
+  - Rewrote the frontend API configuration (`api.js`) into a zero-dependency, drop-in `fetch` wrapper that natively handles Bearer tokens and JSON parsing.
   - Replaced all PayMongo API calls in the backend (`payments.js`, `orders.js`) with the native Node.js `fetch` API.
 - **Dependency Purge**: Net reduction of 3 heavy npm packages (`axios`, `jspdf`, `jspdf-autotable`), shedding dead weight and minimizing the application's attack surface and build time.
 

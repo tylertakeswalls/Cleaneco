@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../api/axiosConfig';
+import api from '../api/api';
 import '../assets/styles/orderdatabase.css'; 
 import carousel4 from '../assets/styles/images/carousel4.png';
 import AlertModal from '../components/AlertModal';

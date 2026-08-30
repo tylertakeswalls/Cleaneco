@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
-import api from '../api/axiosConfig';
+import api from '../api/api';
 import logo from '../assets/styles/images/logo_fixed.png';
 import '../assets/styles/admin.css';
 

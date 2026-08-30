@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/axiosConfig';
+import api from '../api/api';
 import '../assets/styles/orderform.css';
 import carousel4 from '../assets/styles/images/carousel4.png';
 import paymongoLogo from '../assets/styles/images/paymongo.png';

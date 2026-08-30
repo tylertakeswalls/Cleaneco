@@ -2,7 +2,7 @@
 // Upgrade path: Swap with 'react-big-calendar' or 'react-calendar' if complex features are needed later.
 
 import { useState, useEffect } from "react";
-import api from "../api/axiosConfig";
+import api from "../api/api";
 
 export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelectDateTime }) {
     const [currentDate, setCurrentDate] = useState(new Date());

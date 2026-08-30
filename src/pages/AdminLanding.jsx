@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Chart from 'chart.js/auto';
-import api from '../api/axiosConfig';
+import api from '../api/api';
 import '../assets/styles/admin.css';
 import AdminCalendar from '../components/AdminCalendar';
 

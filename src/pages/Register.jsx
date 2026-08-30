@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api/axiosConfig';
+import api from '../api/api';
 import '../assets/styles/auth.css';
 import logocontainer from '../assets/styles/images/logo_container.png';
 

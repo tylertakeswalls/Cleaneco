@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../api/axiosConfig';
+import api from '../api/api';
 import { useRef } from 'react';
 
 function AdminSettings() {

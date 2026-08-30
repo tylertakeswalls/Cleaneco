@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import api from '../api/axiosConfig';
+import api from '../api/api';
 import AlertModal from '../components/AlertModal';
 
 function ContactUs() {
