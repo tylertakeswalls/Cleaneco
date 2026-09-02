@@ -76,6 +76,25 @@ function OngoingOrders() {
     }
   };
 
+  const handleReservationPayment = async (orderId) => {
+    setIsSubmittingPayment(true);
+    try {
+      const response = await api.post('/payments/checkout-reservation', { order_id: orderId });
+      if (response.data.success && response.data.checkout_url) {
+        window.location.href = response.data.checkout_url;
+      } else {
+        setResultMessage(response.data.message || 'Failed to initiate payment.');
+        setShowResultModal(true);
+      }
+    } catch (err) {
+      console.error(err);
+      setResultMessage(err.response?.data?.message || 'Error connecting to PayMongo.');
+      setShowResultModal(true);
+    } finally {
+      setIsSubmittingPayment(false);
+    }
+  };
+
   useEffect(() => {
     if (!loggedInUser) {
       alert("Please log in to view your orders.");
@@ -225,6 +244,23 @@ function OngoingOrders() {
                             </div>
                             <button className="btn btn-success btn-sm fw-bold w-100 rounded-pill shadow-sm" onClick={() => openFinalPaymentModal(order.order_id)}>
                               <i className="fas fa-wallet me-2"></i>Pay Final Amount
+                            </button>
+                          </div>
+                        )}
+                        {order.status === 'Pending' && (
+                          <div className="mt-2 bg-warning bg-opacity-10 p-3 rounded shadow-sm border border-warning border-opacity-50">
+                            <div className="d-flex align-items-center mb-2 text-warning fw-bold" style={{ color: '#d97706' }}>
+                              <i className="fas fa-exclamation-triangle me-2"></i>
+                              <span>Awaiting Payment</span>
+                            </div>
+                            <p className="small text-muted mb-3">Please pay the reservation fee to confirm your booking and proceed.</p>
+                            <button 
+                                className="btn btn-warning fw-bold w-100 rounded-pill shadow-sm text-dark" 
+                                onClick={() => handleReservationPayment(order.order_id)}
+                                disabled={isSubmittingPayment}
+                            >
+                              <i className="fas fa-wallet me-2"></i>
+                              {isSubmittingPayment ? 'Processing...' : 'Pay ₱1100.00 Reservation'}
                             </button>
                           </div>
                         )}

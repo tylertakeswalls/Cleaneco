@@ -1,6 +1,7 @@
 const express = require('express');
 const Order = require('../models/Order');
 const Notification = require('../models/Notification');
+const { sendConfirmationEmail } = require('../utils/emailHelper');
 
 const router = express.Router();
 
@@ -75,6 +76,24 @@ router.post('/webhook', async (req, res) => {
                                     details: `Your PayMongo payment for order #${order.order_id} was successful. Your order is now In Progress.`
                                 }).save();
                             }
+
+                            const clientInfo = {
+                                firstName: order.first_name,
+                                lastName: order.last_name,
+                                email: order.email,
+                                phone: order.phone,
+                                address: order.address,
+                                date: order.date,
+                                timeSlot: order.time_slot,
+                                status: order.status,
+                                notes: order.notes
+                            };
+                            const orderItems = [{
+                                service_name: order.service_type,
+                                base_price: order.price,
+                                price: order.price
+                            }];
+                            await sendConfirmationEmail(order.order_id, clientInfo, orderItems, false);
                         }
                     }));
 
@@ -176,6 +195,79 @@ router.post('/checkout-final', async (req, res) => {
     } catch (error) {
         console.error('Final Checkout Error:', error.response?.data || error.message);
         res.status(500).json({ success: false, message: 'Failed to create final payment session' });
+    }
+});
+
+router.post('/checkout-reservation', async (req, res) => {
+    try {
+        const { order_id } = req.body;
+        
+        const orders = await Order.find({ order_id });
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        const order = orders[0];
+        if (order.status !== 'Pending') {
+            return res.status(400).json({ success: false, message: 'This order is no longer pending payment.' });
+        }
+
+        // Gather all service names if there are multiple lines (optional, usually just one order doc per order_id for reservation, but just in case)
+        const servicesNames = orders.map(o => o.service_type);
+        const description = `Cleaneco Service Booking - ${servicesNames.join(', ')}`;
+        const totalAmount = 1100; // Fixed reservation fee
+
+        const options = {
+            method: 'POST',
+            url: 'https://api.paymongo.com/v1/checkout_sessions',
+            headers: {
+                accept: 'application/json',
+                'Content-Type': 'application/json',
+                authorization: `Basic ${Buffer.from((process.env.PAYMONGO_SECRET_KEY || 'sk_test_w3hVvJThf4Jv5M1h4qL67jG1') + ':').toString('base64')}`
+            },
+            data: {
+                data: {
+                    attributes: {
+                        billing: {
+                            name: `${order.first_name} ${order.last_name}`,
+                            email: order.email,
+                            phone: order.phone
+                        },
+                        send_email_receipt: true,
+                        show_description: true,
+                        show_line_items: true,
+                        cancel_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/payment-cancel`,
+                        success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/payment-success`,
+                        description: description,
+                        line_items: [
+                            {
+                                currency: 'PHP',
+                                amount: totalAmount * 100, // in centavos
+                                description: description,
+                                name: 'Reservation Fee',
+                                quantity: 1
+                            }
+                        ],
+                        payment_method_types: ['card', 'gcash', 'paymaya', 'grab_pay'],
+                        reference_number: order_id
+                    }
+                }
+            }
+        };
+
+        const paymongoResponse = await fetch(options.url, {
+            method: options.method,
+            headers: options.headers,
+            body: JSON.stringify(options.data)
+        });
+        const paymongoData = await paymongoResponse.json();
+        if (!paymongoResponse.ok) throw new Error(JSON.stringify(paymongoData));
+
+        res.json({ success: true, checkout_url: paymongoData.data.attributes.checkout_url });
+
+    } catch (error) {
+        console.error('Reservation Checkout Error:', error.response?.data || error.message);
+        res.status(500).json({ success: false, message: 'Failed to create reservation payment session' });
     }
 });
 
