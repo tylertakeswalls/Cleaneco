@@ -450,17 +450,17 @@ function OngoingOrders() {
             <div style={{ color: '#008000', margin: 0, fontSize: '9pt', fontWeight: 'bold' }}>Website: www.cwms.com.ph</div>
           </div>
           
-          <div style={{ margin: '30pt 0 20pt 0' }}>
-            <div style={{ marginBottom: '15pt' }}>Date: {new Date().toLocaleDateString('en-US')}</div>
+          <div style={{ margin: '20pt 0 15pt 0', lineHeight: '1.0' }}>
+            <div style={{ marginBottom: '10pt' }}>Date: {new Date().toLocaleDateString('en-US')}</div>
             <div style={{ fontWeight: 'bold' }}>ATTENTION: {receiptOrder.first_name || sessionStorage.getItem('userName')} {receiptOrder.last_name || ''}</div>
           </div>
 
-          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', margin: '30pt 0' }}>OFFICIAL RECEIPT</div>
+          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', margin: '20pt 0' }}>OFFICIAL RECEIPT</div>
           
-          <div style={{ lineHeight: '1.6' }}>
-            <div style={{ marginBottom: '10pt' }}>This receipt confirms the completion and payment for Order ID: <strong>{receiptOrder.order_id}</strong>.</div>
-            <div style={{ marginBottom: '10pt' }}>Service provided: {receiptOrder.service_name || receiptOrder.service_type}</div>
-            <div style={{ marginBottom: '20pt' }}>Service date: {formatDate(receiptOrder.date)} at {receiptOrder.time_slot}</div>
+          <div style={{ lineHeight: '1.0' }}>
+            <div style={{ marginBottom: '5pt' }}>This receipt confirms the completion and payment for Order ID: <strong>{receiptOrder.order_id}</strong>.</div>
+            <div style={{ marginBottom: '5pt' }}>Service provided: {receiptOrder.service_name || receiptOrder.service_type}</div>
+            <div style={{ marginBottom: '15pt' }}>Service date: {formatDate(receiptOrder.date)} at {receiptOrder.time_slot}</div>
           </div>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10pt', marginBottom: '30pt' }}>
@@ -488,10 +488,10 @@ function OngoingOrders() {
             </tfoot>
           </table>
 
-          <div style={{ marginTop: '40pt', textAlign: 'left' }}>
-            <div style={{ fontStyle: 'italic', marginBottom: '5pt' }}>Thank you very much!</div>
-            <div style={{ marginBottom: '30pt' }}>Very truly yours,</div>
-            <div>Jayperson Bonavente</div>
+          <div style={{ marginTop: '30pt', textAlign: 'left', lineHeight: '1.0' }}>
+            <div style={{ fontStyle: 'italic', marginBottom: '20pt' }}>Thank you very much!</div>
+            <div style={{ marginBottom: '25pt' }}>Very truly yours,</div>
+            <div style={{ marginBottom: '3pt' }}>Jayperson Bonavente</div>
             <div>Operation Head</div>
           </div>
         </div>
