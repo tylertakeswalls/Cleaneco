@@ -13,7 +13,7 @@ function PaymentCancel() {
                     Your payment was cancelled or was not successful. No charges were made.
                     You can try again whenever you're ready.
                 </p>
-                <Link to="/order-form" className="btn btn-primary rounded-pill px-4 py-2 fw-bold">
+                <Link to="/orders" className="btn btn-success rounded-pill px-4 py-2 fw-bold">
                     Return to Booking
                 </Link>
             </div>
