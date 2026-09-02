@@ -191,7 +191,7 @@ function OngoingOrders() {
                   <div className="accordion-body p-4 bg-light">
                     
                     {/* Progress Tracker */}
-                    {order.status !== 'Cancelled' ? (
+                    {order.status !== 'Cancelled' && order.status !== 'Pending' ? (
                       <div className="position-relative mx-2 my-4">
                         <div className="progress" style={{ height: '4px', position: 'absolute', top: '20px', left: '10%', right: '10%', zIndex: 1, backgroundColor: '#e9ecef' }}>
                           <div className="progress-bar bg-success" role="progressbar" style={{ width: order.status === 'Completed' ? '100%' : order.has_final_price ? '66%' : (order.confirmed_date && order.truck_team) ? '33%' : '0%' }}></div>
@@ -215,9 +215,9 @@ function OngoingOrders() {
                           </div>
                         </div>
                       </div>
-                    ) : (
+                    ) : order.status === 'Cancelled' ? (
                       <div className="alert alert-danger text-center fw-bold shadow-sm mb-4"><i className="fas fa-ban me-2"></i>This order has been cancelled.</div>
-                    )}
+                    ) : null}
                     <hr className="my-4 border-secondary opacity-25" />
 
                     <div className="row mb-4">
