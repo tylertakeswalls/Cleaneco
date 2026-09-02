@@ -3,6 +3,7 @@ const express = require('express');
 const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
+const { sendConfirmationEmail } = require('../utils/emailHelper');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
