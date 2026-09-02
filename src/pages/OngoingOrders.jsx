@@ -303,11 +303,11 @@ function OngoingOrders() {
                     <div className="d-flex gap-2 flex-wrap mb-4">
                       {order.quotation_pdf_url ? (
                         <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary-solid rounded-pill shadow-sm">
-                          <i className="fas fa-file-pdf me-1"></i>Approved P.O. / Quotation
+                          <i className="fas fa-file-pdf me-1"></i>Final Billing Report
                         </a>
                       ) : (
                         <span className="btn btn-sm btn-secondary-solid rounded-pill disabled shadow-sm" style={{ opacity: 0.5 }}>
-                           <i className="fas fa-file-pdf me-1"></i>Approved P.O. (Pending)
+                           <i className="fas fa-file-pdf me-1"></i>Final Billing Report (Pending)
                         </span>
                       )}
                       
