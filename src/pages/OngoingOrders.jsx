@@ -425,7 +425,7 @@ function OngoingOrders() {
       {showPaymentModal && (
         <div className="modal-backdrop-custom d-flex justify-content-center align-items-center" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
           <div className="bg-white p-4 rounded shadow-lg text-center" style={{ maxWidth: '400px', width: '90%' }}>
-            <img src={paymongoLogo} alt="PayMongo" style={{ height: '40px', marginBottom: '1rem' }} />
+            <img src={paymongoLogo} alt="PayMongo Options" className="img-fluid mb-4 px-2" style={{ width: '100%', objectFit: 'contain' }} />
             <h4 className="fw-bold mb-3">Secure Payment</h4>
             <p className="text-muted small mb-4">You will be securely redirected to PayMongo to complete your final balance. We accept GCash, Maya, GrabPay, and Credit/Debit Cards.</p>
             <div className="d-flex justify-content-center gap-2">
@@ -441,10 +441,12 @@ function OngoingOrders() {
       {receiptOrder && (
         <div id="print-receipt" style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
           <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+            <img src="/header.png" alt="Cleaneco Header" style={{ width: '100%', maxWidth: '800px', marginBottom: '15px' }} />
             <h2 style={{ color: 'gray', margin: 0, fontSize: '16px' }}>CLEANECO WASTE MANAGEMENT SERVICES</h2>
-            <p style={{ color: 'green', margin: '5px 0' }}>Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields, Bacoor City, Cavite</p>
-            <p style={{ margin: 0 }}>Tel: (046) 477-0354 • 09173044157</p>
-            <p style={{ margin: 0 }}>E-mail: cleaneco@cwms.com.ph</p>
+            <p style={{ color: 'green', margin: '5px 0', fontSize: '14px' }}>Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields, Brgy. Mambog IV, Bacoor City, Cavite</p>
+            <p style={{ margin: 0, fontSize: '14px' }}>Tel. Nos.: (046) 477-0354 • 09173044157</p>
+            <p style={{ margin: 0, fontSize: '14px' }}>E-mail: cleaneco@cwms.com.ph</p>
+            <p style={{ margin: 0, fontSize: '14px' }}>Website: www.cwms.com.ph</p>
           </div>
           
           <hr />
