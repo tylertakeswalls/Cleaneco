@@ -91,7 +91,7 @@ router.post('/webhook', async (req, res) => {
                             const orderItems = [{
                                 service_name: order.service_type,
                                 base_price: order.price,
-                                price: order.price
+                                price: order.has_final_price ? (order.final_price * 1.1) : ((order.price || 0) + (order.tax_amount || 0))
                             }];
                             await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
                         }

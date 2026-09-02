@@ -265,7 +265,7 @@ router.post('/:id/upload-documents', upload.fields([{ name: 'quotation' }, { nam
         };
         const orderItems = [{
             service_name: order.service_type,
-            price: order.price,
+            price: order.has_final_price ? (order.final_price * 1.1) : ((order.price || 0) + (order.tax_amount || 0)),
             base_price: order.price || 0
         }];
         await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
@@ -323,7 +323,7 @@ router.put('/:id', async (req, res) => {
         };
         const orderItems = [{
             service_name: order.service_type,
-            price: order.price,
+            price: order.has_final_price ? (order.final_price * 1.1) : ((order.price || 0) + (order.tax_amount || 0)),
             base_price: order.price || 0
         }];
         await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
