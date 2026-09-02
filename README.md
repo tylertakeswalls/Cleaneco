@@ -157,6 +157,21 @@ This document summarizes the recent features and structural updates implemented 
 - **Dynamic HTML Templates**: Retained the beautiful, custom HTML email designs by dynamically injecting full HTML strings directly into EmailJS templates using the `{{{html_content}}}` variable, avoiding any loss in visual quality.
 - **Proxy Configuration**: Configured `app.set('trust proxy', 1)` in the Express backend to ensure the global rate limiter correctly identifies client IP addresses when deployed behind Render's reverse proxy, preventing `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` crashes.
 
+## 24. PDF Generation & Receipt Styling
+- **Header Image Injection**: Resolved an issue where the generated receipt PDF upon order completion was missing the official header image. The header is now securely fetched, buffered, and injected.
+- **Stylistic Alignment**: Matched the font sizes, spacing (1.0 line height), and layout of the generated PDF receipts exactly to the official company template to ensure a professional, branded look for clients.
+
+## 25. Edge-Case Workflow & Email Bug Fixes
+- **Unpaid Order UI (Abandoned Carts)**: Modified `OngoingOrders.jsx` to completely hide the visual progress tracker if an order is in the "Pending" (unpaid) state. Unpaid orders now elegantly display as abandoned carts with a simple "Pay Reservation" call-to-action button, reducing UX confusion.
+- **Email Status Correction**: Fixed a bug where successful reservation payments triggered an email with the outdated "Pending Review" subject line. The PayMongo webhook now correctly triggers the "Status Updated" template, notifying clients that their order is "In Progress".
+- **Email Receipt Calculation**: Updated the backend email parser to accurately append the 10% tax amount (`tax_amount`) to the base price before sending the email receipt. The receipt now perfectly matches the actual total charged on PayMongo (e.g., ₱1100 instead of ₱1000).
+
+## 26. Final Ponytail Codebase Audit & Optimizations
+- **DRY Refactoring (Payment Routes)**: Extracted 50 lines of heavily duplicated PayMongo session creation logic across the `checkout-final` and `checkout-reservation` routes into a single, clean `createPayMongoSession` helper function.
+- **Node-Cron Eradication (Native Replacements)**: Uninstalled the third-party `node-cron` package and completely deleted `cronJobs.js`. Replaced the manual daily script loop with a native **MongoDB TTL (Time-To-Live) Index** on the `delete_requested_at` field, enabling the database to handle automatic account deletions securely and efficiently in the background.
+- **Webhook Memory Optimization**: Isolated the `req.rawBody` parsing logic—necessary for PayMongo signature validation—so that it *strictly* executes on the `/api/payments/webhook` route. Removing this from the global `express.json()` middleware protects the broader application from potential Out-Of-Memory (OOM) exploits caused by large, arbitrary JSON payloads.
+- **Deprecation Resolution**: Resolved a noisy Mongoose deprecation warning (`new: true`) across `findOneAndUpdate` calls by updating to the standardized MongoDB driver syntax (`returnDocument: 'after'`).
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
