@@ -120,7 +120,7 @@ function OngoingOrders() {
     setReceiptOrder(order);
     setTimeout(() => {
       window.print();
-    }, 100);
+    }, 1000);
   };
 
   const steps = [
