@@ -307,7 +307,7 @@ router.put('/:id', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Cannot edit a cancelled order.' });
     }
     
-    const order = await Order.findByIdAndUpdate(id, updateData, { new: true });
+    const order = await Order.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
     
     if (updateData.status && order) {
         const clientInfo = {
