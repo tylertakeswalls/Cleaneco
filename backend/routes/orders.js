@@ -235,15 +235,51 @@ router.post('/:id/upload-documents', upload.fields([{ name: 'quotation' }, { nam
     const order = await Order.findById(id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     
+    let statusChangedToCompleted = false;
+
     if (req.files['quotation']) {
       order.quotation_pdf_url = `/uploads/${req.files['quotation'][0].filename}`;
+      order.has_final_price = true;
     }
     if (req.files['service_report']) {
       order.service_report_pdf_url = `/uploads/${req.files['service_report'][0].filename}`;
-      order.status = 'Completed';
+      if (order.status !== 'Completed') {
+        order.status = 'Completed';
+        statusChangedToCompleted = true;
+      }
     }
     
     await order.save();
+
+    if (statusChangedToCompleted) {
+        const clientInfo = {
+            firstName: order.first_name,
+            lastName: order.last_name,
+            email: order.email,
+            phone: order.phone,
+            address: order.address,
+            date: order.date,
+            timeSlot: order.time_slot,
+            status: order.status,
+            notes: order.notes
+        };
+        const orderItems = [{
+            service_name: order.service_type,
+            price: order.price,
+            base_price: order.price || 0
+        }];
+        await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
+        
+        if (order.user_id) {
+            await new Notification({
+                user_id: order.user_id,
+                order_id: order.order_id,
+                message: `Order Status Updated`,
+                details: `Your order #${order.order_id} is now Completed.`
+            }).save();
+        }
+    }
+
     res.json({ success: true, message: 'Documents uploaded successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Upload failed: ' + error.message });
