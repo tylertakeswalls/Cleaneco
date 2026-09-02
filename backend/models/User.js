@@ -21,4 +21,6 @@ const userSchema = new mongoose.Schema({
   lockUntil: { type: Date }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
+userSchema.index({ delete_requested_at: 1 }, { expireAfterSeconds: 7776000 });
+
 module.exports = mongoose.model('User', userSchema);
