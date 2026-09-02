@@ -439,59 +439,60 @@ function OngoingOrders() {
       )}
 
       {receiptOrder && (
-        <div id="print-receipt" style={{ padding: '40px', fontFamily: '"Times New Roman", Times, serif', color: 'black', fontSize: '15px' }}>
-          <div style={{ textAlign: 'left', marginBottom: '20px', fontFamily: 'Arial, Helvetica, sans-serif' }}>
-            <img src="/header.png" alt="Cleaneco Header" style={{ width: '100%', maxWidth: '800px', marginBottom: '15px' }} />
-            <h2 style={{ color: 'gray', margin: 0, fontSize: '14px', fontWeight: 'bold' }}>CLEANECO WASTE MANAGEMENT SERVICES</h2>
-            <p style={{ color: 'green', margin: '5px 0', fontSize: '12px', fontWeight: 'bold' }}>Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields, Brgy. Mambog IV, Bacoor City, Cavite</p>
-            <p style={{ color: 'green', margin: 0, fontSize: '12px', fontWeight: 'bold' }}>Tel. Nos.: (046) 477-0354 • 09173044157</p>
-            <p style={{ color: 'green', margin: 0, fontSize: '12px', fontWeight: 'bold' }}>E-mail: cleaneco@cwms.com.ph</p>
-            <p style={{ color: 'green', margin: 0, fontSize: '12px', fontWeight: 'bold' }}>Website: www.cwms.com.ph</p>
+        <div id="print-receipt" style={{ padding: '40pt', fontFamily: '"Times New Roman", Times, serif', color: 'black', fontSize: '11pt' }}>
+          <div style={{ textAlign: 'left', marginBottom: '20pt', fontFamily: 'Arial, Helvetica, sans-serif' }}>
+            <img src="/header.png" alt="Cleaneco Header" style={{ width: '100%', maxWidth: '800px', marginBottom: '15pt' }} />
+            <div style={{ color: '#808080', margin: 0, fontSize: '11pt', fontWeight: 'bold' }}>CLEANECO WASTE MANAGEMENT SERVICES</div>
+            <div style={{ height: '6pt' }}></div>
+            <div style={{ color: '#008000', margin: 0, fontSize: '9pt', fontWeight: 'bold' }}>Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields, Brgy. Mambog IV, Bacoor City, Cavite</div>
+            <div style={{ color: '#008000', margin: 0, fontSize: '9pt', fontWeight: 'bold' }}>Tel. Nos.: (046) 477-0354 • 09173044157</div>
+            <div style={{ color: '#008000', margin: 0, fontSize: '9pt', fontWeight: 'bold' }}>E-mail: cleaneco@cwms.com.ph</div>
+            <div style={{ color: '#008000', margin: 0, fontSize: '9pt', fontWeight: 'bold' }}>Website: www.cwms.com.ph</div>
           </div>
           
-          <div style={{ margin: '40px 0 30px 0' }}>
-            <p style={{ margin: '0 0 15px 0' }}>Date: {new Date().toLocaleDateString('en-US')}</p>
-            <p style={{ margin: 0, fontWeight: 'bold' }}>ATTENTION: {receiptOrder.first_name || sessionStorage.getItem('userName')} {receiptOrder.last_name || ''}</p>
+          <div style={{ margin: '30pt 0 20pt 0' }}>
+            <div style={{ marginBottom: '15pt' }}>Date: {new Date().toLocaleDateString('en-US')}</div>
+            <div style={{ fontWeight: 'bold' }}>ATTENTION: {receiptOrder.first_name || sessionStorage.getItem('userName')} {receiptOrder.last_name || ''}</div>
           </div>
 
-          <h3 style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: '30px' }}>OFFICIAL RECEIPT</h3>
+          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', margin: '30pt 0' }}>OFFICIAL RECEIPT</div>
           
           <div style={{ lineHeight: '1.6' }}>
-            <p style={{ margin: '0 0 10px 0' }}>This receipt confirms the completion and payment for Order ID: <strong>{receiptOrder.order_id}</strong>.</p>
-            <p style={{ margin: '0 0 10px 0' }}>Service provided: {receiptOrder.service_name || receiptOrder.service_type}</p>
-            <p style={{ margin: '0 0 20px 0' }}>Service date: {formatDate(receiptOrder.date)} at {receiptOrder.time_slot}</p>
+            <div style={{ marginBottom: '10pt' }}>This receipt confirms the completion and payment for Order ID: <strong>{receiptOrder.order_id}</strong>.</div>
+            <div style={{ marginBottom: '10pt' }}>Service provided: {receiptOrder.service_name || receiptOrder.service_type}</div>
+            <div style={{ marginBottom: '20pt' }}>Service date: {formatDate(receiptOrder.date)} at {receiptOrder.time_slot}</div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', marginBottom: '40px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10pt', marginBottom: '30pt' }}>
             <thead>
-              <tr style={{ backgroundColor: 'green', color: 'white' }}>
-                <th style={{ padding: '12px', border: '1px solid #ccc', textAlign: 'left' }}>Description</th>
-                <th style={{ padding: '12px', border: '1px solid #ccc', textAlign: 'left' }}>Amount</th>
+              <tr>
+                <th style={{ padding: '8pt', border: '1px solid #ccc', textAlign: 'left', fontWeight: 'bold', color: '#a0a0a0' }}>Description</th>
+                <th style={{ padding: '8pt', border: '1px solid #ccc', textAlign: 'left', fontWeight: 'bold', color: '#a0a0a0' }}>Amount</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style={{ padding: '12px', border: '1px solid #ccc' }}>Base Service Fee</td>
-                <td style={{ padding: '12px', border: '1px solid #ccc' }}>PHP {parseFloat(receiptOrder.price || 0).toFixed(2)}</td>
+                <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Base Service Fee</td>
+                <td style={{ padding: '8pt', border: '1px solid #ccc' }}>PHP {parseFloat(receiptOrder.price || 0).toFixed(2)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '12px', border: '1px solid #ccc' }}>Service Tax (10%)</td>
-                <td style={{ padding: '12px', border: '1px solid #ccc' }}>PHP {parseFloat(receiptOrder.tax_amount || (parseFloat(receiptOrder.price || 0) * 0.1)).toFixed(2)}</td>
+                <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Service Tax (10%)</td>
+                <td style={{ padding: '8pt', border: '1px solid #ccc' }}>PHP {parseFloat(receiptOrder.tax_amount || (parseFloat(receiptOrder.price || 0) * 0.1)).toFixed(2)}</td>
               </tr>
             </tbody>
             <tfoot>
-              <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
-                <td style={{ padding: '12px', border: '1px solid #ccc' }}>Total Paid</td>
-                <td style={{ padding: '12px', border: '1px solid #ccc' }}>PHP {(parseFloat(receiptOrder.price || 0) + parseFloat(receiptOrder.tax_amount || (parseFloat(receiptOrder.price || 0) * 0.1))).toFixed(2)}</td>
+              <tr>
+                <td style={{ padding: '8pt', border: '1px solid #ccc', fontWeight: 'bold' }}>Total Paid</td>
+                <td style={{ padding: '8pt', border: '1px solid #ccc', fontWeight: 'bold' }}>PHP {(parseFloat(receiptOrder.price || 0) + parseFloat(receiptOrder.tax_amount || (parseFloat(receiptOrder.price || 0) * 0.1))).toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>
 
-          <div style={{ marginTop: '50px', textAlign: 'left' }}>
-            <p style={{ fontStyle: 'italic', margin: 0 }}>Thank you very much!</p>
-            <p style={{ margin: '5px 0 40px 0' }}>Very truly yours,</p>
-            <p style={{ margin: 0 }}>Jayperson Bonavente</p>
-            <p style={{ margin: 0 }}>Operation Head</p>
+          <div style={{ marginTop: '40pt', textAlign: 'left' }}>
+            <div style={{ fontStyle: 'italic', marginBottom: '5pt' }}>Thank you very much!</div>
+            <div style={{ marginBottom: '30pt' }}>Very truly yours,</div>
+            <div>Jayperson Bonavente</div>
+            <div>Operation Head</div>
           </div>
         </div>
       )}
