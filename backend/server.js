@@ -13,7 +13,7 @@ app.set('trust proxy', 1);
 
 // Middleware
 // Set security HTTP headers
-app.use(helmet());
+app.use(helmet({ frameguard: false }));
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" })); // Allow images/resources to be served across origins if needed
 
 // CORS Configuration

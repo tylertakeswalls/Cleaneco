@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/auth.css';
@@ -32,23 +32,6 @@ function Register() {
   // Terms of Service state
   const [isTosModalOpen, setIsTosModalOpen] = useState(false);
   const [isTosAccepted, setIsTosAccepted] = useState(false);
-  const [tosContent, setTosContent] = useState('Loading terms and conditions...');
-
-  useEffect(() => {
-    if (isTosModalOpen && tosContent === 'Loading terms and conditions...') {
-      api.get('/settings/tos')
-        .then(response => {
-          if (response.data.success) {
-            setTosContent(response.data.tos);
-          } else {
-            setTosContent('Failed to load terms and conditions.');
-          }
-        })
-        .catch(error => {
-          setTosContent('Failed to load terms and conditions. Please try again later.');
-        });
-    }
-  }, [isTosModalOpen, tosContent]);
 
   const handleChange = (e) => {
     let { name, value } = e.target;
@@ -486,8 +469,8 @@ function Register() {
 
       {/* Terms of Service Modal */}
       <div 
-        className={`modal fade ${isTosModalOpen ? 'show d-block' : ''}`} 
-        style={{ zIndex: 1050, backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }} 
+        className={`modal fade ${isTosModalOpen ? 'show d-block' : ''} glass-modal`} 
+        style={{ zIndex: 1050 }} 
         tabIndex="-1"
         role="dialog"
       >
@@ -497,10 +480,15 @@ function Register() {
               <h5 className="modal-title fw-bold text-white">Terms and Conditions</h5>
               <button type="button" className="btn-close btn-close-white" onClick={() => setIsTosModalOpen(false)} aria-label="Close"></button>
             </div>
-            <div className="modal-body p-4 bg-light" style={{ height: '60vh', overflowY: 'auto' }}>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#333' }}>
-                {tosContent}
-              </div>
+            <div className="modal-body p-0 bg-light" style={{ height: '60vh' }}>
+              <object data={`${api.defaults.baseURL}/settings/tos/pdf`} type="application/pdf" width="100%" height="100%">
+                <div className="p-5 text-center">
+                  <p>Your browser does not support inline PDFs.</p>
+                  <a href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer" className="btn btn-outline-success">
+                    Click here to view the Terms and Conditions
+                  </a>
+                </div>
+              </object>
             </div>
             <div className="modal-footer bg-light d-flex flex-column align-items-stretch" style={{ borderTop: 'none', gap: '1rem' }}>
               <div className="d-flex justify-content-center gap-4 py-2 border rounded" style={{ backgroundColor: '#fff', borderColor: '#e2e8f0' }}>
@@ -550,8 +538,8 @@ function Register() {
 
       {/* Success Modal */}
       <div 
-        className={`modal fade ${showSuccessModal ? 'show d-block' : ''}`} 
-        style={{ zIndex: 1050, backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }} 
+        className={`modal fade ${showSuccessModal ? 'show d-block' : ''} glass-modal`} 
+        style={{ zIndex: 1050 }} 
         tabIndex="-1"
       >
         <div className="modal-dialog modal-dialog-centered" role="document">
