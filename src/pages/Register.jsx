@@ -484,7 +484,7 @@ function Register() {
               <object data={`${api.defaults.baseURL}/settings/tos/pdf`} type="application/pdf" width="100%" height="100%">
                 <div className="p-5 text-center">
                   <p>Your browser does not support inline PDFs.</p>
-                  <a href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer" className="btn btn-outline-success">
+                  <a href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer" className="btn-custom">
                     Click here to view the Terms and Conditions
                   </a>
                 </div>
