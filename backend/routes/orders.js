@@ -6,20 +6,28 @@ const Notification = require('../models/Notification');
 const { sendConfirmationEmail } = require('../utils/emailHelper');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const mongoose = require('mongoose');
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = path.join(__dirname, '../uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
+const upload = multer({ storage: multer.memoryStorage() });
+
+const uploadToGridFS = (file, mongooseInstance) => {
+  return new Promise((resolve, reject) => {
+    const db = mongooseInstance.connection.db;
+    const bucket = new mongooseInstance.mongo.GridFSBucket(db, { bucketName: 'order_files' });
+    const filename = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
+    const uploadStream = bucket.openUploadStream(filename, { contentType: file.mimetype });
+    
+    uploadStream.end(file.buffer);
+    
+    uploadStream.on('finish', () => {
+      resolve(`/api/orders/files/${filename}`);
+    });
+    
+    uploadStream.on('error', (err) => {
+      reject(err);
+    });
+  });
+};
 
 const router = express.Router();
 
@@ -111,7 +119,7 @@ router.post('/submit', upload.single('site_photo'), async (req, res) => {
     
     let sitePhotoUrl = null;
     if (req.file) {
-      sitePhotoUrl = `/uploads/${req.file.filename}`;
+      sitePhotoUrl = await uploadToGridFS(req.file, mongoose);
     }
     
     if (data.service_ids) {
@@ -238,11 +246,11 @@ router.post('/:id/upload-documents', upload.fields([{ name: 'quotation' }, { nam
     let statusChangedToCompleted = false;
 
     if (req.files['quotation']) {
-      order.quotation_pdf_url = `/uploads/${req.files['quotation'][0].filename}`;
+      order.quotation_pdf_url = await uploadToGridFS(req.files['quotation'][0], mongoose);
       order.has_final_price = true;
     }
     if (req.files['service_report']) {
-      order.service_report_pdf_url = `/uploads/${req.files['service_report'][0].filename}`;
+      order.service_report_pdf_url = await uploadToGridFS(req.files['service_report'][0], mongoose);
       if (order.status !== 'Completed') {
         order.status = 'Completed';
         statusChangedToCompleted = true;
@@ -393,6 +401,29 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true, message: 'Order deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to delete order: ' + error.message });
+  }
+});
+
+router.get('/files/:filename', async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'order_files' });
+    const files = await db.collection('order_files.files').find({ filename: req.params.filename }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ success: false, message: 'File not found' });
+    }
+    
+    res.set('Content-Type', files[0].contentType || 'application/pdf');
+    res.set('Content-Disposition', `inline; filename="${req.params.filename}"`);
+    
+    const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
+    downloadStream.pipe(res);
+    
+    downloadStream.on('error', (err) => {
+        res.status(500).end();
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch file', error: error.message });
   }
 });
 

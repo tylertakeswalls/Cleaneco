@@ -151,7 +151,7 @@ function OngoingOrders() {
 
       <div className="container py-5">
         <h3 className="fw-bold mb-4 text-success">My Ongoing Orders</h3>
-        
+
         {orders.length === 0 ? (
           <div className="alert alert-info shadow-sm">No ongoing orders found.</div>
         ) : (
@@ -159,12 +159,12 @@ function OngoingOrders() {
             {orders.map((order, index) => (
               <div className="accordion-item border-0 border-bottom" key={order.id}>
                 <h2 className="accordion-header" id={`heading${order.id}`}>
-                  <button 
-                    className={`accordion-button ${index !== 0 ? 'collapsed' : ''} fw-bold`} 
-                    type="button" 
-                    data-bs-toggle="collapse" 
-                    data-bs-target={`#collapse${order.id}`} 
-                    aria-expanded={index === 0 ? "true" : "false"} 
+                  <button
+                    className={`accordion-button ${index !== 0 ? 'collapsed' : ''} fw-bold`}
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target={`#collapse${order.id}`}
+                    aria-expanded={index === 0 ? "true" : "false"}
                     aria-controls={`collapse${order.id}`}
                     style={{ backgroundColor: '#fff', color: '#333', padding: '1.5rem' }}
                   >
@@ -182,14 +182,14 @@ function OngoingOrders() {
                     </div>
                   </button>
                 </h2>
-                <div 
-                  id={`collapse${order.id}`} 
-                  className={`accordion-collapse collapse ${index === 0 ? 'show' : ''}`} 
-                  aria-labelledby={`heading${order.id}`} 
+                <div
+                  id={`collapse${order.id}`}
+                  className={`accordion-collapse collapse ${index === 0 ? 'show' : ''}`}
+                  aria-labelledby={`heading${order.id}`}
                   data-bs-parent="#ordersAccordion"
                 >
                   <div className="accordion-body p-4 bg-light">
-                    
+
                     {/* Progress Tracker */}
                     {order.status !== 'Cancelled' && order.status !== 'Pending' ? (
                       <div className="position-relative mx-2 my-4">
@@ -223,7 +223,7 @@ function OngoingOrders() {
                     <div className="row mb-4">
                       <div className="col-md-6 mb-3 mb-md-0">
                         <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Pref. Schedule</p>
-                        <p className="mb-0 fw-medium">{formatDate(order.date)} <br/> {order.time_slot}</p>
+                        <p className="mb-0 fw-medium">{formatDate(order.date)} <br /> {order.time_slot}</p>
                       </div>
                       <div className="col-md-6">
                         <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Final Price Breakdown</p>
@@ -254,10 +254,10 @@ function OngoingOrders() {
                               <span>Awaiting Payment</span>
                             </div>
                             <p className="small text-muted mb-3">Please pay the reservation fee to confirm your booking and proceed.</p>
-                            <button 
-                                className="btn btn-warning fw-bold w-100 rounded-pill shadow-sm text-dark" 
-                                onClick={() => handleReservationPayment(order.order_id)}
-                                disabled={isSubmittingPayment}
+                            <button
+                              className="btn btn-warning fw-bold w-100 rounded-pill shadow-sm text-dark"
+                              onClick={() => handleReservationPayment(order.order_id)}
+                              disabled={isSubmittingPayment}
                             >
                               <i className="fas fa-wallet me-2"></i>
                               {isSubmittingPayment ? 'Processing...' : 'Pay ₱1100.00 Reservation'}
@@ -276,7 +276,7 @@ function OngoingOrders() {
                       <h6 className="fw-bold mb-3 text-success border-bottom pb-2 border-opacity-25">
                         <i className="fas fa-clipboard-check me-2"></i>Status & Updates
                       </h6>
-                      
+
                       <div className="d-flex flex-column gap-2">
                         {order.truck_team ? (
                           <div className="d-flex align-items-center">
@@ -307,17 +307,17 @@ function OngoingOrders() {
                         </a>
                       ) : (
                         <span className="btn btn-sm btn-secondary-solid rounded-pill disabled shadow-sm" style={{ opacity: 0.5 }}>
-                           <i className="fas fa-file-pdf me-1"></i>Final Billing Report (Pending)
+                          <i className="fas fa-file-pdf me-1"></i>Final Billing Report (Pending)
                         </span>
                       )}
-                      
+
                       {order.service_report_pdf_url ? (
                         <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${order.service_report_pdf_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-cleaneco rounded-pill shadow-sm">
                           <i className="fas fa-file-invoice me-1"></i>Service Report
                         </a>
                       ) : (
-                         <span className="btn btn-sm btn-secondary rounded-pill disabled shadow-sm" style={{ opacity: 0.5, border: 'none' }}>
-                           <i className="fas fa-file-invoice me-1"></i>Service Report (Pending)
+                        <span className="btn btn-sm btn-secondary rounded-pill disabled shadow-sm" style={{ opacity: 0.5, border: 'none' }}>
+                          <i className="fas fa-file-invoice me-1"></i>Service Report (Pending)
                         </span>
                       )}
                     </div>
@@ -449,14 +449,14 @@ function OngoingOrders() {
             <div style={{ color: '#008000', margin: 0, fontSize: '9pt', fontWeight: 'bold' }}>E-mail: cleaneco@cwms.com.ph</div>
             <div style={{ color: '#008000', margin: 0, fontSize: '9pt', fontWeight: 'bold' }}>Website: www.cwms.com.ph</div>
           </div>
-          
+
           <div style={{ margin: '20pt 0 15pt 0', lineHeight: '1.0' }}>
             <div style={{ marginBottom: '10pt' }}>Date: {new Date().toLocaleDateString('en-US')}</div>
             <div style={{ fontWeight: 'bold' }}>ATTENTION: {receiptOrder.first_name || sessionStorage.getItem('userName')} {receiptOrder.last_name || ''}</div>
           </div>
 
           <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', margin: '20pt 0' }}>OFFICIAL RECEIPT</div>
-          
+
           <div style={{ lineHeight: '1.0' }}>
             <div style={{ marginBottom: '5pt' }}>This receipt confirms the completion and payment for Order ID: <strong>{receiptOrder.order_id}</strong>.</div>
             <div style={{ marginBottom: '5pt' }}>Service provided: {receiptOrder.service_name || receiptOrder.service_type}</div>
