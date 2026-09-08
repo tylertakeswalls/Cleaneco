@@ -174,7 +174,7 @@ This document summarizes the recent features and structural updates implemented 
 
 ## 27. Cross-Platform PDF Rendering & Persistent GridFS Storage
 - **MongoDB GridFS Migration**: Refactored the `orders.js` endpoints to upload all administrative order documents (Service Reports, Final Billing Quotations) directly into a MongoDB GridFS bucket (`order_files`). This completely replaces local disk storage, eliminating 404 errors caused by Render's ephemeral filesystem wipes during deployments or idle periods.
-- **Cross-Origin PDF Rendering (`react-pdf`)**: Integrated `react-pdf` on the frontend (`Register.jsx`) to parse and paint the Terms of Service PDF natively onto a `<canvas>` element. This elegantly circumvents the strict `X-Frame-Options: SAMEORIGIN` block imposed by backend `helmet` security headers and guarantees flawless inline rendering across all mobile browsers (iOS Safari, Android Chrome) which natively refuse to render `<object>` tags.
+- **TOS Plain-Text Rendering (Ponytail Refactor)**: Removed the heavy `react-pdf` dependency and native `<object>` rendering for the Terms of Service modal. The application now dynamically fetches the plain-text TOS directly from the `/api/settings/tos` endpoint. This achieves 100% native mobile compatibility and circumvents `helmet` cross-origin iframe security headers with zero added bundle weight.
 
 ## Prerequisites & Installation Dependencies
 

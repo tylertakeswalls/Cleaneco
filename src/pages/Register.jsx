@@ -1,11 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/auth.css';
 import logocontainer from '../assets/styles/images/logo_container.png';
-import { Document, Page, pdfjs } from 'react-pdf';
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -35,11 +32,23 @@ function Register() {
   // Terms of Service state
   const [isTosModalOpen, setIsTosModalOpen] = useState(false);
   const [isTosAccepted, setIsTosAccepted] = useState(false);
-  const [numPages, setNumPages] = useState(null);
+  const [tosContent, setTosContent] = useState('Loading terms and conditions...');
 
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setNumPages(numPages);
-  };
+  useEffect(() => {
+    if (isTosModalOpen && tosContent === 'Loading terms and conditions...') {
+      api.get('/settings/tos')
+        .then(response => {
+          if (response.data.success) {
+            setTosContent(response.data.tos);
+          } else {
+            setTosContent('Failed to load terms and conditions.');
+          }
+        })
+        .catch(error => {
+          setTosContent('Failed to load terms and conditions. Please try again later.');
+        });
+    }
+  }, [isTosModalOpen, tosContent]);
 
   const handleChange = (e) => {
     let { name, value } = e.target;
@@ -488,32 +497,9 @@ function Register() {
               <h5 className="modal-title fw-bold text-white">Terms and Conditions</h5>
               <button type="button" className="btn-close btn-close-white" onClick={() => setIsTosModalOpen(false)} aria-label="Close"></button>
             </div>
-            <div className="modal-body p-0 bg-light" style={{ height: '60vh', overflowY: 'auto', overflowX: 'hidden' }}>
-              <div className="d-flex flex-column align-items-center py-3">
-                <Document
-                  file={`${api.defaults.baseURL}/settings/tos/pdf`}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  loading={<div className="p-5 text-center"><div className="spinner-border text-success" role="status"></div><p className="mt-2 text-muted fw-bold">Loading document...</p></div>}
-                  error={
-                    <div className="p-5 text-center">
-                      <p className="text-danger fw-bold">Failed to load the PDF document.</p>
-                      <a href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer" className="btn btn-outline-success">
-                        Click here to view it directly
-                      </a>
-                    </div>
-                  }
-                >
-                  {Array.from(new Array(numPages), (el, index) => (
-                    <Page 
-                      key={`page_${index + 1}`} 
-                      pageNumber={index + 1} 
-                      renderTextLayer={false} 
-                      renderAnnotationLayer={false} 
-                      width={Math.min(window.innerWidth * 0.85, 750)} 
-                      className="mb-4 shadow"
-                    />
-                  ))}
-                </Document>
+            <div className="modal-body p-4 bg-light" style={{ height: '60vh', overflowY: 'auto' }}>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#333' }}>
+                {tosContent}
               </div>
             </div>
             <div className="modal-footer bg-light d-flex flex-column align-items-stretch" style={{ borderTop: 'none', gap: '1rem' }}>
