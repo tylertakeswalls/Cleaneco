@@ -236,7 +236,7 @@ function Header() {
         <li className="nav-item dropdown position-relative">
           <div className="nav-link dropdown-toggle d-flex align-items-center p-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" style={{ cursor: 'pointer' }}>
             <img 
-              src={profilePic || 'https://via.placeholder.com/40'} 
+              src={profilePic || '/default_profile.jpg'} 
               alt="Profile" 
               className="rounded-circle bg-white"
               style={{ width: '35px', height: '35px', objectFit: 'cover', border: '2px solid #ffffff' }}

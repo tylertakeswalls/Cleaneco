@@ -139,7 +139,7 @@ function ClientProfile() {
                 <div className="text-center mb-4">
                   <div className="position-relative d-inline-block">
                     <img 
-                      src={profile.profile_picture || 'https://via.placeholder.com/150'} 
+                      src={profile.profile_picture || '/default_profile.jpg'} 
                       alt="Profile" 
                       className="rounded-circle img-thumbnail"
                       style={{ width: '150px', height: '150px', objectFit: 'cover', cursor: 'pointer' }}

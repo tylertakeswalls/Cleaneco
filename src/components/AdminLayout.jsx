@@ -125,7 +125,7 @@ export default function AdminLayout() {
       >
         <div className="nav-link d-flex align-items-center" style={{ cursor: 'pointer' }}>
           <img 
-            src={profilePic || 'https://via.placeholder.com/40'} 
+            src={profilePic || '/default_profile.jpg'} 
             alt="Profile" 
             className="rounded-circle bg-white"
             style={{ width: '35px', height: '35px', objectFit: 'cover', border: '2px solid #ffffff' }}
