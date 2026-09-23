@@ -176,6 +176,10 @@ This document summarizes the recent features and structural updates implemented 
 - **MongoDB GridFS Migration**: Refactored the `orders.js` endpoints to upload all administrative order documents (Service Reports, Final Billing Quotations) directly into a MongoDB GridFS bucket (`order_files`). This completely replaces local disk storage, eliminating 404 errors caused by Render's ephemeral filesystem wipes during deployments or idle periods.
 - **TOS Plain-Text Rendering (Ponytail Refactor)**: Removed the heavy `react-pdf` dependency and native `<object>` rendering for the Terms of Service modal. The application now dynamically fetches the plain-text TOS directly from the `/api/settings/tos` endpoint. This achieves 100% native mobile compatibility and circumvents `helmet` cross-origin iframe security headers with zero added bundle weight.
 
+## 28. UX Improvements & Dependency Cleanup
+- **Registration Flow:** Fixed an issue where duplicate username and email errors were merged into a single vague message, causing confusion. They now return specific validation errors.
+- **Default Profile Pictures:** Added a local placeholder image (`default_profile.jpg`) for new registrations so users have a clean default avatar before uploading their own.
+- **Dependency Cleanup:** Uninstalled completely unused frontend dependencies (`web-vitals` and `@fortawesome/fontawesome-free`) to keep `node_modules` lightweight.
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
@@ -219,8 +223,3 @@ Follow these steps exactly to set up and run the project after you have extracte
    npm start
    ```
    *The application should automatically open in your default web browser at `http://localhost:3000`.*
-
-## Recent Updates (v0.1.0)
-- **Registration Flow:** Fixed an issue where duplicate username and email errors were merged into a single vague message, causing confusion. They now return specific validation errors.
-- **Default Profile Pictures:** Added a local placeholder image (`default_profile.jpg`) for new registrations so users have a clean default avatar before uploading their own.
-- **Dependency Cleanup:** Uninstalled completely unused frontend dependencies (`web-vitals` and `@fortawesome/fontawesome-free`) to keep `node_modules` lightweight.
