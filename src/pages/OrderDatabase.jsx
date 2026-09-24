@@ -31,6 +31,8 @@ function OrderDatabase() {
   const [filterDate, setFilterDate] = useState('');
   const [truckTeams, setTruckTeams] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectReasonText, setRejectReasonText] = useState('');
   
   const navigate = useNavigate();
 
@@ -223,6 +225,53 @@ function OrderDatabase() {
     } catch (error) {
       console.error("Error updating order:", error);
       showAlert("Error", "Error updating order.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const submitRescheduleAction = async (action, explicitRejectReason = '') => {
+    let rejectReason = '';
+    if (action === 'reject_reschedule') {
+        if (!explicitRejectReason.trim()) {
+           showAlert("Warning", "Please provide a reason for rejection.", "warning");
+           return;
+        }
+        rejectReason = explicitRejectReason;
+    }
+    
+    setIsSaving(true);
+    try {
+      const payload = { action };
+      if (rejectReason) payload.reject_reason = rejectReason;
+      
+      const response = await api.put(`/orders/${editModal.order.id}`, payload);
+      if (response.data.success) {
+        const ordersRes = await api.get('/orders');
+        const grouped = ordersRes.data.reduce((acc, order) => {
+          if (!acc[order.order_id]) {
+            acc[order.order_id] = { ...order, service_names: [], total_price: 0, first_id: order.id };
+          }
+          acc[order.order_id].service_names.push(order.service_name || order.service_type);
+          acc[order.order_id].total_price += parseFloat(order.price || 0);
+          return acc;
+        }, {});
+        const groupedOrders = Object.values(grouped).map(o => ({
+          ...o,
+          id: o.first_id,
+          service_name: o.service_names.join(', '),
+          price: o.total_price > 0 ? o.total_price.toFixed(2) : ''
+        }));
+        setOrders(groupedOrders);
+        calculateRevenue(groupedOrders);
+        closeEditModal();
+        showAlert("Success", `Reschedule ${action === 'approve_reschedule' ? 'approved' : 'rejected'} successfully.`, "success");
+      } else {
+        showAlert("Warning", response.data.message || "Failed to process request", "warning");
+      }
+    } catch (error) {
+      console.error(error);
+      showAlert("Error", "Error processing reschedule request.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -474,6 +523,16 @@ function OrderDatabase() {
                       </div>
 
                       <div className="form-group mb-3">
+                        <label className="form-label fw-bold small text-muted">Client Additional Notes</label>
+                        <textarea 
+                          className="form-control bg-light border-0 shadow-sm" 
+                          value={editModal.order?.notes || 'No additional notes provided.'}
+                          readOnly
+                          rows="2"
+                        />
+                      </div>
+
+                      <div className="form-group mb-3">
                         <label className="form-label fw-bold small text-muted">Internal Notes</label>
                         <textarea 
                           name="internal_notes"
@@ -498,6 +557,24 @@ function OrderDatabase() {
                           <option value="Reschedule Requested">Reschedule Requested</option>
                         </select>
                       </div>
+                      
+                      {editModal.order.request_type === 'Reschedule Requested' && editModal.order.reschedule_date && (
+                        <div className="alert alert-warning border-0 shadow-sm p-3 mb-4">
+                          <h6 className="fw-bold text-dark mb-2"><i className="fas fa-calendar-alt me-2 text-warning"></i>Reschedule Request Details</h6>
+                          <div className="small mb-1"><strong>New Date:</strong> {formatDate(editModal.order.reschedule_date)}</div>
+                          <div className="small mb-1"><strong>New Time:</strong> {editModal.order.reschedule_time_slot}</div>
+                          <div className="small mb-3"><strong>Reason:</strong> {editModal.order.reschedule_reason}</div>
+                          
+                          <div className="d-flex gap-2">
+                            <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => submitRescheduleAction('approve_reschedule')} disabled={isSaving}>
+                              Approve
+                            </button>
+                            <button className="btn btn-danger btn-sm fw-bold w-100" onClick={() => setRejectModalOpen(true)} disabled={isSaving}>
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -622,6 +699,56 @@ function OrderDatabase() {
           </div>
         </div>
       , document.body)}
+
+      {/* Reject Modal */}
+      {rejectModalOpen && createPortal(
+        <div 
+          className="modal fade show" 
+          style={{ 
+            display: 'block', 
+            zIndex: 1080, 
+            backgroundColor: 'transparent', 
+            backdropFilter: 'blur(5px)', 
+            WebkitBackdropFilter: 'blur(5px)' 
+          }} 
+          tabIndex="-1"
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
+                <h5 className="modal-title text-white"><i className="fas fa-exclamation-triangle me-2"></i>Reject Reschedule</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => { setRejectModalOpen(false); setRejectReasonText(''); }}></button>
+              </div>
+              <div className="modal-body text-start mt-3 mb-3 p-4">
+                <h6 className="fw-normal mb-3">Please provide a reason for rejecting the reschedule request. This will be shown to the client.</h6>
+                <textarea
+                  className="form-control bg-light"
+                  rows="3"
+                  value={rejectReasonText}
+                  onChange={(e) => setRejectReasonText(e.target.value)}
+                  placeholder="Enter rejection reason..."
+                  autoFocus
+                ></textarea>
+              </div>
+              <div className="modal-footer border-0">
+                <button className="btn btn-light rounded-pill px-4 fw-bold" onClick={() => { setRejectModalOpen(false); setRejectReasonText(''); }}>Cancel</button>
+                <button 
+                  className="btn btn-danger rounded-pill px-4 fw-bold shadow-sm" 
+                  onClick={() => {
+                    submitRescheduleAction('reject_reschedule', rejectReasonText);
+                    setRejectModalOpen(false);
+                    setRejectReasonText('');
+                  }}
+                  disabled={isSaving || !rejectReasonText.trim()}
+                >
+                  Confirm Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+
       </section>
     </div>
   );

@@ -3,7 +3,7 @@ const express = require('express');
 const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
-const { sendConfirmationEmail } = require('../utils/emailHelper');
+const { sendConfirmationEmail, sendRescheduleEmail } = require('../utils/emailHelper');
 const multer = require('multer');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -324,6 +324,32 @@ router.put('/:id', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Cannot edit a cancelled order.' });
     }
     
+    if (updateData.request_type === 'Reschedule Requested' && oldOrder.request_type !== 'Reschedule Requested') {
+        const orderDate = new Date(oldOrder.date);
+        const now = new Date();
+        const diffHours = (orderDate - now) / (1000 * 60 * 60);
+        if (diffHours < 24) {
+             return res.status(400).json({ success: false, message: 'Cannot reschedule less than 24 hours before the inspection.' });
+        }
+    }
+    
+    if (updateData.action === 'approve_reschedule') {
+        updateData.date = oldOrder.reschedule_date;
+        updateData.time_slot = oldOrder.reschedule_time_slot;
+        updateData.request_type = null;
+        updateData.reschedule_date = null;
+        updateData.reschedule_time_slot = null;
+        updateData.reschedule_reason = null;
+        updateData.reject_reason = null;
+        delete updateData.action;
+    } else if (updateData.action === 'reject_reschedule') {
+        updateData.request_type = null;
+        updateData.reschedule_date = null;
+        updateData.reschedule_time_slot = null;
+        updateData.reschedule_reason = null;
+        delete updateData.action;
+    }
+    
     const order = await Order.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
     
     if (updateData.status && order) {
@@ -377,6 +403,20 @@ router.put('/:id', async (req, res) => {
             message: `Booking Rescheduled`,
             details: `Your booking #${order.order_id} has been rescheduled to ${new Date(order.date).toLocaleDateString()} at ${order.time_slot}.`
         }).save();
+    }
+
+    if (req.body.action === 'approve_reschedule') {
+        await sendRescheduleEmail(order.email, order.first_name, order.order_id, true, order.date, order.time_slot, null);
+    } else if (req.body.action === 'reject_reschedule') {
+        await sendRescheduleEmail(order.email, order.first_name, order.order_id, false, null, null, order.reject_reason);
+        if (order.user_id) {
+            await new Notification({
+                user_id: order.user_id,
+                order_id: order.order_id,
+                message: `Reschedule Rejected`,
+                details: `Your request to reschedule order #${order.order_id} was rejected.`
+            }).save();
+        }
     }
 
     res.json({ success: true, message: 'Order updated successfully' });

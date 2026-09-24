@@ -232,4 +232,46 @@ const sendContactEmail = async (name, email, subject, message) => {
   });
 };
 
-module.exports = { sendConfirmationEmail, sendVerificationEmail, sendContactEmail };
+const sendRescheduleEmail = async (email, firstName, orderId, isApproved, newDate, newTime, rejectReason) => {
+  const subject = isApproved ? `Cleaneco Order #${orderId} Reschedule Approved` : `Cleaneco Order #${orderId} Reschedule Rejected`;
+  const headerSubtitle = "Reschedule Request Update";
+  const statusColor = isApproved ? '#0D8D1E' : '#dc3545';
+  
+  const contentHtml = `
+      <div class='status-banner' style='border-left: 4px solid ${statusColor};'>
+          <p>Hi ${firstName},</p>
+          <p style='margin-top: 8px;'>Your request to reschedule Order #${orderId} has been <strong>${isApproved ? 'approved' : 'rejected'}</strong>.</p>
+      </div>
+      
+      ${isApproved ? `
+      <h2 class='section-title'>New Schedule</h2>
+      <div class='grid'>
+          <div class='grid-col'>
+              <p><strong>New Date:</strong> ${new Date(newDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p><strong>New Time Slot:</strong> ${newTime}</p>
+          </div>
+      </div>
+      ` : `
+      <h2 class='section-title'>Rejection Reason</h2>
+      <div class='notes-box'>
+          ${rejectReason ? rejectReason.replace(/\n/g, '<br>') : 'Unfortunately, we are unable to accommodate the requested schedule at this time.'}
+      </div>
+      <p style="font-size: 14px; margin-top: 15px; color: #475569;">Your original schedule remains unchanged.</p>
+      `}
+  `;
+
+  const htmlMessage = baseEmailTemplate({
+      subject,
+      title: 'Cleaneco Waste Management Services',
+      headerSubtitle,
+      contentHtml
+  });
+
+  await sendEmailJS('template_ns5zlcs', {
+    to_email: email,
+    subject: subject,
+    html_content: htmlMessage
+  });
+};
+
+module.exports = { sendConfirmationEmail, sendVerificationEmail, sendContactEmail, sendRescheduleEmail };

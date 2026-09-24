@@ -6,6 +6,7 @@ import '../assets/styles/ongoingorders.css';
 import carousel6 from '../assets/styles/images/carousel6.png';
 import paymongoLogo from '../assets/styles/images/paymongo.png';
 import ReceiptTemplate from '../components/ReceiptTemplate';
+import ClientCalendar from '../components/ClientCalendar';
 
 function OngoingOrders() {
   const [orders, setOrders] = useState([]);
@@ -18,34 +19,53 @@ function OngoingOrders() {
   const [selectedOrderIdToPay, setSelectedOrderIdToPay] = useState(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTimeSlot, setRescheduleTimeSlot] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
   const navigate = useNavigate();
   const loggedInUser = sessionStorage.getItem("loggedInUser");
   const userId = sessionStorage.getItem("userId");
 
   const triggerRequest = (id, type) => {
     setConfirmData({ id, type });
+    if (type === 'Reschedule Requested') {
+      setRescheduleDate('');
+      setRescheduleTimeSlot('');
+      setRescheduleReason('');
+    }
     setShowConfirmModal(true);
   };
 
   const confirmRequest = async () => {
+    if (confirmData.type === 'Reschedule Requested') {
+      if (!rescheduleDate || !rescheduleTimeSlot || !rescheduleReason.trim()) {
+        setResultMessage("Please select a date, time slot, and provide a reason for the reschedule.");
+        setShowResultModal(true);
+        return;
+      }
+    }
     setShowConfirmModal(false);
     const { id, type } = confirmData;
     try {
-      const response = await api.put(`/orders/${id}`, {
-        request_type: type
-      });
+      const payload = { request_type: type };
+      if (type === 'Reschedule Requested') {
+        payload.reschedule_date = rescheduleDate;
+        payload.reschedule_time_slot = rescheduleTimeSlot;
+        payload.reschedule_reason = rescheduleReason;
+      }
+      const response = await api.put(`/orders/${id}`, payload);
       if (response.data.success) {
         setResultMessage("Request submitted successfully.");
         setShowResultModal(true);
         const ordersRes = await api.get(`/orders/user/${userId}`);
         setOrders(ordersRes.data);
       } else {
-        setResultMessage("Failed to submit request.");
+        setResultMessage(response.data.message || "Failed to submit request.");
         setShowResultModal(true);
       }
     } catch (err) {
       console.error(err);
-      setResultMessage("Error submitting request.");
+      setResultMessage(err.response?.data?.message || "Error submitting request.");
       setShowResultModal(true);
     }
   };
@@ -116,6 +136,20 @@ function OngoingOrders() {
 
     loadOrders();
   }, [loggedInUser, navigate, userId]);
+
+  useEffect(() => {
+    if (showConfirmModal || showResultModal || showPaymentModal) {
+      document.body.classList.add('modal-open');
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+    };
+  }, [showConfirmModal, showResultModal, showPaymentModal]);
 
   const generateReceipt = (order) => {
     setReceiptOrder(order);
@@ -378,14 +412,37 @@ function OngoingOrders() {
       {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="modal fade show glass-modal" style={{ display: 'block', zIndex: 1060 }} tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered">
+          <div className={`modal-dialog modal-dialog-centered ${confirmData.type === 'Reschedule Requested' ? 'modal-lg' : ''}`} style={confirmData.type === 'Reschedule Requested' ? { maxWidth: '850px' } : {}}>
             <div className="modal-content">
               <div className="modal-header" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
                 <h5 className="modal-title text-white">Confirm Request</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowConfirmModal(false)}></button>
               </div>
               <div className="modal-body text-start mt-3 mb-3 p-4">
-                <h6 className="fw-normal">Are you sure you want to request a <strong>{confirmData.type === 'Cancel Requested' ? 'cancellation' : 'reschedule'}</strong>?</h6>
+                {confirmData.type === 'Reschedule Requested' ? (
+                  <>
+                    <h6 className="fw-normal mb-4">Please select your new preferred schedule and provide a reason. <br /><small className="text-muted mt-2 d-block"><i className="fas fa-info-circle me-1"></i>You can only reschedule at least 24 hours in advance.</small></h6>
+                    <div className="mb-4 mx-auto" style={{ width: '100%', maxWidth: '800px' }}>
+                      <ClientCalendar
+                        selectedDate={rescheduleDate}
+                        selectedTimeSlot={rescheduleTimeSlot}
+                        onSelectDateTime={(date, slot) => { setRescheduleDate(date); setRescheduleTimeSlot(slot); }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label fw-bold small text-muted">Reason for Reschedule</label>
+                      <input
+                        type="text"
+                        className="form-control bg-light"
+                        value={rescheduleReason}
+                        onChange={(e) => setRescheduleReason(e.target.value)}
+                        placeholder="Please briefly explain why you need to reschedule..."
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <h6 className="fw-normal">Are you sure you want to request a <strong>cancellation</strong>?</h6>
+                )}
               </div>
               <div className="modal-footer border-0">
                 <button type="button" className="btn btn-light rounded-pill px-4 fw-bold" onClick={() => setShowConfirmModal(false)}>

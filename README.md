@@ -185,6 +185,12 @@ This document summarizes the recent features and structural updates implemented 
 - **Client Calendar Integration:** Updated the `ClientCalendar.jsx` component to fetch and visually grey out these unavailable dates. The calendar correctly displays the blocked status and reason, disabling time slot selection.
 - **Backend Validation:** Added the `UnavailableDate.js` Mongoose model and a new `/api/unavailable-dates` route. Reinforced the `/api/orders/submit` endpoint to perform a final validation check against the database, preventing any edge-case booking loopholes on blocked dates.
 
+## 30. Order Rescheduling & Cancellation UI Updates
+- **Cancellation Policy Warning:** Added a clear notice in the `OrderForm.jsx` reservation summary clarifying that cancellation requests do not guarantee a refund of the reservation fee.
+- **Client Reschedule Modal UI:** Redesigned the client-side reschedule modal to use a stacked layout, optimizing vertical space to eliminate double scrollbars while keeping the calendar center-aligned.
+- **Admin Visibility:** Enhanced `OrderDatabase.jsx` to surface "Client Additional Notes" in a read-only format directly within the manage order details view.
+- **Admin Modal Standardization:** Replaced native browser `window.prompt` dialogs for Reschedule Rejections with a custom-styled React modal (Cleaneco Green header). Utilized `createPortal` to resolve z-index overlapping issues, ensuring the modal properly layers above the "Manage Order" side drawer.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
