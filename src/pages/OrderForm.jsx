@@ -547,8 +547,14 @@ function OrderForm() {
                                 </span>
                             </div>
                             <div className="alert alert-warning mt-3 mb-0 small py-2">
-                                <i className="fas fa-exclamation-triangle me-2"></i>
-                                Note: The Estimated Base Cost is subject to change upon physical inspection. The ₱1100 payment today secures your booking and is deducted from the final bill.
+                                <div className="mb-1">
+                                    <i className="fas fa-exclamation-triangle me-2"></i>
+                                    Note: The Estimated Base Cost is subject to change upon physical inspection. The ₱1100 payment today secures your booking and is deducted from the final bill.
+                                </div>
+                                <div>
+                                    <i className="fas fa-info-circle me-2"></i>
+                                    <strong>Cancellation Policy:</strong> Please be aware that cancellations are non-refundable. The reservation fee cannot be returned if you choose to cancel your order.
+                                </div>
                             </div>
                         </div>
                     )}
