@@ -481,18 +481,32 @@ function OngoingOrders() {
       )}
       {/* Final Payment Modal */}
       {showPaymentModal && (
-        <div className="modal-backdrop-custom d-flex justify-content-center align-items-center glass-modal" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}>
-          <div className="bg-white p-4 rounded shadow-lg text-center" style={{ maxWidth: '400px', width: '90%' }}>
-            <img src={paymongoLogo} alt="PayMongo Options" className="img-fluid mb-4 px-2" style={{ width: '100%', objectFit: 'contain' }} />
-            <h4 className="fw-bold mb-3">Secure Payment</h4>
-            <p className="text-muted small mb-4">You will be securely redirected to PayMongo to complete your final balance. We accept GCash, Maya, GrabPay, and Credit/Debit Cards.</p>
-            <div className="d-flex justify-content-center gap-2">
-              <button className="btn btn-secondary rounded-pill px-4" onClick={() => setShowPaymentModal(false)} disabled={isSubmittingPayment}>Cancel</button>
-              <button className="btn btn-success rounded-pill px-4 fw-bold" onClick={handleFinalPayment} disabled={isSubmittingPayment}>
-                {isSubmittingPayment ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</> : 'Proceed to Payment'}
-              </button>
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'transparent', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 1060 }} tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '1rem' }}>
+                    <div className="modal-header border-0" style={{ backgroundColor: '#0D8D1E', color: 'white', borderTopLeftRadius: '1rem', borderTopRightRadius: '1rem' }}>
+                        <h5 className="modal-title text-white fw-bold"><i className="fas fa-wallet me-2"></i>Secure Payment</h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={() => setShowPaymentModal(false)}></button>
+                    </div>
+                    <div className="modal-body text-center p-4">
+                        <img src={paymongoLogo} alt="PayMongo Options" className="img-fluid mb-4 px-2" style={{ width: '100%', objectFit: 'contain' }} />
+                        <div className="alert alert-info text-start small mb-4" role="alert">
+                            <i className="fas fa-info-circle me-2"></i>
+                            <strong>Instructions:</strong> You will be securely redirected to PayMongo to complete your final balance. We accept GCash, Maya, GrabPay, and Credit/Debit Cards.
+                        </div>
+                    </div>
+                    <div className="modal-footer border-0 p-4 pt-0 d-flex flex-column gap-2">
+                        <button type="button" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm" onClick={handleFinalPayment} disabled={isSubmittingPayment}>
+                            <i className="fas fa-credit-card me-2"></i>{isSubmittingPayment ? 'Processing...' : 'Proceed to Payment (Cards, GCash, Maya)'}
+                        </button>
+                        <div className="d-flex w-100 gap-2 mt-2">
+                            <button type="button" className="btn btn-light rounded-pill flex-grow-1 fw-bold" onClick={() => setShowPaymentModal(false)} disabled={isSubmittingPayment}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
       )}
 

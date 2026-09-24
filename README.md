@@ -191,6 +191,9 @@ This document summarizes the recent features and structural updates implemented 
 - **Admin Visibility:** Enhanced `OrderDatabase.jsx` to surface "Client Additional Notes" in a read-only format directly within the manage order details view.
 - **Admin Modal Standardization:** Replaced native browser `window.prompt` dialogs for Reschedule Rejections with a custom-styled React modal (Cleaneco Green header). Utilized `createPortal` to resolve z-index overlapping issues, ensuring the modal properly layers above the "Manage Order" side drawer.
 
+## 31. Payment UI Standardization
+- **Secure Payment Modal**: Updated the "Secure Payment" modal in `OngoingOrders.jsx` to perfectly match the design, layout, and glassmorphism styling of the "Pay Reservation" modal in the Order Form, ensuring a consistent checkout experience across the application.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
