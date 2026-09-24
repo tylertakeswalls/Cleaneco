@@ -7,6 +7,7 @@ import api from "../api/api";
 export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelectDateTime }) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [availability, setAvailability] = useState([]);
+    const [unavailableDates, setUnavailableDates] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const today = new Date();
@@ -21,8 +22,12 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
     useEffect(() => {
         const fetchAvailability = async () => {
             try {
-                const response = await api.get("/orders/availability");
-                setAvailability(response.data || []);
+                const [availabilityRes, unavailableRes] = await Promise.all([
+                    api.get("/orders/availability"),
+                    api.get("/unavailable-dates")
+                ]);
+                setAvailability(availabilityRes.data || []);
+                setUnavailableDates(unavailableRes.data || []);
             } catch (error) {
                 console.error("Error fetching availability:", error);
             } finally {
@@ -78,8 +83,8 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
         return acc;
     }, {});
 
-    const handleDateClick = (dateString, isOutOfRange, isFullyBooked) => {
-        if (isOutOfRange || isFullyBooked) return;
+    const handleDateClick = (dateString, isOutOfRange, isFullyBooked, isBlockedAdmin) => {
+        if (isOutOfRange || isFullyBooked || isBlockedAdmin) return;
         onSelectDateTime(dateString, ""); // Clear slot when date changes
     };
 
@@ -147,6 +152,8 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
                         const totalBookings = dayData ? dayData.total : 0;
                         const isFullyBooked = totalBookings >= 3;
                         const isSelected = dateString === selectedDate;
+                        const unavailableInfo = unavailableDates.find(u => u.date === dateString);
+                        const isBlockedAdmin = !!unavailableInfo;
 
                         let bgStyle = "#f8fafc";
                         let textColor = "#1e293b";
@@ -160,6 +167,12 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
                             borderStyle = "1px solid #f1f5f9";
                             cursorStyle = "not-allowed";
                             statusText = "";
+                        } else if (isBlockedAdmin) {
+                            bgStyle = "#e2e8f0";
+                            textColor = "#64748b";
+                            borderStyle = "1px solid #cbd5e1";
+                            cursorStyle = "not-allowed";
+                            statusText = unavailableInfo.reason || "Unavailable";
                         } else if (isFullyBooked) {
                             bgStyle = "#fee2e2";
                             textColor = "#ef4444";
@@ -181,7 +194,7 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
                         return (
                             <div key={`day-${day}`}>
                                 <div
-                                    onClick={() => handleDateClick(dateString, isOutOfRange, isFullyBooked)}
+                                    onClick={() => handleDateClick(dateString, isOutOfRange, isFullyBooked, isBlockedAdmin)}
                                     className="d-flex flex-column align-items-center justify-content-center p-1 rounded w-100"
                                     style={{
                                         background: bgStyle,
@@ -250,10 +263,11 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
             </div>
 
             {/* Legend */}
-            <div className="card-footer bg-white border-0 d-flex justify-content-center gap-3 py-2 small text-muted">
+            <div className="card-footer bg-white border-0 d-flex flex-wrap justify-content-center gap-3 py-2 small text-muted">
                 <span className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{ width: "10px", height: "10px", background: "#f8fafc", border: "1px solid #e2e8f0" }}></span> Available</span>
                 <span className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{ width: "10px", height: "10px", background: "#f0fdf4", border: "1px solid #bbf7d0" }}></span> Booked Partially</span>
                 <span className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{ width: "10px", height: "10px", background: "#fee2e2", border: "1px solid #fca5a5" }}></span> Fully Booked</span>
+                <span className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{ width: "10px", height: "10px", background: "#e2e8f0", border: "1px solid #cbd5e1" }}></span> Unavailable</span>
             </div>
         </div>
     );

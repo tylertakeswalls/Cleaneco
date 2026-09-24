@@ -13,9 +13,27 @@ function AdminSettings() {
   const [newTeamName, setNewTeamName] = useState('');
   const [loadingTeams, setLoadingTeams] = useState(true);
 
+  const [unavailableDates, setUnavailableDates] = useState([]);
+  const [newUnavailDate, setNewUnavailDate] = useState({ date: '', reason: '' });
+  const [loadingDates, setLoadingDates] = useState(true);
+
   useEffect(() => {
     fetchTruckTeams();
+    fetchUnavailableDates();
   }, []);
+
+  const fetchUnavailableDates = async () => {
+    try {
+      const res = await api.get('/unavailable-dates');
+      if (res.data) {
+        setUnavailableDates(res.data);
+      }
+    } catch (err) {
+      console.error('Error fetching unavailable dates:', err);
+    } finally {
+      setLoadingDates(false);
+    }
+  };
 
   const fetchTruckTeams = async () => {
     try {
@@ -56,6 +74,37 @@ function AdminSettings() {
     const updated = truckTeams.filter((_, index) => index !== indexToRemove);
     setTruckTeams(updated);
     saveTruckTeams(updated);
+  };
+
+  const addUnavailableDate = async () => {
+    if (!newUnavailDate.date) {
+      showAlert('error', 'Date is required.');
+      return;
+    }
+    try {
+      const res = await api.post('/unavailable-dates', newUnavailDate);
+      if (res.data.success) {
+        showAlert('success', 'Date marked as unavailable.');
+        setUnavailableDates([...unavailableDates, res.data.data].sort((a, b) => new Date(a.date) - new Date(b.date)));
+        setNewUnavailDate({ date: '', reason: '' });
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert('error', err.response?.data?.message || 'Error adding unavailable date.');
+    }
+  };
+
+  const removeUnavailableDate = async (id) => {
+    try {
+      const res = await api.delete(`/unavailable-dates/${id}`);
+      if (res.data.success) {
+        showAlert('success', 'Date unblocked successfully.');
+        setUnavailableDates(unavailableDates.filter(d => d._id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert('error', 'Error removing unavailable date.');
+    }
   };
 
   const handleFileChange = (e) => {
@@ -205,6 +254,63 @@ function AdminSettings() {
                   />
                   <button className="btn btn-success fw-bold m-0 d-flex align-items-center justify-content-center text-nowrap" type="button" onClick={addTruckTeam} style={{ background: '#0D8D1E', borderRadius: '0.5rem', minWidth: '130px', padding: '0 20px', border: 'none' }}>
                     <i className="fas fa-plus me-2" style={{ fontSize: '0.9rem' }}></i> Add Team
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card glass-panel shadow-sm border-0 glass-panel mt-4" style={{ borderRadius: '1.25rem' }}>
+          <div className="card-body p-5">
+            <h4 className="fw-bold mb-4 text-dark" style={{ letterSpacing: '-0.5px' }}>
+              <i className="fas fa-calendar-times me-2" style={{ color: '#0D8D1E' }}></i> Unavailable Dates
+            </h4>
+            <p className="text-muted mb-4">Block specific dates (e.g. holidays, teambuilding) to prevent clients from booking services on those days.</p>
+
+            {loadingDates ? (
+              <p>Loading unavailable dates...</p>
+            ) : (
+              <div>
+                <ul className="list-group mb-4">
+                  {unavailableDates.map((item) => (
+                    <li key={item._id} className="list-group-item d-flex justify-content-between align-items-center">
+                      <div>
+                        <span className="fw-bold">{new Date(item.date).toLocaleDateString()}</span>
+                        {item.reason && <span className="text-muted ms-2">- {item.reason}</span>}
+                      </div>
+                      <button 
+                        className="btn btn-sm btn-outline-danger" 
+                        onClick={() => removeUnavailableDate(item._id)}
+                      >
+                        <i className="fas fa-unlock me-1"></i> Unblock
+                      </button>
+                    </li>
+                  ))}
+                  {unavailableDates.length === 0 && (
+                    <li className="list-group-item text-muted">No dates are currently blocked.</li>
+                  )}
+                </ul>
+
+                <div className="d-flex flex-column flex-md-row align-items-stretch gap-2">
+                  <input 
+                    type="date" 
+                    className="form-control m-0" 
+                    style={{ flex: '0 0 auto', width: 'auto', minWidth: '180px' }}
+                    value={newUnavailDate.date}
+                    onChange={(e) => setNewUnavailDate({ ...newUnavailDate, date: e.target.value })}
+                  />
+                  <input 
+                    type="text" 
+                    className="form-control m-0" 
+                    style={{ flex: '1 1 auto' }}
+                    placeholder="Reason (Optional, e.g. Teambuilding)" 
+                    value={newUnavailDate.reason}
+                    onChange={(e) => setNewUnavailDate({ ...newUnavailDate, reason: e.target.value })}
+                    onKeyPress={(e) => e.key === 'Enter' && addUnavailableDate()}
+                  />
+                  <button className="btn btn-warning fw-bold m-0 d-flex align-items-center justify-content-center text-nowrap" type="button" onClick={addUnavailableDate} style={{ borderRadius: '0.5rem', border: 'none', minWidth: '130px', padding: '0 20px' }}>
+                    <i className="fas fa-ban me-2" style={{ fontSize: '0.9rem' }}></i> Block
                   </button>
                 </div>
               </div>

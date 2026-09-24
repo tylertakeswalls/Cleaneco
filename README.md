@@ -180,6 +180,11 @@ This document summarizes the recent features and structural updates implemented 
 - **Registration Flow:** Fixed an issue where duplicate username and email errors were merged into a single vague message, causing confusion. They now return specific validation errors.
 - **Default Profile Pictures:** Added a local placeholder image (`default_profile.jpg`) for new registrations so users have a clean default avatar before uploading their own.
 - **Dependency Cleanup:** Uninstalled completely unused frontend dependencies (`web-vitals` and `@fortawesome/fontawesome-free`) to keep `node_modules` lightweight.
+## 29. Unavailable Dates Management
+- **Administrative Control:** Implemented an "Unavailable Dates" manager in the Admin Settings panel (`AdminSettings.jsx`). Administrators can now selectively block specific dates (e.g., holidays, company teambuilding) with an optional reason, preventing clients from booking services on those days.
+- **Client Calendar Integration:** Updated the `ClientCalendar.jsx` component to fetch and visually grey out these unavailable dates. The calendar correctly displays the blocked status and reason, disabling time slot selection.
+- **Backend Validation:** Added the `UnavailableDate.js` Mongoose model and a new `/api/unavailable-dates` route. Reinforced the `/api/orders/submit` endpoint to perform a final validation check against the database, preventing any edge-case booking loopholes on blocked dates.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

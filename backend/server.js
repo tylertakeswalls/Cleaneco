@@ -52,6 +52,7 @@ const usersRoutes = require('./routes/users');
 const reportsRoutes = require('./routes/reports');
 const paymentsRoutes = require('./routes/payments');
 const contactRoutes = require('./routes/contact');
+const unavailableDatesRoutes = require('./routes/unavailableDates');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/services', servicesRoutes);
@@ -62,6 +63,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/unavailable-dates', unavailableDatesRoutes);
 
 // Error Handling Middleware (must be after all routes)
 const errorHandler = require('./middleware/errorHandler');

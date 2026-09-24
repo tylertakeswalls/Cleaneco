@@ -115,6 +115,15 @@ router.get('/user/:userId', async (req, res) => {
 router.post('/submit', upload.single('site_photo'), async (req, res) => {
   try {
     const data = req.body;
+    
+    // Check if the requested date is unavailable
+    const UnavailableDate = require('../models/UnavailableDate');
+    // Ensure date comparison matches format, assuming data.date is YYYY-MM-DD
+    const isUnavailable = await UnavailableDate.findOne({ date: data.date });
+    if (isUnavailable) {
+      return res.status(400).json({ success: false, message: 'The selected date is unavailable for booking' });
+    }
+
     let serviceIds = [];
     
     let sitePhotoUrl = null;
