@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom';
+import { CheckCircle2, Phone, Mail, Clock } from 'lucide-react';
 
 function Footer() {
   const location = useLocation();
@@ -25,11 +26,11 @@ function Footer() {
 
         <div className="footer-section">
           <h4>Our Services</h4>
-          <ul>
-            <li>✅Siphoning/Desludging</li>
-            <li>✅Deep Cleaning</li>
-            <li>✅Declogging</li>
-            <li>✅Grease Trap Cleaning</li>
+          <ul className="footer-list">
+            <li><CheckCircle2 size={18} /> Siphoning/Desludging</li>
+            <li><CheckCircle2 size={18} /> Deep Cleaning</li>
+            <li><CheckCircle2 size={18} /> Declogging</li>
+            <li><CheckCircle2 size={18} /> Grease Trap Cleaning</li>
           </ul>
         </div>
 
@@ -39,20 +40,21 @@ function Footer() {
             trusted name in professional septic tank
             care serving both residential and
             industrial clients across the region.
-            <br />
-            <br />✅DENR & DOH Compliant
-            <br />✅Residential & Industrial Expertise
-            <br />✅Fast & reliable, 24/7 service
-            <br />✅Eco-Friendly Operations
           </p>
+          <ul className="footer-list">
+            <li><CheckCircle2 size={18} /> DENR & DOH Compliant</li>
+            <li><CheckCircle2 size={18} /> Residential & Industrial Expertise</li>
+            <li><CheckCircle2 size={18} /> Fast & reliable, 24/7 service</li>
+            <li><CheckCircle2 size={18} /> Eco-Friendly Operations</li>
+          </ul>
         </div>
 
         <div className="footer-section" id="Emergency">
           <h4>Contact Info</h4>
           <p>Addas Greenfields, Mambog 4, Bacoor, Philippines</p>
-          <p>📞 046-447-03-54</p>
-          <p>📧 cleaneco@cwms.com.ph</p>
-          <p>🕒 Always Open</p>
+          <p className="contact-item"><Phone size={18} /> 046-447-03-54</p>
+          <p className="contact-item"><Mail size={18} /> cleaneco@cwms.com.ph</p>
+          <p className="contact-item"><Clock size={18} /> Always Open</p>
         </div>
       </div>
 

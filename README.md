@@ -194,6 +194,10 @@ This document summarizes the recent features and structural updates implemented 
 ## 31. Payment UI Standardization
 - **Secure Payment Modal**: Updated the "Secure Payment" modal in `OngoingOrders.jsx` to perfectly match the design, layout, and glassmorphism styling of the "Pay Reservation" modal in the Order Form, ensuring a consistent checkout experience across the application.
 
+## 32. UI Polish & PDF Viewer Enhancements
+- **Footer Modernization**: Replaced basic emojis in the global footer with professional, scalable SVG icons using `lucide-react`, and applied precise flexbox alignment (`.footer-list`, `.contact-item`) for a cleaner, premium look.
+- **Inline Terms of Service**: Refactored the TOS viewer in the registration modal to use an `<iframe>` instead of an `<object>` tag for native browser PDF rendering. Adjusted the backend `helmet` configuration (`contentSecurityPolicy: false`) to allow cross-origin iframe embedding, eliminating "localhost refused to connect" errors and removing the need for external tab fallbacks.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

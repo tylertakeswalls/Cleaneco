@@ -372,6 +372,26 @@ div[style*="background-color: #F2F2F2"] {
   padding: 3rem 0 !important;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.1) !important;
 }
+.footer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  margin-top: 1rem;
+}
+.footer-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.9);
+}
 footer a, .footer-custom a, .footer-bottom {
   color: rgba(255, 255, 255, 0.8) !important;
   text-decoration: none !important;

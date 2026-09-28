@@ -481,14 +481,20 @@ function Register() {
               <button type="button" className="btn-close btn-close-white" onClick={() => setIsTosModalOpen(false)} aria-label="Close"></button>
             </div>
             <div className="modal-body p-0 bg-light" style={{ height: '60vh' }}>
-              <object data={`${api.defaults.baseURL}/settings/tos/pdf`} type="application/pdf" width="100%" height="100%">
+              <iframe 
+                src={`${api.defaults.baseURL}/settings/tos/pdf`} 
+                title="Terms and Conditions"
+                width="100%" 
+                height="100%" 
+                style={{ border: 'none' }}
+              >
                 <div className="p-5 text-center">
                   <p>Your browser does not support inline PDFs.</p>
                   <a href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer" className="btn-custom">
                     Click here to view the Terms and Conditions
                   </a>
                 </div>
-              </object>
+              </iframe>
             </div>
             <div className="modal-footer bg-light d-flex flex-column align-items-stretch" style={{ borderTop: 'none', gap: '1rem' }}>
               <div className="d-flex justify-content-center gap-4 py-2 border rounded" style={{ backgroundColor: '#fff', borderColor: '#e2e8f0' }}>
