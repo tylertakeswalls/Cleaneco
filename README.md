@@ -198,6 +198,36 @@ This document summarizes the recent features and structural updates implemented 
 - **Footer Modernization**: Replaced basic emojis in the global footer with professional, scalable SVG icons using `lucide-react`, and applied precise flexbox alignment (`.footer-list`, `.contact-item`) for a cleaner, premium look.
 - **Inline Terms of Service**: Refactored the TOS viewer in the registration modal to use an `<iframe>` instead of an `<object>` tag for native browser PDF rendering. Adjusted the backend `helmet` configuration (`contentSecurityPolicy: false`) to allow cross-origin iframe embedding, eliminating "localhost refused to connect" errors and removing the need for external tab fallbacks.
 
+## 33. Phase 2: Hierarchical Quotations, Cheque Verification & Order Lifecycle Refinements
+- **Direct Contact Cancellation & Failsafe Architecture**:
+  - Removed self-service client quotation decline and arbitrary cancellation buttons to safeguard business commitments.
+  - Implemented an informative cancellation notice directing clients to contact company dispatch directly (`046-447-03-54`) so administrators retain full authority to review, confirm, and mark cancellations in the database.
+  - Added fail-safe logic ensuring that whenever an admin cancels an order, tentative inspection or service calendar holds are automatically released and revenue metrics update accurately.
+- **Smart Reschedule Workflow (Inspection vs. Service Execution)**:
+  - Distinct reschedule targets for Site Inspection vs. Service Execution with conditional lifecycle visibility.
+  - The "Reschedule Inspection" button is strictly visible prior to quotation finalization, preventing redundant requests after inspection is concluded.
+  - The "Reschedule Service Date" button is visible once execution schedules are assigned (until order completion or cancellation).
+  - Redesigned the "Reschedule Service Date" button to strictly adhere to Cleaneco primary brand green (`#0D8D1E` via `.btn-outline-cleaneco`), fixing hover washout where the text previously blended into a white background.
+  - Updated the Quotation Response confirmation modal to display a green success checkmark icon upon agreement submission.
+- **Corporate Cheque Payment & MongoDB GridFS Verification**:
+  - Introduced Cheque payment options for Commercial and Industrial clients across reservation fee and final payment modals.
+  - Captures complete cheque metadata (Bank Name, Cheque Number, Account Name, Cheque Date) and streams image receipts directly to **MongoDB GridFS** for durable cloud persistence without relying on ephemeral server disk storage.
+  - Integrated admin cheque verification tools within the Order Database to approve or reject submitted cheque payments.
+- **Hierarchical Quotation & Scope of Works**:
+  - Implemented structured quotation breakdown schemas with main deliverables, granular sub-items, technical justifications, and unit pricing.
+  - Introduced quotation lifecycles (`Pending Inspection`, `Pending Client Approval`, `Clarification Requested`, `Approved`, `Client Declined`).
+  - Integrated client acceptance modals that capture agreement, set execution date/time slots, and auto-update order states.
+- **Printable Billing Templates & Formal Report Headers**:
+  - Implemented `BillingTemplate.jsx` utilizing CSS `@media print` for browser-native invoice and billing statement generation without external runtime overhead.
+  - Incorporated high-resolution company branding headers (`report_header.png`) in administrative data exports.
+- **Client Profile & Name Formatting**:
+  - Extended client profiles with account type segregation (`residential`, `commercial`, `industrial`) and company name attributes.
+  - Added `formatName.js` utility ensuring proper display of commercial/industrial client records (`Client Name (Company Name)`).
+  - Capitalized site accessibility descriptors across customer summaries ("Easy", "Moderate", "Challenging").
+- **Cross-Domain Session & Production Resilience**:
+  - Hardened `src/api/api.js` request interceptor to seamlessly check `localStorage` as a fallback whenever `sessionStorage` is empty, preventing accidental session drops during PayMongo cross-domain checkout redirects.
+  - Cleaned dead references and unused compiler flags to guarantee clean, zero-warning production builds on Vercel.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
