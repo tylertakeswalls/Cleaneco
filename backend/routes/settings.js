@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const Setting = require('../models/Setting');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
 const router = express.Router();
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -56,8 +58,22 @@ router.post('/tos/upload', upload.single('tosPdf'), async (req, res) => {
     
     uploadStream.end(req.file.buffer);
 
-    uploadStream.on('finish', () => {
-      res.json({ success: true, message: 'TOS PDF uploaded successfully' });
+    uploadStream.on('finish', async () => {
+      try {
+        const users = await User.find({ role: 'client' });
+        const notifications = users.map(user => ({
+          user_id: user._id,
+          message: 'The Terms and Conditions have been updated.',
+          details: 'Please check the Resources section to view the updated terms.'
+        }));
+        if (notifications.length > 0) {
+          await Notification.insertMany(notifications);
+        }
+        res.json({ success: true, message: 'TOS PDF uploaded successfully and users notified.' });
+      } catch (err) {
+        console.error('Error notifying users:', err);
+        res.json({ success: true, message: 'TOS PDF uploaded successfully but failed to notify users.' });
+      }
     });
     
     uploadStream.on('error', (err) => {

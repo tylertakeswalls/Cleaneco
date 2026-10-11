@@ -157,8 +157,15 @@ function Header() {
           <li className="nav-item">
             <Link className={`nav-link ${location.pathname === '/client/contact' || location.pathname === '/contact' ? 'active' : ''}`} to="/client/contact">Contact Us</Link>
           </li>
-          <li className="nav-item">
-            <Link className={`nav-link ${location.pathname === '/resources' ? 'active' : ''}`} to="/resources">Resources</Link>
+          <li className="nav-item dropdown">
+            <button className="nav-link dropdown-toggle btn btn-link text-decoration-none" id="resourcesDropdownClient" data-bs-toggle="dropdown">
+              Resources
+            </button>
+            <div className="dropdown-menu">
+              <Link className="dropdown-item" to="/resources">General Resources</Link>
+              <div className="dropdown-divider"></div>
+              <a className="dropdown-item" href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer">Terms of Service</a>
+            </div>
           </li>
         </>
       );
@@ -177,7 +184,14 @@ function Header() {
         </li>
         <li className="nav-item"><Link className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} to="/about">About Us</Link></li>
         <li className="nav-item"><Link className={`nav-link ${location.pathname === '/contact' ? 'active' : ''}`} to="/contact">Contact Us</Link></li>
-        <li className="nav-item"><Link className={`nav-link ${location.pathname === '/resources' ? 'active' : ''}`} to="/resources">Resources</Link></li>
+        <li className="nav-item dropdown">
+          <button className="nav-link dropdown-toggle btn btn-link text-decoration-none" id="resourcesDropdown" data-bs-toggle="dropdown">Resources</button>
+          <div className="dropdown-menu">
+            <Link className="dropdown-item" to="/resources">General Resources</Link>
+            <div className="dropdown-divider"></div>
+            <a className="dropdown-item" href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer">Terms of Service</a>
+          </div>
+        </li>
       </>
     );
   };

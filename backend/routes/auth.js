@@ -29,7 +29,7 @@ const loginLimiter = rateLimit({
 
 router.post('/register', async (req, res) => {
   try {
-    const { password, email, firstName, middleName, lastName, phone, address, gender, dateOfBirth } = req.body;
+    const { password, email, firstName, middleName, lastName, phone, address, gender, dateOfBirth, clientType, companyName } = req.body;
     let username = req.body.username || email; // Fallback to email if no username
 
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
@@ -57,6 +57,8 @@ router.post('/register', async (req, res) => {
       address,
       gender,
       date_of_birth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      clientType: clientType || 'residential',
+      companyName,
       verificationToken
     });
 
@@ -103,6 +105,19 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Please verify your email address to log in.', notVerified: true, email: user.email });
     }
 
+    const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
+    if (user.last_login && (Date.now() - new Date(user.last_login).getTime()) > ONE_YEAR) {
+      user.inactive = true;
+    }
+
+    if (user.inactive) {
+      if (user.isModified('inactive')) await user.save();
+      return res.status(403).json({ success: false, message: 'Account is inactive.', inactive: true });
+    }
+
+    user.last_login = Date.now();
+    await user.save();
+
     if (!process.env.JWT_SECRET) {
       console.error('CRITICAL: JWT_SECRET environment variable is missing.');
       return res.status(500).json({ success: false, message: 'Server configuration error' });
@@ -126,6 +141,8 @@ router.post('/login', loginLimiter, async (req, res) => {
         middle_name: user.middle_name,
         last_name: user.last_name,
         profile_picture: user.profile_picture,
+        clientType: user.clientType,
+        companyName: user.companyName,
         role: user.role
       }
     });

@@ -8,6 +8,10 @@ import AlertModal from '../components/AlertModal';
 import { formatDate, getStatusClass } from '../utils/helpers';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import reportHeaderImg from '../assets/styles/images/report_header.png';
+import { formatName } from '../utils/formatName';
 
 function OrderDatabase() {
   const confirm = useConfirm();
@@ -22,6 +26,11 @@ function OrderDatabase() {
     misc_fee: '', internal_notes: ''
   });
   const [activeTab, setActiveTab] = useState('details');
+  const [quotationForm, setQuotationForm] = useState({
+    estimate_inputs: {},
+    discount_amount: 0,
+    justifications: {}
+  });
   const [quotationFile, setQuotationFile] = useState(null);
   const [serviceReportFile, setServiceReportFile] = useState(null);
   
@@ -29,6 +38,7 @@ function OrderDatabase() {
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [services, setServices] = useState([]);
   const [truckTeams, setTruckTeams] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -46,7 +56,7 @@ function OrderDatabase() {
 
   const calculateRevenue = (ordersData) => {
     const total = ordersData.reduce((sum, order) => {
-      const price = parseFloat(order.price) || 0;
+      const price = parseFloat(order.has_final_price ? order.final_price : order.price) || 0;
       return order.status === 'Completed' ? sum + price : sum;
     }, 0);
     setTotalRevenue(total);
@@ -90,10 +100,15 @@ function OrderDatabase() {
     
     const loadData = async () => {
       try {
-        const [ordersRes, settingsRes] = await Promise.all([
+        const [ordersRes, settingsRes, servicesRes] = await Promise.all([
           api.get('/orders'),
-          api.get('/settings/truck-teams').catch(() => ({ data: { truck_teams: [] } }))
+          api.get('/settings/truck-teams').catch(() => ({ data: { truck_teams: [] } })),
+          api.get('/services').catch(() => ({ data: [] }))
         ]);
+        
+        if (servicesRes.data) {
+          setServices(servicesRes.data);
+        }
         
         if (settingsRes.data && settingsRes.data.truck_teams) {
           setTruckTeams(settingsRes.data.truck_teams);
@@ -101,18 +116,19 @@ function OrderDatabase() {
 
         const grouped = ordersRes.data.reduce((acc, order) => {
           if (!acc[order.order_id]) {
-            acc[order.order_id] = { ...order, service_names: [], total_price: 0, first_id: order.id };
+            acc[order.order_id] = { ...order, service_names: [], service_ids: [], first_id: order.id };
           }
           acc[order.order_id].service_names.push(order.service_name || order.service_type);
-          acc[order.order_id].total_price += parseFloat(order.price || 0);
+          if (order.service_id && !acc[order.order_id].service_ids.includes(order.service_id)) {
+            acc[order.order_id].service_ids.push(order.service_id);
+          }
           return acc;
         }, {});
         
         const groupedOrders = Object.values(grouped).map(o => ({
           ...o,
           id: o.first_id,
-          service_name: o.service_names.join(', '),
-          price: o.total_price > 0 ? o.total_price.toFixed(2) : ''
+          service_name: o.service_names.join(', ')
         }));
 
         setOrders(groupedOrders);
@@ -142,6 +158,11 @@ function OrderDatabase() {
     });
     setQuotationFile(null);
     setServiceReportFile(null);
+    setQuotationForm({
+      estimate_inputs: order.estimate_inputs ? JSON.parse(JSON.stringify(order.estimate_inputs)) : {},
+      discount_amount: order.discount_amount || 0,
+      justifications: order.justifications || {}
+    });
     setActiveTab('details');
   };
 
@@ -154,6 +175,107 @@ function OrderDatabase() {
       ...prev,
       [e.target.name]: e.target.value
     }));
+  };
+
+  const handleQuotationInputChange = (serviceId, field, value) => {
+    setQuotationForm(prev => ({
+      ...prev,
+      estimate_inputs: {
+        ...prev.estimate_inputs,
+        [serviceId]: {
+          ...(prev.estimate_inputs[serviceId] || {}),
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const handleJustificationChange = (serviceId, field, value) => {
+    setQuotationForm(prev => ({
+      ...prev,
+      justifications: {
+        ...prev.justifications,
+        [serviceId]: {
+          ...(prev.justifications[serviceId] || {}),
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const getQuotationSubtotal = () => {
+    if (!editModal.order || !editModal.order.service_ids) return 0;
+    
+    let total = 0;
+    editModal.order.service_ids.forEach(serviceId => {
+      const service = services.find(s => s.id === serviceId || s._id === serviceId);
+      if (service) {
+        const name = service.name.toLowerCase();
+        const inputs = quotationForm.estimate_inputs[serviceId] || {};
+        
+        if (name.includes('siphon') || name.includes('desludg')) {
+            const numTanks = parseInt(inputs.numTanks || 1);
+            const capacityType = parseInt(inputs.capacityType || 1);
+            const accessibility = inputs.accessibility || 'easy';
+            const trips = numTanks * capacityType;
+            let cost = trips * 8000;
+            if (accessibility === 'difficult') {
+                cost += 1500;
+            }
+            total += cost;
+        } else if (name.includes('deep clean') || name.includes('declog')) {
+            const numTanks = parseInt(inputs.numTanks || 1);
+            total += numTanks * 8000;
+        } else {
+            total += service.base_price || 0;
+        }
+      }
+    });
+    return total;
+  };
+
+  const quotationSubtotal = getQuotationSubtotal();
+  const quotationTotal = Math.max(0, quotationSubtotal - (parseFloat(quotationForm.discount_amount) || 0));
+
+  const handleSubmitQuotation = async () => {
+    if (!editModal.order) return;
+    setIsSaving(true);
+    try {
+      const payload = {
+        estimate_inputs: quotationForm.estimate_inputs,
+        justifications: quotationForm.justifications,
+        discount_amount: quotationForm.discount_amount,
+        price: quotationSubtotal,
+        final_price: quotationTotal
+      };
+      const response = await api.post(`/orders/${editModal.order.id}/quotation`, payload);
+      if (response.data.success) {
+        showAlert("Success", "Quotation submitted and sent to client!", "success");
+        
+        const ordersRes = await api.get('/orders');
+        const grouped = ordersRes.data.reduce((acc, order) => {
+          if (!acc[order.order_id]) acc[order.order_id] = { ...order, service_names: [], first_id: order.id };
+          acc[order.order_id].service_names.push(order.service_name || order.service_type);
+
+          return acc;
+        }, {});
+        
+        const groupedOrders = Object.values(grouped).map(o => ({
+          ...o, id: o.first_id, service_name: o.service_names.join(', '), price: o.price
+        }));
+
+        setOrders(groupedOrders);
+        calculateRevenue(groupedOrders);
+        closeEditModal();
+      } else {
+        showAlert("Error", response.data.message || "Failed to submit quotation", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert("Error", "Error submitting quotation.", "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveChangesClick = async () => {
@@ -185,10 +307,7 @@ function OrderDatabase() {
         confirmed_date: editForm.confirmed_date,
         confirmed_time_slot: editForm.confirmed_time_slot,
         truck_team: editForm.truck_team,
-        misc_fee: editForm.misc_fee,
-        internal_notes: editForm.internal_notes,
-        final_price: (editModal.order.base_estimate || 0) + (parseFloat(editForm.misc_fee) || 0),
-        price: (editModal.order.base_estimate || 0) + (parseFloat(editForm.misc_fee) || 0)
+        internal_notes: editForm.internal_notes
       });
 
       // 2. Upload documents if any
@@ -204,18 +323,16 @@ function OrderDatabase() {
       const response = await api.get('/orders');
       const grouped = response.data.reduce((acc, order) => {
         if (!acc[order.order_id]) {
-          acc[order.order_id] = { ...order, service_names: [], total_price: 0, first_id: order.id };
+          acc[order.order_id] = { ...order, service_names: [], first_id: order.id };
         }
         acc[order.order_id].service_names.push(order.service_name || order.service_type);
-        acc[order.order_id].total_price += parseFloat(order.price || 0);
         return acc;
       }, {});
       
       const groupedOrders = Object.values(grouped).map(o => ({
         ...o,
         id: o.first_id,
-        service_name: o.service_names.join(', '),
-        price: o.total_price > 0 ? o.total_price.toFixed(2) : ''
+        service_name: o.service_names.join(', ')
       }));
 
       setOrders(groupedOrders);
@@ -250,17 +367,17 @@ function OrderDatabase() {
         const ordersRes = await api.get('/orders');
         const grouped = ordersRes.data.reduce((acc, order) => {
           if (!acc[order.order_id]) {
-            acc[order.order_id] = { ...order, service_names: [], total_price: 0, first_id: order.id };
+            acc[order.order_id] = { ...order, service_names: [], first_id: order.id };
           }
           acc[order.order_id].service_names.push(order.service_name || order.service_type);
-          acc[order.order_id].total_price += parseFloat(order.price || 0);
+
           return acc;
         }, {});
         const groupedOrders = Object.values(grouped).map(o => ({
           ...o,
           id: o.first_id,
           service_name: o.service_names.join(', '),
-          price: o.total_price > 0 ? o.total_price.toFixed(2) : ''
+          price: o.price
         }));
         setOrders(groupedOrders);
         calculateRevenue(groupedOrders);
@@ -272,6 +389,42 @@ function OrderDatabase() {
     } catch (error) {
       console.error(error);
       showAlert("Error", "Error processing reschedule request.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleVerifyCheque = async (action) => {
+    setIsSaving(true);
+    try {
+      const response = await api.post(`/orders/${editModal.order.id}/verify-cheque`, { action });
+      if (response.data.success) {
+        // Reload orders
+        const ordersRes = await api.get('/orders');
+        const grouped = ordersRes.data.reduce((acc, order) => {
+          if (!acc[order.order_id]) {
+            acc[order.order_id] = { ...order, service_names: [], first_id: order.id };
+          }
+          acc[order.order_id].service_names.push(order.service_name || order.service_type);
+
+          return acc;
+        }, {});
+        const groupedOrders = Object.values(grouped).map(o => ({
+          ...o,
+          id: o.first_id,
+          service_name: o.service_names.join(', '),
+          price: o.price
+        }));
+        setOrders(groupedOrders);
+        calculateRevenue(groupedOrders);
+        closeEditModal();
+        showAlert("Success", `Cheque ${action}d successfully.`, "success");
+      } else {
+        showAlert("Warning", response.data.message || "Failed to process request", "warning");
+      }
+    } catch (error) {
+      console.error(error);
+      showAlert("Error", "Error processing cheque verification.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -325,6 +478,50 @@ function OrderDatabase() {
     return matchType && matchStatus && matchDate;
   });
 
+  const handleDownloadReport = async () => {
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+    
+    const img = new Image();
+    img.src = reportHeaderImg;
+    await new Promise((resolve) => {
+      img.onload = resolve;
+    });
+    
+    doc.addImage(img, 'PNG', 0, 0, 210, 65);
+
+    doc.setFont("times", "bold");
+    doc.setFontSize(12);
+    doc.text("Order Database Report", 14, 75);
+    doc.setFont("times", "normal");
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 82);
+
+    const tableColumn = ["Order ID", "Customer", "Service", "Pref. Date", "Status", "Team", "Price"];
+    const tableRows = [];
+
+    filteredOrders.forEach(order => {
+      const orderData = [
+        order.order_id || '-',
+        formatName(order),
+        order.service_name || order.service_type || '-',
+        formatDate(order.date),
+        order.status || '-',
+        order.truck_team || 'Unassigned',
+        order.price ? order.price.toString() : "-"
+      ];
+      tableRows.push(orderData);
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 90,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: '#0D8D1E' }
+    });
+
+    doc.save(`Order_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div ref={container}>
       <AlertModal 
@@ -372,6 +569,9 @@ function OrderDatabase() {
               onChange={(e) => setFilterDate(e.target.value)}
             />
             <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }} onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
+            <button className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} onClick={handleDownloadReport}>
+              <i className="fas fa-file-pdf me-2"></i> Download Report
+            </button>
           </div>
           
           <div className="table-container">
@@ -405,7 +605,7 @@ function OrderDatabase() {
                   filteredOrders.map((order) => (
                     <tr key={order.id}>
                       <td>{order.order_id}</td>
-                      <td>{order.first_name} {order.last_name}</td>
+                      <td>{formatName(order)}</td>
                       <td>
                         {order.service_name || order.service_type}
                         {order.estimate_inputs && order.estimate_inputs.accessibility === 'difficult' && (
@@ -420,7 +620,7 @@ function OrderDatabase() {
                         )}
                       </td>
                       <td>{order.truck_team || 'Unassigned'}</td>
-                      <td>{order.price ? '₱' + order.price : "-"}</td>
+                      <td>{order.has_final_price ? '₱' + order.final_price : "-"}</td>
                       <td>
                       <button 
                         className="btn-edit" 
@@ -465,6 +665,9 @@ function OrderDatabase() {
                   <button className={`nav-link fw-bold ${activeTab === 'details' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('details')} style={activeTab === 'details' ? { color: '#0D8D1E' } : {}}>Details</button>
                 </li>
                 <li className="nav-item">
+                  <button className={`nav-link fw-bold ${activeTab === 'quotation' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('quotation')} style={activeTab === 'quotation' ? { color: '#0D8D1E' } : {}}>Quotation</button>
+                </li>
+                <li className="nav-item">
                   <button className={`nav-link fw-bold ${activeTab === 'scheduling' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('scheduling')} style={activeTab === 'scheduling' ? { color: '#0D8D1E' } : {}}>Scheduling</button>
                 </li>
                 <li className="nav-item">
@@ -491,36 +694,6 @@ function OrderDatabase() {
                         </select>
                       </div>
 
-                      <div className="form-group mb-3">
-                        <label className="form-label fw-bold small text-muted">Base Estimate (₱)</label>
-                        <input 
-                          type="number" 
-                          className="form-control bg-light border-0 shadow-sm" 
-                          value={editModal.order?.base_estimate || 0} 
-                          readOnly 
-                        />
-                      </div>
-
-                      <div className="form-group mb-3">
-                        <label className="form-label fw-bold small text-muted">Misc Fee (₱)</label>
-                        <input 
-                          type="number" 
-                          name="misc_fee"
-                          className="form-control bg-light border-0 shadow-sm" 
-                          value={editForm.misc_fee} 
-                          onChange={handleEditChange}
-                        />
-                      </div>
-                      
-                      <div className="alert alert-success border-0 shadow-sm p-3 mb-4">
-                        <small className="fw-bold d-block text-success mb-1">Calculated Final Price (+10% Tax):</small>
-                        <h4 className="mb-0 fw-bold text-success">
-                          ₱ {Math.round(((editModal.order?.base_estimate || 0) + Number(editForm.misc_fee)) * 1.10).toLocaleString()}
-                        </h4>
-                        <div className="mt-1 small">
-                          Balance to pay: ₱ {Math.max(0, Math.round(((editModal.order?.base_estimate || 0) + Number(editForm.misc_fee)) * 1.10) - 1100).toLocaleString()}
-                        </div>
-                      </div>
 
                       <div className="form-group mb-3">
                         <label className="form-label fw-bold small text-muted">Client Additional Notes</label>
@@ -560,7 +733,10 @@ function OrderDatabase() {
                       
                       {editModal.order.request_type === 'Reschedule Requested' && editModal.order.reschedule_date && (
                         <div className="alert alert-warning border-0 shadow-sm p-3 mb-4">
-                          <h6 className="fw-bold text-dark mb-2"><i className="fas fa-calendar-alt me-2 text-warning"></i>Reschedule Request Details</h6>
+                          <h6 className="fw-bold text-dark mb-2">
+                            <i className="fas fa-calendar-alt me-2 text-warning"></i>
+                            Reschedule Request Details ({editModal.order.reschedule_target === 'execution' ? 'Service Execution' : 'Site Inspection'})
+                          </h6>
                           <div className="small mb-1"><strong>New Date:</strong> {formatDate(editModal.order.reschedule_date)}</div>
                           <div className="small mb-1"><strong>New Time:</strong> {editModal.order.reschedule_time_slot}</div>
                           <div className="small mb-3"><strong>Reason:</strong> {editModal.order.reschedule_reason}</div>
@@ -575,6 +751,129 @@ function OrderDatabase() {
                           </div>
                         </div>
                       )}
+                      
+                      {editModal.order.payment_method === 'cheque' && (
+                        <div className="alert alert-secondary border-0 shadow-sm p-3 mb-4">
+                          <h6 className="fw-bold text-dark mb-2"><i className="fas fa-money-check-alt me-2 text-primary"></i>Cheque Payment Details</h6>
+                          <div className="small mb-1"><strong>Status:</strong> <span className={`badge ${editModal.order.cheque_status === 'approved' ? 'bg-success' : editModal.order.cheque_status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'}`}>{editModal.order.cheque_status?.replace('_', ' ').toUpperCase()}</span></div>
+                          <div className="small mb-1"><strong>Bank:</strong> {editModal.order.cheque_issuing_bank || editModal.order.cheque_bank_name || 'N/A'}</div>
+                          <div className="small mb-1"><strong>Cheque No:</strong> {editModal.order.cheque_number || 'N/A'}</div>
+                          <div className="small mb-1"><strong>Account Name:</strong> {editModal.order.cheque_payer_name || editModal.order.cheque_account_name || 'N/A'}</div>
+                          <div className="small mb-3"><strong>Amount:</strong> ₱{editModal.order.cheque_amount || '1100'}</div>
+                          
+                          {editModal.order.cheque_image_url && (
+                            <div className="mb-3">
+                              <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editModal.order.cheque_image_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary fw-bold">
+                                <i className="fas fa-image me-1"></i>View Cheque Image
+                              </a>
+                            </div>
+                          )}
+
+                          {editModal.order.cheque_status === 'pending_verification' && (
+                            <div className="d-flex gap-2 pt-2 border-top">
+                              <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => handleVerifyCheque('approve')} disabled={isSaving}>
+                                <i className="fas fa-check me-1"></i>Approve
+                              </button>
+                              <button className="btn btn-danger btn-sm fw-bold w-100" onClick={() => handleVerifyCheque('reject')} disabled={isSaving}>
+                                <i className="fas fa-times me-1"></i>Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'quotation' && (
+                  <div className="row">
+                    <div className="col-md-12">
+                      <div className="alert alert-info border-0 shadow-sm p-3 mb-4 small">
+                        <i className="fas fa-info-circle me-2"></i>
+                        Build the hierarchical quotation based on inspection findings. This will be sent to the client for approval.
+                      </div>
+                      <div className="mb-3 d-flex justify-content-between align-items-center">
+                        <span className="fw-bold text-dark">Quotation Status: </span>
+                        <span className={`badge ${editModal.order.quotation_status === 'Approved' ? 'bg-success' : editModal.order.quotation_status === 'Clarification Requested' ? 'bg-warning text-dark' : editModal.order.quotation_status === 'Client Declined' ? 'bg-danger' : 'bg-secondary'}`}>{editModal.order.quotation_status || 'Pending Inspection'}</span>
+                      </div>
+                      
+                      {editModal.order.service_ids && editModal.order.service_ids.map(serviceId => {
+                        const service = services.find(s => s.id === serviceId || s._id === serviceId);
+                        if (!service) return null;
+                        const name = service.name.toLowerCase();
+                        return (
+                          <div key={serviceId} className="card border-0 shadow-sm mb-4">
+                            <div className="card-header bg-light border-0 py-3">
+                              <h6 className="mb-0 fw-bold text-success">{service.name}</h6>
+                            </div>
+                            <div className="card-body bg-white pt-3 pb-3 px-4">
+                              {name.includes('siphon') || name.includes('desludg') ? (
+                                <>
+                                  <div className="form-group mb-3">
+                                      <label className="form-label small mb-1 fw-bold">Number of Septic Tanks</label>
+                                      <div className="d-flex gap-2">
+                                        <input type="number" className="form-control form-control-sm" style={{flex: 1}} value={quotationForm.estimate_inputs[serviceId]?.numTanks || '1'} onChange={(e) => handleQuotationInputChange(serviceId, 'numTanks', e.target.value)} />
+                                        <input type="text" className="form-control form-control-sm" style={{flex: 2}} placeholder="Reason (e.g. Found hidden tank)" value={quotationForm.justifications[serviceId]?.numTanks || ''} onChange={(e) => handleJustificationChange(serviceId, 'numTanks', e.target.value)} />
+                                      </div>
+                                  </div>
+                                  <div className="form-group mb-3">
+                                      <label className="form-label small mb-1 fw-bold">Estimated Tank Capacity / Type</label>
+                                      <div className="d-flex gap-2">
+                                        <select className="form-select form-select-sm" style={{flex: 1}} value={quotationForm.estimate_inputs[serviceId]?.capacityType || '1'} onChange={(e) => handleQuotationInputChange(serviceId, 'capacityType', e.target.value)}>
+                                            <option value="1">Standard (1 Trip)</option>
+                                            <option value="2">Large (2+ Trips)</option>
+                                        </select>
+                                        <input type="text" className="form-control form-control-sm" style={{flex: 1}} placeholder="Reason" value={quotationForm.justifications[serviceId]?.capacityType || ''} onChange={(e) => handleJustificationChange(serviceId, 'capacityType', e.target.value)} />
+                                      </div>
+                                  </div>
+                                  <div className="form-group mb-0">
+                                      <label className="form-label small mb-1 fw-bold">Site Accessibility</label>
+                                      <div className="d-flex gap-2">
+                                        <select className="form-select form-select-sm" style={{flex: 1}} value={quotationForm.estimate_inputs[serviceId]?.accessibility || 'easy'} onChange={(e) => handleQuotationInputChange(serviceId, 'accessibility', e.target.value)}>
+                                            <option value="easy">Easy (10-20m)</option>
+                                            <option value="difficult">Difficult (Long hoses)</option>
+                                        </select>
+                                        <input type="text" className="form-control form-control-sm" style={{flex: 1}} placeholder="Reason" value={quotationForm.justifications[serviceId]?.accessibility || ''} onChange={(e) => handleJustificationChange(serviceId, 'accessibility', e.target.value)} />
+                                      </div>
+                                  </div>
+                                </>
+                              ) : name.includes('deep clean') || name.includes('declog') ? (
+                                <div className="form-group mb-0">
+                                    <label className="form-label small mb-1 fw-bold">Number of Septic Tanks</label>
+                                    <div className="d-flex gap-2">
+                                      <input type="number" className="form-control form-control-sm" style={{flex: 1}} value={quotationForm.estimate_inputs[serviceId]?.numTanks || '1'} onChange={(e) => handleQuotationInputChange(serviceId, 'numTanks', e.target.value)} />
+                                      <input type="text" className="form-control form-control-sm" style={{flex: 2}} placeholder="Reason" value={quotationForm.justifications[serviceId]?.numTanks || ''} onChange={(e) => handleJustificationChange(serviceId, 'numTanks', e.target.value)} />
+                                    </div>
+                                </div>
+                              ) : (
+                                <div className="text-muted small">Fixed price service (₱{service.base_price || 0}).</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <div className="card shadow-sm border mb-4" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                        <div className="card-body p-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="fw-bold text-secondary">Total (Before Discount):</span>
+                            <span className="fw-bold text-dark">₱{quotationSubtotal.toLocaleString()}</span>
+                          </div>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="fw-bold text-secondary">Discount Applied (₱):</span>
+                            <input type="number" className="form-control form-control-sm text-end shadow-sm" style={{ width: '120px', borderColor: '#86efac' }} value={quotationForm.discount_amount} onChange={(e) => setQuotationForm(prev => ({ ...prev, discount_amount: e.target.value }))} />
+                          </div>
+                          <hr className="my-2" style={{ borderColor: '#86efac' }} />
+                          <div className="d-flex justify-content-between align-items-center mt-2">
+                            <span className="fw-bold text-dark">Final Quotation Total:</span>
+                            <span className="fw-bold" style={{ color: '#166534', fontSize: '1.25rem' }}>₱{quotationTotal.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <button className="btn btn-success w-100 rounded-pill fw-bold shadow-sm p-3 mb-2" onClick={handleSubmitQuotation} disabled={isSaving}>
+                        {isSaving ? 'Submitting...' : 'Send Quotation to Client'}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -582,51 +881,85 @@ function OrderDatabase() {
                 {activeTab === 'scheduling' && (
                   <div className="row">
                     <div className="col-md-12">
-                      <div className="form-group mb-3">
-                        <label className="form-label fw-bold small text-muted">Confirmed Date</label>
-                        <input 
-                          type="date" 
-                          name="confirmed_date"
-                          className="form-control bg-light border-0 shadow-sm" 
-                          value={editForm.confirmed_date}
-                          onChange={handleEditChange}
-                        />
+                      <h6 className="fw-bold text-primary mb-3"><i className="fas fa-search me-2"></i>Inspection Scheduling</h6>
+                      <div className="card shadow-sm border-0 mb-4 bg-light">
+                        <div className="card-body">
+                          <div className="form-group mb-3">
+                            <label className="form-label fw-bold small text-muted">Client Preferred Inspection Date</label>
+                            <input 
+                              type="date" 
+                              className="form-control bg-white border-0 shadow-sm" 
+                              value={editModal.order?.date?.split('T')[0] || ''} 
+                              readOnly
+                            />
+                          </div>
+                          <div className="form-group mb-3">
+                            <label className="form-label fw-bold small text-muted">Confirmed Inspection Date</label>
+                            <input 
+                              type="date" 
+                              name="confirmed_date"
+                              className="form-control bg-white border-0 shadow-sm" 
+                              value={editForm.confirmed_date}
+                              onChange={handleEditChange}
+                            />
+                          </div>
+                          <div className="form-group mb-0">
+                            <label className="form-label fw-bold small text-muted">Confirmed Inspection Time Slot</label>
+                            <input 
+                              type="text" 
+                              name="confirmed_time_slot"
+                              className="form-control bg-white border-0 shadow-sm" 
+                              placeholder="e.g. 08:00 AM - 10:00 AM"
+                              value={editForm.confirmed_time_slot}
+                              onChange={handleEditChange}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="form-group mb-3">
-                        <label className="form-label fw-bold small text-muted">Confirmed Time Slot</label>
-                        <input 
-                          type="text" 
-                          name="confirmed_time_slot"
-                          className="form-control bg-light border-0 shadow-sm" 
-                          placeholder="e.g. 08:00 AM - 10:00 AM"
-                          value={editForm.confirmed_time_slot}
-                          onChange={handleEditChange}
-                        />
-                      </div>
-                      <div className="form-group mb-3">
-                        <label className="form-label fw-bold small text-muted">Assign Truck Team</label>
-                        <select 
-                          name="truck_team"
-                          className="form-select bg-light border-0 shadow-sm"
-                          value={editForm.truck_team}
-                          onChange={handleEditChange}
-                        >
-                          <option value="">-- Select a Team --</option>
-                          {truckTeams.map(team => (
-                            <option key={team} value={team}>{team}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="form-group mb-3">
-                        <label className="form-label fw-bold small text-muted">Service Date</label>
-                        <input 
-                          type="date" 
-                          className="form-control bg-light border-0 shadow-sm" 
-                          value={editModal.order?.date?.split('T')[0] || ''} 
-                          readOnly
-                        />
-                        <small className="text-muted mt-1 d-block">Client preferred date</small>
-                      </div>
+
+                      {editModal.order.quotation_status === 'Approved' && (
+                        <>
+                          <h6 className="fw-bold text-success mb-3"><i className="fas fa-truck-loading me-2"></i>Service Execution Scheduling</h6>
+                          <div className="card shadow-sm border-success border-opacity-25 mb-4" style={{ backgroundColor: '#f0fdf4' }}>
+                            <div className="card-body">
+                              <div className="form-group mb-3">
+                                <label className="form-label fw-bold small text-secondary">Service Execution Date</label>
+                                <input 
+                                  type="date" 
+                                  className="form-control shadow-sm" 
+                                  value={editModal.order.service_execution_date ? editModal.order.service_execution_date.split('T')[0] : ''} 
+                                  readOnly
+                                />
+                                <small className="text-muted mt-1 d-block">Auto-confirmed by client</small>
+                              </div>
+                              <div className="form-group mb-3">
+                                <label className="form-label fw-bold small text-secondary">Service Execution Time Slot</label>
+                                <input 
+                                  type="text" 
+                                  className="form-control shadow-sm" 
+                                  value={editModal.order.service_execution_time_slot || ''} 
+                                  readOnly
+                                />
+                              </div>
+                              <div className="form-group mb-0">
+                                <label className="form-label fw-bold small text-secondary">Assign Truck Team</label>
+                                <select 
+                                  name="truck_team"
+                                  className="form-select shadow-sm border-success"
+                                  value={editForm.truck_team}
+                                  onChange={handleEditChange}
+                                >
+                                  <option value="">-- Select a Team --</option>
+                                  {truckTeams.map(team => (
+                                    <option key={team} value={team}>{team}</option>
+                                  ))}
+                                </select>
+                                <small className="text-muted mt-1 d-block">Assign a team to deploy on the execution date.</small>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -692,6 +1025,7 @@ function OrderDatabase() {
                 className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
                 onClick={handleSaveChangesClick}
                 disabled={isSaving}
+                style={{ display: activeTab === 'quotation' ? 'none' : 'block' }}
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>

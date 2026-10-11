@@ -19,7 +19,8 @@ function OrderForm() {
         service_ids: [],
         date: '',
         timeSlot: '',
-        notes: ''
+        notes: '',
+        clientType: 'residential'
     });
     // eslint-disable-next-line no-unused-vars
     const [sitePhoto, setSitePhoto] = useState(null);
@@ -31,6 +32,14 @@ function OrderForm() {
     // Payment specific state
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    const [paymentMethod, setPaymentMethod] = useState('paymongo');
+    const [chequeFile, setChequeFile] = useState(null);
+    const [chequeDetails, setChequeDetails] = useState({
+        bankName: '',
+        chequeNumber: '',
+        accountName: ''
+    });
 
     // Estimate state
     const [estimateInputs, setEstimateInputs] = useState({});
@@ -91,7 +100,8 @@ function OrderForm() {
                             lastName: response.data.last_name || '',
                             email: response.data.email || userEmail,
                             phone: response.data.phone || '',
-                            address: response.data.address || ''
+                            address: response.data.address || '',
+                            clientType: response.data.clientType || 'residential'
                         }));
                         return;
                     }
@@ -209,7 +219,14 @@ function OrderForm() {
 
 
 
-    const handlePayMongoSubmit = async () => {
+    const handlePaymentSubmit = async () => {
+        if (paymentMethod === 'cheque') {
+            if (!chequeDetails.bankName || !chequeDetails.chequeNumber || !chequeDetails.accountName || !chequeFile) {
+                showAlert("Missing Fields", "Please provide all cheque details and upload an image.", "warning");
+                return;
+            }
+        }
+
         setIsSubmitting(true);
         try {
             const submitData = new FormData();
@@ -230,17 +247,35 @@ function OrderForm() {
             if (sitePhoto) {
                 submitData.append('site_photo', sitePhoto);
             }
+            
+            submitData.append('payment_method', paymentMethod);
+            if (paymentMethod === 'cheque') {
+                submitData.append('cheque_bank_name', chequeDetails.bankName);
+                submitData.append('cheque_number', chequeDetails.chequeNumber);
+                submitData.append('cheque_account_name', chequeDetails.accountName);
+                submitData.append('cheque_amount', 1100);
+                if (chequeFile) {
+                    submitData.append('cheque_image', chequeFile);
+                }
+            }
 
             const response = await api.post('/orders/submit', submitData);
             
-            if (response.data.success && response.data.checkout_url) {
-                window.location.href = response.data.checkout_url;
+            if (response.data.success) {
+                if (paymentMethod === 'cheque') {
+                    showAlert("Success", "Order and Cheque details submitted for verification.", "success");
+                    setShowPaymentModal(false);
+                    setTimeout(() => navigate('/orders'), 2000);
+                } else if (response.data.checkout_url) {
+                    window.location.href = response.data.checkout_url;
+                }
             } else {
                 showAlert("Error", response.data.message || "Could not create payment session", "error");
             }
         } catch (error) {
             console.error('Submit error:', error);
-            showAlert("Error", "Error submitting order or connecting to PayMongo. Please try again.", "error");
+            const errorMsg = error.response?.data?.message || error.message || "Error submitting order or connecting to PayMongo. Please try again.";
+            showAlert("Error", errorMsg, "error");
         } finally {
             setIsSubmitting(false);
         }
@@ -264,15 +299,83 @@ function OrderForm() {
                         </div>
                         <div className="modal-body text-center p-4">
                             <p className="text-muted mb-3">To secure your booking, a reservation fee of <strong>₱1,100</strong> is required.</p>
-                            <img src={paymongoLogo} alt="PayMongo Options" className="img-fluid mb-4 px-2" style={{ width: '100%', objectFit: 'contain' }} />
-                            <div className="alert alert-info text-start small mb-4" role="alert">
-                                <i className="fas fa-info-circle me-2"></i>
-                                <strong>Instructions:</strong> Please click the button below to pay securely via PayMongo. You can use credit/debit cards, GCash, or Maya. This ₱1000 fee (plus 10% tax) will be deducted from your final bill.
-                            </div>
+                            
+                            {(formData.clientType === 'commercial' || formData.clientType === 'industrial') && (
+                                <div className="mb-4">
+                                    <div className="d-flex gap-3 justify-content-center">
+                                        <div 
+                                            className="card flex-grow-1 p-3 text-center border-2 shadow-sm"
+                                            style={{
+                                                cursor: 'pointer', 
+                                                transition: 'all 0.2s ease', 
+                                                borderColor: paymentMethod === 'paymongo' ? '#0D8D1E' : '#e2e8f0', 
+                                                backgroundColor: paymentMethod === 'paymongo' ? '#f0fdf4' : '#fff',
+                                                transform: paymentMethod === 'paymongo' ? 'translateY(-2px)' : 'none'
+                                            }}
+                                            onClick={() => setPaymentMethod('paymongo')}
+                                        >
+                                            <i className="fas fa-credit-card mb-2 fs-3" style={{color: paymentMethod === 'paymongo' ? '#0D8D1E' : '#94a3b8'}}></i>
+                                            <div className="fw-bold" style={{color: paymentMethod === 'paymongo' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem'}}>Online Payment</div>
+                                        </div>
+                                        
+                                        <div 
+                                            className="card flex-grow-1 p-3 text-center border-2 shadow-sm"
+                                            style={{
+                                                cursor: 'pointer', 
+                                                transition: 'all 0.2s ease', 
+                                                borderColor: paymentMethod === 'cheque' ? '#0D8D1E' : '#e2e8f0', 
+                                                backgroundColor: paymentMethod === 'cheque' ? '#f0fdf4' : '#fff',
+                                                transform: paymentMethod === 'cheque' ? 'translateY(-2px)' : 'none'
+                                            }}
+                                            onClick={() => setPaymentMethod('cheque')}
+                                        >
+                                            <i className="fas fa-money-check-alt mb-2 fs-3" style={{color: paymentMethod === 'cheque' ? '#0D8D1E' : '#94a3b8'}}></i>
+                                            <div className="fw-bold" style={{color: paymentMethod === 'cheque' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem'}}>Cheque Verification</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {paymentMethod === 'paymongo' ? (
+                                <>
+                                    <img src={paymongoLogo} alt="PayMongo Options" className="img-fluid mb-4 px-2" style={{ width: '100%', objectFit: 'contain' }} />
+                                    <div className="alert alert-info text-start small mb-4" role="alert">
+                                        <i className="fas fa-info-circle me-2"></i>
+                                        <strong>Instructions:</strong> Please click the button below to pay securely via PayMongo. You can use credit/debit cards, GCash, or Maya. This ₱1000 fee (plus 10% tax) will be deducted from your final bill.
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-start mt-3 mb-4">
+                                    <div className="alert alert-warning small mb-3">
+                                        <i className="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>Note:</strong> Cheque payments require manual verification by our staff. The required amount is fixed to <strong>₱1,100</strong>.
+                                    </div>
+                                    <div className="form-group mb-2">
+                                        <label className="form-label small fw-bold">Bank Name</label>
+                                        <input type="text" className="form-control form-control-sm" placeholder="e.g. BDO, BPI" value={chequeDetails.bankName} onChange={(e) => setChequeDetails({...chequeDetails, bankName: e.target.value})} required />
+                                    </div>
+                                    <div className="form-group mb-2">
+                                        <label className="form-label small fw-bold">Cheque Number</label>
+                                        <input type="text" className="form-control form-control-sm" value={chequeDetails.chequeNumber} onChange={(e) => setChequeDetails({...chequeDetails, chequeNumber: e.target.value})} required />
+                                    </div>
+                                    <div className="form-group mb-2">
+                                        <label className="form-label small fw-bold">Account Name</label>
+                                        <input type="text" className="form-control form-control-sm" value={chequeDetails.accountName} onChange={(e) => setChequeDetails({...chequeDetails, accountName: e.target.value})} required />
+                                    </div>
+                                    <div className="form-group mb-2">
+                                        <label className="form-label small fw-bold text-success"><i className="fas fa-camera me-1"></i>Upload Cheque Image</label>
+                                        <input type="file" className="form-control form-control-sm" accept="image/*" onChange={(e) => setChequeFile(e.target.files[0])} required />
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
                         <div className="modal-footer border-0 p-4 pt-0 d-flex flex-column gap-2">
-                            <button type="button" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm" onClick={handlePayMongoSubmit} disabled={isSubmitting}>
-                                <i className="fas fa-credit-card me-2"></i>{isSubmitting ? 'Processing...' : 'Pay with PayMongo (Cards, GCash, Maya)'}
+                            <button type="button" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm" onClick={handlePaymentSubmit} disabled={isSubmitting}>
+                                {paymentMethod === 'paymongo' 
+                                    ? <><i className="fas fa-credit-card me-2"></i>{isSubmitting ? 'Processing...' : 'Pay with PayMongo (Cards, GCash, Maya)'}</>
+                                    : <><i className="fas fa-money-check me-2"></i>{isSubmitting ? 'Submitting...' : 'Submit Cheque for Verification'}</>
+                                }
                             </button>
                             <div className="d-flex w-100 gap-2 mt-2">
                                 <button type="button" className="btn btn-light rounded-pill flex-grow-1 fw-bold" onClick={() => setShowPaymentModal(false)} disabled={isSubmitting}>

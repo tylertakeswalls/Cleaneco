@@ -21,7 +21,7 @@ app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" })); // Allow 
 
 // CORS Configuration
 app.use(cors({
-  origin: ['https://cleaneco-kappa.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
+  origin: ['https://cleaneco-kappa.vercel.app', 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'],
   credentials: true
 }));
 

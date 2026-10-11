@@ -168,10 +168,43 @@
     border-color: #0A6F17 !important;
     color: white !important;
 }
-@media print { body * { visibility: hidden; } #print-receipt, #print-receipt * { visibility: visible; } #print-receipt { position: absolute; left: 0; top: 0; width: 100%; } }
+@media print { body * { visibility: hidden; } #print-receipt, #print-receipt *, #print-billing, #print-billing * { visibility: visible; } #print-receipt, #print-billing { position: absolute; left: 0; top: 0; width: 100%; } }
 
 .glass-modal {
     background-color: transparent !important;
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
 }
+
+.btn-outline-cleaneco {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    border: 1.5px solid #0D8D1E !important;
+    color: #0D8D1E !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.btn-outline-cleaneco:hover {
+    background-color: #0D8D1E !important;
+    border-color: #0D8D1E !important;
+    color: #ffffff !important;
+}
+
+.btn-outline-cleaneco:hover i {
+    color: #ffffff !important;
+}
+
+.btn-outline-cleaneco:focus,
+.btn-outline-cleaneco:active {
+    background-color: #0A6F17 !important;
+    border-color: #0A6F17 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 141, 30, 0.25) !important;
+}
+
+.btn-outline-cleaneco:disabled {
+    opacity: 0.65;
+    cursor: not-allowed !important;
+}
+

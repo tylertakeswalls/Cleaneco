@@ -20,7 +20,9 @@ function Register() {
     dateOfBirth: '',
     username: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    clientType: 'residential',
+    companyName: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -35,7 +37,7 @@ function Register() {
 
   const handleChange = (e) => {
     let { name, value } = e.target;
-    
+
     if (name === 'phone') {
       let digits = value.replace(/\D/g, '');
       if (digits.startsWith('63')) digits = digits.substring(2);
@@ -103,7 +105,7 @@ function Register() {
         setLoading(false);
         return;
       }
-      
+
       if (age < 18) {
         setMessage("You must be at least 18 years old to register.");
         setLoading(false);
@@ -143,11 +145,13 @@ function Register() {
         phone: formData.phone,
         address: fullAddress,
         dateOfBirth: formData.dateOfBirth,
-        password: formData.password
+        password: formData.password,
+        clientType: formData.clientType,
+        companyName: formData.companyName
       };
       const response = await api.post('/auth/register', payload);
       const data = response.data;
-      
+
       if (data.success) {
         setShowSuccessModal(true);
         setTimeout(() => {
@@ -175,9 +179,82 @@ function Register() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* --- Personal Information --- */}
+        {/* --- Account Type --- */}
         <h5 className="mb-3 mt-2 fw-bold border-bottom pb-2" style={{ color: '#0D8D1E' }}>
-          <i className="fas fa-user-circle me-2"></i>Personal Information
+          <i className="fas fa-briefcase me-2"></i>Account Type
+        </h5>
+        <div className="row mb-3">
+          <div className="col-md-12">
+            <div className="d-flex gap-3 justify-content-between">
+              <div
+                className="card flex-grow-1 p-3 text-center border-2 shadow-sm"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  borderColor: formData.clientType === 'residential' ? '#0D8D1E' : '#e2e8f0',
+                  backgroundColor: formData.clientType === 'residential' ? '#f0fdf4' : '#fff',
+                  transform: formData.clientType === 'residential' ? 'translateY(-2px)' : 'none'
+                }}
+                onClick={() => setFormData({ ...formData, clientType: 'residential' })}
+              >
+                <i className="fas fa-home mb-2 fs-3" style={{ color: formData.clientType === 'residential' ? '#0D8D1E' : '#94a3b8' }}></i>
+                <div className="fw-bold" style={{ color: formData.clientType === 'residential' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Residential</div>
+              </div>
+
+              <div
+                className="card flex-grow-1 p-3 text-center border-2 shadow-sm"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  borderColor: formData.clientType === 'commercial' ? '#0D8D1E' : '#e2e8f0',
+                  backgroundColor: formData.clientType === 'commercial' ? '#f0fdf4' : '#fff',
+                  transform: formData.clientType === 'commercial' ? 'translateY(-2px)' : 'none'
+                }}
+                onClick={() => setFormData({ ...formData, clientType: 'commercial' })}
+              >
+                <i className="fas fa-building mb-2 fs-3" style={{ color: formData.clientType === 'commercial' ? '#0D8D1E' : '#94a3b8' }}></i>
+                <div className="fw-bold" style={{ color: formData.clientType === 'commercial' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Commercial</div>
+              </div>
+
+              <div
+                className="card flex-grow-1 p-3 text-center border-2 shadow-sm"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  borderColor: formData.clientType === 'industrial' ? '#0D8D1E' : '#e2e8f0',
+                  backgroundColor: formData.clientType === 'industrial' ? '#f0fdf4' : '#fff',
+                  transform: formData.clientType === 'industrial' ? 'translateY(-2px)' : 'none'
+                }}
+                onClick={() => setFormData({ ...formData, clientType: 'industrial' })}
+              >
+                <i className="fas fa-industry mb-2 fs-3" style={{ color: formData.clientType === 'industrial' ? '#0D8D1E' : '#94a3b8' }}></i>
+                <div className="fw-bold" style={{ color: formData.clientType === 'industrial' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Industrial</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {(formData.clientType === 'commercial' || formData.clientType === 'industrial') && (
+          <div className="row mb-3">
+            <div className="col-md-12">
+              <div className="form-group">
+                <input
+                  type="text"
+                  name="companyName"
+                  className="form-control"
+                  placeholder="Company Name"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- Personal Information --- */}
+        <h5 className="mb-3 mt-4 fw-bold border-bottom pb-2" style={{ color: '#0D8D1E' }}>
+          <i className="fas fa-user-circle me-2"></i>{formData.clientType === 'residential' ? 'Personal Information' : 'Representative Information'}
         </h5>
         <div className="row">
           <div className="col-md-4">
@@ -225,17 +302,23 @@ function Register() {
             <div className="form-group">
               <select
                 name="gender"
-                className="form-control"
+                className="form-select"
                 value={formData.gender}
                 onChange={handleChange}
                 required
-                style={{ color: formData.gender ? '#333' : '#6c757d' }}
+                style={{
+                  color: formData.gender ? '#333' : '#6c757d',
+                  borderRadius: '0',
+                  border: '1px solid #ccc',
+                  height: '45px',
+                  fontSize: '0.9rem',
+                  paddingTop: '0.375rem',
+                  paddingBottom: '0.375rem'
+                }}
               >
-                <option value="">Select Gender</option>
+                <option value="" disabled>Select Gender</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-                <option value="other">Other</option>
-                <option value="prefer-not-to-say">Prefer not to say</option>
               </select>
             </div>
           </div>
@@ -393,7 +476,7 @@ function Register() {
                   minLength="6"
                   style={{ paddingRight: '2.5rem' }}
                 />
-                <span 
+                <span
                   style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 10 }}
                   onClick={() => setShowPassword(!showPassword)}
                 >
@@ -417,7 +500,7 @@ function Register() {
                   minLength="6"
                   style={{ paddingRight: '2.5rem' }}
                 />
-                <span 
+                <span
                   style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 10 }}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
@@ -430,12 +513,12 @@ function Register() {
 
         {/* Terms of Service Section */}
         <div className="form-group text-center mb-3">
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="btn rounded-pill fw-bold"
             onClick={() => { setIsTosModalOpen(true); }}
-            style={{ 
-              transition: 'all 0.3s ease', 
+            style={{
+              transition: 'all 0.3s ease',
               minWidth: '250px',
               backgroundColor: isTosAccepted ? '#0D8D1E' : 'transparent',
               color: isTosAccepted ? 'white' : '#0D8D1E',
@@ -452,8 +535,8 @@ function Register() {
           </div>
         )}
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           className="btn-register-custom"
           disabled={loading}
         >
@@ -468,9 +551,9 @@ function Register() {
       </div>
 
       {/* Terms of Service Modal */}
-      <div 
-        className={`modal fade ${isTosModalOpen ? 'show d-block' : ''} glass-modal`} 
-        style={{ zIndex: 1050 }} 
+      <div
+        className={`modal fade ${isTosModalOpen ? 'show d-block' : ''} glass-modal`}
+        style={{ zIndex: 1050 }}
         tabIndex="-1"
         role="dialog"
       >
@@ -481,11 +564,11 @@ function Register() {
               <button type="button" className="btn-close btn-close-white" onClick={() => setIsTosModalOpen(false)} aria-label="Close"></button>
             </div>
             <div className="modal-body p-0 bg-light" style={{ height: '60vh' }}>
-              <iframe 
-                src={`${api.defaults.baseURL}/settings/tos/pdf`} 
+              <iframe
+                src={`${api.defaults.baseURL}/settings/tos/pdf`}
                 title="Terms and Conditions"
-                width="100%" 
-                height="100%" 
+                width="100%"
+                height="100%"
                 style={{ border: 'none' }}
               >
                 <div className="p-5 text-center">
@@ -499,16 +582,16 @@ function Register() {
             <div className="modal-footer bg-light d-flex flex-column align-items-stretch" style={{ borderTop: 'none', gap: '1rem' }}>
               <div className="d-flex justify-content-center gap-4 py-2 border rounded" style={{ backgroundColor: '#fff', borderColor: '#e2e8f0' }}>
                 <div className="form-check form-check-inline m-0">
-                  <input 
-                    className="form-check-input" 
-                    type="radio" 
-                    name="tosAgreement" 
-                    id="tosAgreeYes" 
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="tosAgreement"
+                    id="tosAgreeYes"
                     value="yes"
                     checked={isTosAccepted === true}
                     onChange={() => {
-                        setIsTosAccepted(true);
-                        setIsTosModalOpen(false);
+                      setIsTosAccepted(true);
+                      setIsTosModalOpen(false);
                     }}
                     style={{ cursor: 'pointer' }}
                   />
@@ -517,11 +600,11 @@ function Register() {
                   </label>
                 </div>
                 <div className="form-check form-check-inline m-0">
-                  <input 
-                    className="form-check-input" 
-                    type="radio" 
-                    name="tosAgreement" 
-                    id="tosAgreeNo" 
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="tosAgreement"
+                    id="tosAgreeNo"
                     value="no"
                     checked={isTosAccepted === false}
                     onChange={() => setIsTosAccepted(false)}
@@ -543,9 +626,9 @@ function Register() {
       </div>
 
       {/* Success Modal */}
-      <div 
-        className={`modal fade ${showSuccessModal ? 'show d-block' : ''} glass-modal`} 
-        style={{ zIndex: 1050 }} 
+      <div
+        className={`modal fade ${showSuccessModal ? 'show d-block' : ''} glass-modal`}
+        style={{ zIndex: 1050 }}
         tabIndex="-1"
       >
         <div className="modal-dialog modal-dialog-centered" role="document">

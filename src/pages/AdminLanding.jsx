@@ -45,7 +45,7 @@ function AdminLanding() {
       const dailyRevenue = allOrders.reduce((acc, order) => {
         if (order.status === "Completed") {
           const d = order.date;
-          const price = parseFloat(order.price) || 0;
+          const price = parseFloat(order.has_final_price ? order.final_price : order.price) || 0;
           acc[d] = (acc[d] || 0) + price;
         }
         return acc;
@@ -157,7 +157,7 @@ function AdminLanding() {
       if (order.status === "Completed" && order.date) {
         const d = new Date(order.date);
         const bucket = getBucket(d);
-        const price = parseFloat(order.price) || 0;
+        const price = parseFloat(order.has_final_price ? order.final_price : order.price) || 0;
         acc[bucket] = (acc[bucket] || 0) + price;
       }
       return acc;

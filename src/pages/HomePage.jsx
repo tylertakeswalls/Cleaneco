@@ -83,13 +83,13 @@ function HomePage() {
               title: "Deep Cleaning",
               image: carousel2,
               description: "Deep cleaning of septic tanks, grease traps, and STP's involves the thorough removal of hardened sludge, grease layers, and solid waste deposits that regular siphoning cannot eliminate.",
-              link: `${servicePrefix}/deep-cleaning`
+              link: `${servicePrefix}/deep-cleaning-declogging`
             },
             {
               title: "Declogging",
               image: carousell7,
               description: "Our declogging service utilizes high-pressure water jetting and mechanical tools to clear obstructions in sewer lines, floor drains, and pipelines. This ensures smooth drainage flow and prevents potential overflows or structural damage.",
-              link: `${servicePrefix}/declogging`
+              link: `${servicePrefix}/deep-cleaning-declogging`
             }
           ].map((service, index) => (
             <div className="card" style={{ width: '18rem' }} key={index}>

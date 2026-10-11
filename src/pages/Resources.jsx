@@ -5,11 +5,17 @@ import doh from '../assets/styles/images/doh.png';
 import denr from '../assets/styles/images/denr.png';
 import lgu from '../assets/styles/images/lgu.png';
 import faq from '../assets/styles/images/faq3.png';
+import AlertModal from '../components/AlertModal';
 
 function Resources() {
   // state for search functionality
   const [searchQuery, setSearchQuery] = useState('');
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: "", message: "", type: "info" });
   const navigate = useNavigate();
+
+  const closeAlert = () => {
+    setModalConfig({ ...modalConfig, isOpen: false });
+  };
 
   // handle search form submission with navigation
   const handleSearch = (e) => {
@@ -17,18 +23,23 @@ function Resources() {
     const query = searchQuery.trim().toLowerCase();
 
     // route to appropriate pages based on search terms
-    if (query.includes('declog')) {
+    if (query.includes('declog') || query.includes('clog') || query.includes('blocked') || query.includes('drain')) {
       navigate('/services/declogging');
-    } else if (query.includes('siphon') || query.includes('desludging')) {
+    } else if (query.includes('siphon') || query.includes('desludg') || query.includes('septic') || query.includes('tank') || query.includes('pump') || query.includes('waste')) {
       navigate('/services/siphoning-desludging');
-    } else if (query.includes('deep')) {
+    } else if (query.includes('deep') || query.includes('clean') || query.includes('grease') || query.includes('wash') || query.includes('trap')) {
       navigate('/services/deep-cleaning');
-    } else if (query.includes('history')) {
+    } else if (query.includes('history') || query.includes('about') || query.includes('who') || query.includes('company')) {
       navigate('/about');
-    } else if (query.includes('location')) {
+    } else if (query.includes('location') || query.includes('map') || query.includes('where') || query.includes('address') || query.includes('contact')) {
       navigate('/map-location');
     } else {
-      alert("No results found for '" + query + "'. Please try searching for 'declogging', 'siphoning', or 'deep cleaning'.");
+      setModalConfig({
+        isOpen: true,
+        title: "No Results",
+        message: "Didn't find what you're looking for? feel free to reach out in our contact us page!",
+        type: "info"
+      });
     }
   };
 
@@ -41,7 +52,15 @@ function Resources() {
   };
 
   return (
-    <main className="container my-5">
+    <>
+      <AlertModal 
+        isOpen={modalConfig.isOpen} 
+        title={modalConfig.title} 
+        message={modalConfig.message} 
+        type={modalConfig.type} 
+        onClose={closeAlert} 
+      />
+      <main className="container my-5">
       {/* page header section */}
       <header className="page-hero text-center mb-5">
         <h2 className="intro-title">FAQs & Compliance</h2>
@@ -211,6 +230,7 @@ function Resources() {
         </div>
       </section>
     </main>
+    </>
   );
 }
 

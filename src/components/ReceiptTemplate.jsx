@@ -38,18 +38,22 @@ const ReceiptTemplate = ({ receiptOrder }) => {
         </thead>
         <tbody>
           <tr>
-            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Base Service Fee</td>
-            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>PHP {parseFloat(receiptOrder.price || 0).toFixed(2)}</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Quotation Total</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>PHP {(receiptOrder.final_price || receiptOrder.price || 0).toFixed(2)}</td>
           </tr>
           <tr>
             <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Service Tax (10%)</td>
-            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>PHP {parseFloat(receiptOrder.tax_amount || (parseFloat(receiptOrder.price || 0) * 0.1)).toFixed(2)}</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>PHP {((receiptOrder.final_price || receiptOrder.price || 0) * 0.1).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Less Reservation Paid</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>-PHP 1100.00</td>
           </tr>
         </tbody>
         <tfoot>
           <tr>
             <td style={{ padding: '8pt', border: '1px solid #ccc', fontWeight: 'bold' }}>Total Paid</td>
-            <td style={{ padding: '8pt', border: '1px solid #ccc', fontWeight: 'bold' }}>PHP {(parseFloat(receiptOrder.price || 0) + parseFloat(receiptOrder.tax_amount || (parseFloat(receiptOrder.price || 0) * 0.1))).toFixed(2)}</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc', fontWeight: 'bold' }}>PHP {(((receiptOrder.final_price || receiptOrder.price || 0) * 1.1) - 1100).toFixed(2)}</td>
           </tr>
         </tfoot>
       </table>

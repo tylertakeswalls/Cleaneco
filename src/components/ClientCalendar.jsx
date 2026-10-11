@@ -77,9 +77,12 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
     // Group bookings by date and slot
     const bookingsByDate = (Array.isArray(availability) ? availability : []).reduce((acc, curr) => {
         const d = curr.date;
-        if (!acc[d]) acc[d] = { total: 0, slots: {} };
+        if (!acc[d]) acc[d] = { total: 0, slots: {}, has_execution: false };
         acc[d].slots[curr.time_slot] = (acc[d].slots[curr.time_slot] || 0) + curr.booking_count;
         acc[d].total += curr.booking_count;
+        if (curr.is_execution) {
+            acc[d].has_execution = true;
+        }
         return acc;
     }, {});
 
@@ -150,7 +153,8 @@ export default function ClientCalendar({ selectedDate, selectedTimeSlot, onSelec
 
                         const dayData = bookingsByDate[dateString];
                         const totalBookings = dayData ? dayData.total : 0;
-                        const isFullyBooked = totalBookings >= 3;
+                        const hasExecution = !!dayData?.has_execution;
+                        const isFullyBooked = totalBookings >= 3 || hasExecution;
                         const isSelected = dateString === selectedDate;
                         const unavailableInfo = unavailableDates.find(u => u.date === dateString);
                         const isBlockedAdmin = !!unavailableInfo;

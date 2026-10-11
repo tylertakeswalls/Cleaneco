@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/auth.css';
 import logocontainer from '../assets/styles/images/logo_container.png';
+import AlertModal from '../components/AlertModal';
 
 function Login() {
   const [formData, setFormData] = useState({ username: '', password: '' });
@@ -12,7 +13,12 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [lockdownTimer, setLockdownTimer] = useState(0);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: "", message: "", type: "info" });
   const navigate = useNavigate();
+
+  const closeAlert = () => {
+    setModalConfig({ ...modalConfig, isOpen: false });
+  };
 
   const handleResendVerification = async () => {
     if (!unverifiedEmail) return;
@@ -71,33 +77,21 @@ function Login() {
       const data = response.data;
       
       if (data.success) {
-        // ALWAYS store in sessionStorage so current tab/process works exactly as expected
-        sessionStorage.setItem("loggedInUser", data.user.username);
-        sessionStorage.setItem("userId", data.user.id);
-        sessionStorage.setItem("userRole", data.user.role);
-        sessionStorage.setItem("userEmail", data.user.email);
-        sessionStorage.setItem("userName", `${data.user.first_name} ${data.user.last_name}`);
-        if (data.user.date_of_birth) {
-          sessionStorage.setItem("userDob", data.user.date_of_birth);
-        }
-        
-        if (data.token) {
-          sessionStorage.setItem("token", data.token);
-        }
+        // Store exactly as before, but with no boilerplate
+        const userKeys = {
+          loggedInUser: data.user.username,
+          userId: data.user.id,
+          userRole: data.user.role,
+          userEmail: data.user.email,
+          userName: `${data.user.first_name} ${data.user.last_name}`,
+          ...(data.user.date_of_birth && { userDob: data.user.date_of_birth }),
+          ...(data.token && { token: data.token })
+        };
 
-        // Store in localStorage persistently so cross-domain redirects (e.g. PayMongo) don't drop the session
-        localStorage.setItem("loggedInUser", data.user.username);
-        localStorage.setItem("userId", data.user.id);
-        localStorage.setItem("userRole", data.user.role);
-        localStorage.setItem("userEmail", data.user.email);
-        localStorage.setItem("userName", `${data.user.first_name} ${data.user.last_name}`);
-        if (data.user.date_of_birth) {
-          localStorage.setItem("userDob", data.user.date_of_birth);
-        }
-        
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
+        Object.entries(userKeys).forEach(([key, value]) => {
+          sessionStorage.setItem(key, value);
+          localStorage.setItem(key, value);
+        });
         
         setMessage("Login successful! Redirecting...");
         
@@ -114,7 +108,14 @@ function Login() {
       }
     } catch (error) {
       console.error("Login error:", error);
-      if (error.response?.data?.locked) {
+      if (error.response?.data?.inactive) {
+        setModalConfig({
+          isOpen: true,
+          title: "Account Inactive",
+          message: "Your account has been marked as inactive due to 1 year of inactivity. Please contact or email the company to reactivate your account.",
+          type: "info"
+        });
+      } else if (error.response?.data?.locked) {
         setLockdownTimer(error.response.data.remainingSeconds || 60);
         setMessage(error.response.data.message);
       } else {
@@ -139,6 +140,13 @@ function Login() {
 
   return (
     <>
+      <AlertModal 
+        isOpen={modalConfig.isOpen} 
+        title={modalConfig.title} 
+        message={modalConfig.message} 
+        type={modalConfig.type} 
+        onClose={closeAlert} 
+      />
       <div className="form-wrapper">
       <div className="form-header">
         <h3>Login</h3>

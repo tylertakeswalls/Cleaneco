@@ -43,6 +43,25 @@
     transform: translateY(-1px);
 }
 
+.btn-reactivate {
+    background-color: #0D8D1E !important;
+    color: white !important;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 0.5rem !important;
+    cursor: pointer;
+    font-size: 0.85rem;
+    min-width: 75px;
+    display: block;
+    margin: 0 auto 6px auto;
+    transition: background-color 0.3s ease;
+}
+
+.btn-reactivate:hover {
+    background-color: #1a6d2f;
+    transform: translateY(-1px);
+}
+
 .status-cell.pending-text { 
     color: orange !important; 
     font-weight: bold !important; 

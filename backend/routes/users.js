@@ -21,28 +21,16 @@ router.put('/:id', async (req, res) => {
 
     const updateData = { ...req.body };
 
-    // If delete was just requested
-    if (updateData.delete_requested === true && !oldUser.delete_requested) {
-      updateData.delete_requested_at = new Date();
-      await new Notification({
-        message: "Account Deletion Requested",
-        details: `User ${oldUser.email} has requested account deletion.`
-      }).save();
-    } else if (updateData.delete_requested === false && oldUser.delete_requested) {
-      // If admin cancels the deletion request
-      updateData.delete_requested_at = null;
-    } else if (!updateData.delete_requested && !oldUser.delete_requested) {
-      const hasProfileChanged =
-        (updateData.phone && updateData.phone !== oldUser.phone) ||
-        (updateData.address && updateData.address !== oldUser.address) ||
-        (updateData.email && updateData.email !== oldUser.email);
+    const hasProfileChanged =
+      (updateData.phone && updateData.phone !== oldUser.phone) ||
+      (updateData.address && updateData.address !== oldUser.address) ||
+      (updateData.email && updateData.email !== oldUser.email);
 
-      if (hasProfileChanged) {
-        await new Notification({
-          message: "Client Profile Updated",
-          details: `User ${oldUser.first_name} ${oldUser.last_name} (${oldUser.email}) updated their contact information.`
-        }).save();
-      }
+    if (hasProfileChanged) {
+      await new Notification({
+        message: "Client Profile Updated",
+        details: `User ${oldUser.first_name} ${oldUser.last_name} (${oldUser.email}) updated their contact information.`
+      }).save();
     }
 
     await User.findByIdAndUpdate(req.params.id, updateData);

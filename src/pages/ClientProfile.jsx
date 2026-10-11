@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/api';
-import { useConfirm } from '../context/ConfirmContext';
-import { useRef } from 'react';
 
 function ClientProfile() {
-  const confirm = useConfirm();
-  const container = useRef();
+
   const [profile, setProfile] = useState({
     username: '',
     first_name: '',
@@ -18,7 +15,8 @@ function ClientProfile() {
     gender: '',
     date_of_birth: '',
     profile_picture: '',
-    delete_requested: false
+    clientType: 'residential',
+    companyName: ''
   });
   
   const [loading, setLoading] = useState(true);
@@ -87,33 +85,13 @@ function ClientProfile() {
     }
   };
 
-  const handleRequestDeletion = async () => {
-    const isConfirmed = await confirm({
-        title: "Confirm Deletion",
-        text: "Are you sure you want to request account deletion?\nAn admin must approve this action. Your account will remain active until approved.",
-        confirmLabel: "Yes, Request Deletion",
-        confirmVariant: "danger"
-    });
-    
-    if (isConfirmed) {
-      try {
-        const res = await api.put(`/users/${userId}`, { delete_requested: true });
-        if (res.data.success) {
-          setProfile({ ...profile, delete_requested: true });
-          setMessage({ type: 'success', text: 'Account deletion requested.' });
-        }
-      } catch (error) {
-        setMessage({ type: 'danger', text: 'Failed to request deletion.' });
-      }
-    }
-  };
 
   if (loading) {
     return <div className="text-center mt-5">Loading profile...</div>;
   }
 
   return (
-    <div ref={container} className="container py-5">
+    <div className="container py-5">
       <div className="row justify-content-center">
         <div className="col-md-8">
           <div className="card glass-panel shadow-sm border-0 glass-panel" style={{ borderRadius: '1rem' }}>
@@ -129,11 +107,6 @@ function ClientProfile() {
                 </div>
               )}
 
-              {profile.delete_requested && (
-                <div className="alert alert-warning text-center fw-bold">
-                  <i className="fas fa-exclamation-triangle me-2"></i> Account deletion is pending admin approval.
-                </div>
-              )}
 
               <form onSubmit={handleSave}>
                 <div className="text-center mb-4">
@@ -195,15 +168,24 @@ function ClientProfile() {
                   <textarea className="form-control" name="address" rows="2" value={profile.address || ''} onChange={handleChange}></textarea>
                 </div>
 
-                <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-danger px-4" 
-                    onClick={handleRequestDeletion}
-                    disabled={profile.delete_requested}
-                  >
-                    <i className="fas fa-trash-alt me-2"></i> {profile.delete_requested ? 'Deletion Pending' : 'Request Account Deletion'}
-                  </button>
+                <div className="row g-3 mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label">Account Type</label>
+                    <select className="form-select" name="clientType" value={profile.clientType || 'residential'} onChange={handleChange}>
+                      <option value="residential">Residential</option>
+                      <option value="commercial">Commercial</option>
+                      <option value="industrial">Industrial</option>
+                    </select>
+                  </div>
+                  {(profile.clientType === 'commercial' || profile.clientType === 'industrial') && (
+                    <div className="col-md-6">
+                      <label className="form-label">Company Name</label>
+                      <input type="text" className="form-control" name="companyName" value={profile.companyName || ''} onChange={handleChange} required />
+                    </div>
+                  )}
+                </div>
+
+                <div className="d-flex justify-content-end mt-4 pt-3 border-top">
                   <button type="submit" className="btn btn-success px-4" disabled={saving}>
                     {saving ? 'Saving...' : <><i className="fas fa-save me-2"></i> Save Changes</>}
                   </button>

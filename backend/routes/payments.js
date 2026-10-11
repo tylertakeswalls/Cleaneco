@@ -159,7 +159,7 @@ router.post('/checkout-final', async (req, res) => {
         const orders = await Order.find({ order_id });
         if (!orders || orders.length === 0) return res.status(404).json({ success: false, message: 'Order not found' });
 
-        const totalFinalPrice = orders.reduce((sum, o) => sum + (o.final_price || 0), 0);
+        const totalFinalPrice = orders[0].final_price || 0;
         if (totalFinalPrice === 0) return res.status(400).json({ success: false, message: 'Final price has not been set yet.' });
 
         const amountToPay = (totalFinalPrice * 1.1) - 1100;

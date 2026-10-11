@@ -5,6 +5,10 @@ import carousel4 from '../assets/styles/images/carousel4.png';
 import AlertModal from '../components/AlertModal';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import reportHeaderImg from '../assets/styles/images/report_header.png';
+import { formatName } from '../utils/formatName';
 
 function AdminUsers() {
   const confirm = useConfirm();
@@ -87,48 +91,57 @@ function AdminUsers() {
     }
   };
 
-  const handleApproveDeletion = async (id) => {
-    const isConfirmed = await confirm({
-      title: "Approve Deletion",
-      text: "Approve account deletion? This will permanently delete the user.",
-      confirmLabel: "Approve",
-      confirmVariant: "danger"
-    });
-
-    if (isConfirmed) {
-        try {
-          const res = await api.delete('/users/' + id);
-          if (res.data.success) {
-            showAlert("Success", "User account deleted successfully.", "success");
-            loadUsers();
-          }
-        } catch (err) {
-          showAlert("Error", "Failed to approve deletion.", "error");
-        }
+  const handleReactivate = async (id) => {
+    try {
+      await api.put('/users/' + id, { inactive: false, last_login: Date.now() });
+      showAlert("Success", "User account reactivated successfully.", "success");
+      loadUsers();
+    } catch (err) {
+      showAlert("Error", "Failed to reactivate user.", "error");
     }
   };
 
-  const handleRejectDeletion = async (id) => {
-    const isConfirmed = await confirm({
-      title: "Reject Deletion",
-      text: "Reject account deletion? The user account will remain active.",
-      confirmLabel: "Reject",
-      confirmVariant: "secondary"
+  const handleDownloadUsersReport = async () => {
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+
+    const img = new Image();
+    img.src = reportHeaderImg;
+    await new Promise((resolve) => {
+      img.onload = resolve;
+    });
+    
+    doc.addImage(img, 'PNG', 0, 0, 210, 65);
+
+    doc.setFont("times", "bold");
+    doc.setFontSize(12);
+    doc.text("Registered Users Report", 14, 75);
+    doc.setFont("times", "normal");
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 82);
+
+    const tableColumn = ["Username", "Name", "Email", "Phone", "Role"];
+    const tableRows = [];
+
+    users.forEach(user => {
+      const userData = [
+        user.username || '-',
+        formatName(user),
+        user.email || '-',
+        user.phone || '-',
+        user.role || '-'
+      ];
+      tableRows.push(userData);
     });
 
-    if (isConfirmed) {
-        try {
-          await api.put('/users/' + id, { delete_requested: false });
-          showAlert("Success", "Account deletion request rejected.", "success");
-          loadUsers();
-        } catch (err) {
-          showAlert("Error", "Failed to reject deletion request.", "error");
-        }
-    }
-  };
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 90,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: '#0D8D1E' }
+    });
 
-  const deletionRequests = users.filter(user => user.delete_requested);
-  const regularUsers = users.filter(user => !user.delete_requested);
+    doc.save(`Registered_Users_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   return (
     <>
@@ -143,48 +156,13 @@ function AdminUsers() {
       <img className="img-fluid banner-img" src={carousel4} alt="Banner" />
 
       <section className="section-bg">
-        <div className="table-box mb-5">
-          <h3 className="text-center text-danger mb-4">Account Deletion Requests</h3>
-
-          <div className="table-container">
-            <table className="table table-bordered text-center mb-0">
-              <thead className="thead-light bg-danger text-white">
-                <tr>
-                  <th>Username</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deletionRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="text-muted py-4">No pending account deletion requests.</td>
-                  </tr>
-                ) : (
-                  deletionRequests.map(user => (
-                    <tr key={user.id}>
-                      <td className="fw-bold">{user.username}</td>
-                      <td>{user.first_name} {user.last_name}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        <button className="btn btn-sm btn-success me-2" onClick={() => handleApproveDeletion(user.id)}>
-                          Approve (Delete)
-                        </button>
-                        <button className="btn btn-sm btn-secondary" onClick={() => handleRejectDeletion(user.id)}>
-                          Reject
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         <div className="table-box">
-          <h3 className="text-center mb-4">Registered Users</h3>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h3 className="m-0">Registered Users</h3>
+            <button className="btn btn-primary d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '40px', background: '#0D8D1E', border: 'none' }} onClick={handleDownloadUsersReport}>
+              <i className="fas fa-file-pdf me-2"></i> Download Report
+            </button>
+          </div>
 
           <div className="table-container">
             <table className="table table-bordered text-center mb-0">
@@ -200,14 +178,14 @@ function AdminUsers() {
               </thead>
 
               <tbody>
-                {regularUsers.length === 0 ? (
+                {users.length === 0 ? (
                   <tr>
                     <td colSpan="6">No users found.</td>
                   </tr>
                 ) : (
-                  regularUsers.map(user => (
-                    <tr key={user.id}>
-                      <td>{user.username}</td>
+                  users.map(user => (
+                    <tr key={user.id} className={user.inactive ? 'table-warning' : ''}>
+                      <td>{user.username} {user.inactive && <span className="badge bg-warning text-dark ms-1">Inactive</span>}</td>
 
                       <td>
                         {editingUser === user.id ? (
@@ -226,7 +204,7 @@ function AdminUsers() {
                             />
                           </>
                         ) : (
-                          `${user.first_name} ${user.last_name}`
+                          formatName(user)
                         )}
                       </td>
 
@@ -269,6 +247,14 @@ function AdminUsers() {
                           </>
                         ) : (
                           <>
+                            {user.inactive ? (
+                              <button
+                                className="btn-reactivate"
+                                onClick={() => handleReactivate(user.id)}
+                              >
+                                Reactivate
+                              </button>
+                            ) : null}
                             <button
                               className="btn-edit"
                               onClick={() => handleEdit(user)}
