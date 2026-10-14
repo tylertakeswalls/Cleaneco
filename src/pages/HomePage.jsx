@@ -1,10 +1,8 @@
 import { Link } from 'react-router-dom';
 import '../assets/styles/homepage.css';
-import carousel5 from '../assets/styles/images/carousel5.png';
-import carousel1 from '../assets/styles/images/carousel1.png';
-import carousel2 from '../assets/styles/images/carousel2.png';
-import carousel4 from '../assets/styles/images/carousel4.png';
-import carousell7 from '../assets/styles/images/carousell7.png';
+import updated_carousel1 from '../assets/styles/images/updated_carousel1.jpg';
+import updated_carousel2 from '../assets/styles/images/updated_carousel2.jpg';
+import updated_carousel3 from '../assets/styles/images/updated_carousel3.jpg';
 import image2 from '../assets/styles/images/2.png';
 import image3 from '../assets/styles/images/3.png';
 import image4 from '../assets/styles/images/4.png';
@@ -31,13 +29,13 @@ function HomePage() {
         </div>
         <div className="carousel-inner">
           <div className="carousel-item active">
-            <img className="d-block w-100" src={carousel5} alt="First slide" />
+            <img className="d-block w-100" src={updated_carousel1} alt="First slide" />
           </div>
           <div className="carousel-item">
-            <img className="d-block w-100" src={carousel1} alt="Second slide" />
+            <img className="d-block w-100" src={updated_carousel2} alt="Second slide" />
           </div>
           <div className="carousel-item">
-            <img className="d-block w-100" src={carousel2} alt="Third slide" />
+            <img className="d-block w-100" src={updated_carousel3} alt="Third slide" />
           </div>
         </div>
         <button className="carousel-control-prev" type="button" data-bs-target="#mainHeroCarousel" data-bs-slide="prev">
@@ -75,19 +73,19 @@ function HomePage() {
           {[
             {
               title: "Siphoning/Desludging",
-              image: carousel4,
+              image: updated_carousel1,
               description: "Siphoning of accumulated sludge and wastewater from the septic tanks, grease traps, and STP's to ensure proper sanitation, prevent overflow, and maintain the efficiency of the wastewater treatment system.",
               link: `${servicePrefix}/siphoning-desludging`
             },
             {
               title: "Deep Cleaning",
-              image: carousel2,
+              image: updated_carousel2,
               description: "Deep cleaning of septic tanks, grease traps, and STP's involves the thorough removal of hardened sludge, grease layers, and solid waste deposits that regular siphoning cannot eliminate.",
               link: `${servicePrefix}/deep-cleaning-declogging`
             },
             {
               title: "Declogging",
-              image: carousell7,
+              image: updated_carousel3,
               description: "Our declogging service utilizes high-pressure water jetting and mechanical tools to clear obstructions in sewer lines, floor drains, and pipelines. This ensures smooth drainage flow and prevents potential overflows or structural damage.",
               link: `${servicePrefix}/deep-cleaning-declogging`
             }

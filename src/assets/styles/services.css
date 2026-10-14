@@ -76,7 +76,7 @@
 }
 
 .service-hero {
-    background-image: url('../styles/images/carousell7.png');
+    background-image: url('../styles/images/updated_carousel1.jpg');
     background-size: cover;
     background-position: center;
     color: white;
@@ -217,13 +217,13 @@
 
 
 .service-hero[data-service="siphoning"] {
-    background-image: url('../styles/images/carousel4.png');
+    background-image: url('../styles/images/updated_carousel1.jpg');
 }
 
 .service-hero[data-service="deepcleaning"] {
-    background-image: url('../styles/images/carousel2.png');
+    background-image: url('../styles/images/updated_carousel2.jpg');
 }
 
 .service-hero[data-service="declogging"] {
-    background-image: url('../styles/images/carousell7.png');
+    background-image: url('../styles/images/updated_carousel3.jpg');
 }

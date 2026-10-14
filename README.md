@@ -228,6 +228,11 @@ This document summarizes the recent features and structural updates implemented 
   - Hardened `src/api/api.js` request interceptor to seamlessly check `localStorage` as a fallback whenever `sessionStorage` is empty, preventing accidental session drops during PayMongo cross-domain checkout redirects.
   - Cleaned dead references and unused compiler flags to guarantee clean, zero-warning production builds on Vercel.
 
+## 34. Homepage & Service Page Asset Updates
+- **Hero Carousel Refresh**: Updated the landing page hero carousel in `HomePage.jsx` to feature refreshed high-definition images (`updated_carousel1.jpg`, `updated_carousel2.jpg`, and `updated_carousel3.jpg`).
+- **Our Services Cards**: Synchronized the service cards on the homepage to display the matching updated imagery for Siphoning/Desludging, Deep Cleaning, and Declogging.
+- **Service Pages Hero Banners**: Updated `services.css` so that the dedicated service pages (`SiphoDeslud.jsx` and `DeepCleaning.jsx`) use the new image assets for their respective hero banner sections.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
