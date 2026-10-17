@@ -3,12 +3,14 @@ import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import logo from '../assets/styles/images/logo_fixed.png';
 import '../assets/styles/admin.css';
+import { getNotificationRoute, getNotificationMeta } from '../utils/notificationRoutes';
 
 export default function AdminLayout() {
   const [userName, setUserName] = useState('Admin');
   const [profilePic, setProfilePic] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [showNotifTray, setShowNotifTray] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   
@@ -38,6 +40,14 @@ export default function AdminLayout() {
     }
 
     loadNotifications();
+    loadUnreadMessages();
+
+    const interval = setInterval(() => {
+      loadUnreadMessages();
+      loadNotifications();
+    }, 8000);
+
+    return () => clearInterval(interval);
   }, [navigate]);
 
   const handleLogout = () => {
@@ -57,6 +67,17 @@ export default function AdminLayout() {
     }
   };
 
+  const loadUnreadMessages = async () => {
+    try {
+      const res = await api.get('/messages/unread-count?role=admin');
+      if (res.data && res.data.success) {
+        setUnreadMessagesCount(res.data.unreadCount || 0);
+      }
+    } catch (err) {
+      console.error("Error loading unread messages count:", err);
+    }
+  };
+
   const handleNotificationClick = async (notif) => {
     if (!notif.is_read) {
       try {
@@ -67,6 +88,10 @@ export default function AdminLayout() {
       }
     }
     setShowNotifTray(false);
+    const targetRoute = getNotificationRoute(notif, true);
+    if (targetRoute) {
+      navigate(targetRoute);
+    }
   };
 
   const handleMarkAllNotificationsRead = async () => {
@@ -91,7 +116,7 @@ export default function AdminLayout() {
         </div>
 
         {showNotifTray && (
-          <div className="card shadow-lg border position-absolute" style={{ top: '100%', right: '0', width: '300px', zIndex: 1050, borderRadius: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
+          <div className="card shadow-lg border position-absolute" style={{ top: '100%', right: '0', width: '350px', zIndex: 1050, borderRadius: '0.75rem', maxHeight: '420px', overflowY: 'auto' }}>
             <div className="card-header bg-white d-flex justify-content-between align-items-center border-bottom py-2">
               <span className="fw-bold text-dark">Notifications</span>
               {unreadCount > 0 && (
@@ -104,14 +129,31 @@ export default function AdminLayout() {
               {notifications.length === 0 ? (
                 <div className="text-center p-3 text-secondary small">No notifications yet.</div>
               ) : (
-                notifications.map(notif => (
-                  <div key={notif.id} className={`list-group-item list-group-item-action p-3 border-bottom d-flex align-items-start gap-2 ${notif.is_read ? '' : 'bg-light'}`} style={{ cursor: 'pointer', borderLeft: notif.is_read ? 'none' : '4px solid #0D8D1E' }} onClick={() => handleNotificationClick(notif)}>
-                    <div className="flex-grow-1">
-                      <div className={`small ${notif.is_read ? 'text-secondary' : 'fw-bold text-dark'}`}>{notif.message}</div>
+                notifications.map(notif => {
+                  const meta = getNotificationMeta(notif);
+                  return (
+                    <div 
+                      key={notif.id} 
+                      className={`list-group-item list-group-item-action p-3 border-bottom d-flex align-items-center gap-2 ${notif.is_read ? '' : 'bg-light'}`} 
+                      style={{ cursor: 'pointer', borderLeft: notif.is_read ? 'none' : '4px solid #0D8D1E', transition: 'background-color 0.15s ease' }} 
+                      onClick={() => handleNotificationClick(notif)}
+                      title="Click to view details"
+                    >
+                      <div 
+                        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: '34px', height: '34px', backgroundColor: meta.iconBg, color: meta.iconColor }}
+                      >
+                        <i className={meta.icon} style={{ fontSize: '0.85rem' }}></i>
+                      </div>
+                      <div className="flex-grow-1 overflow-hidden">
+                        <div className={`small ${notif.is_read ? 'text-secondary' : 'fw-bold text-dark'}`}>{notif.message}</div>
+                        {notif.details && <div className="text-muted text-truncate" style={{ fontSize: '0.75rem', marginTop: '2px' }}>{notif.details}</div>}
+                      </div>
+                      {!notif.is_read && <span className="rounded-circle bg-success flex-shrink-0" style={{ width: '8px', height: '8px' }}></span>}
+                      <i className="fas fa-chevron-right text-muted opacity-50 ms-1 flex-shrink-0" style={{ fontSize: '0.72rem' }}></i>
                     </div>
-                    {!notif.is_read && <span className="rounded-circle bg-success mt-1" style={{ width: '8px', height: '8px', flexShrink: 0 }}></span>}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -193,6 +235,15 @@ export default function AdminLayout() {
             <Link to="/admin" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin' ? '' : 'opacity-75'}`} style={location.pathname === '/admin' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
               <span className="flex-grow-1">Dashboard</span>
               <i className="fas fa-home ms-2"></i>
+            </Link>
+            <Link to="/admin/messages" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/messages' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/messages' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
+              <span className="flex-grow-1">Messages</span>
+              {unreadMessagesCount > 0 && (
+                <span className="badge rounded-pill bg-danger me-2" style={{ fontSize: '0.7rem' }}>
+                  {unreadMessagesCount}
+                </span>
+              )}
+              <i className="fas fa-comments ms-2"></i>
             </Link>
             <Link to="/admin/orders" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/orders' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/orders' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
               <span className="flex-grow-1">All Orders</span>

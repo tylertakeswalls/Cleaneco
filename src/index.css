@@ -3,6 +3,8 @@
 :root {
   --cleaneco-primary: #0D8D1E;
   --cleaneco-primary-hover: #0B7519;
+  --cleaneco-green: #0D8D1E;
+  --cleaneco-hover: #0A6F17;
   --cleaneco-secondary: #095913;
   --cleaneco-bg: #f8fafc;
   --cleaneco-dark: #1e293b;
@@ -42,15 +44,43 @@ body {
 }
 
 .btn-cleaneco {
-  background-color: var(--cleaneco-green) !important;
-  border-color: var(--cleaneco-green) !important;
+  background-color: var(--cleaneco-green, #0D8D1E) !important;
+  border-color: var(--cleaneco-green, #0D8D1E) !important;
   color: white !important;
 }
 
 .btn-cleaneco:hover {
-  background-color: var(--cleaneco-hover) !important;
-  border-color: var(--cleaneco-hover) !important;
+  background-color: var(--cleaneco-hover, #0A6F17) !important;
+  border-color: var(--cleaneco-hover, #0A6F17) !important;
   color: white !important;
+}
+
+.btn-outline-cleaneco {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 1.5px solid #0D8D1E !important;
+  color: #0D8D1E !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.btn-outline-cleaneco:hover {
+  background-color: #0D8D1E !important;
+  border-color: #0D8D1E !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(13, 141, 30, 0.22) !important;
+}
+
+.btn-outline-cleaneco:hover i {
+  color: #ffffff !important;
+}
+
+.btn-outline-cleaneco:focus,
+.btn-outline-cleaneco:active {
+  background-color: #0A6F17 !important;
+  border-color: #0A6F17 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 141, 30, 0.25) !important;
 }
 
 code {

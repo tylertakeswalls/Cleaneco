@@ -5,6 +5,8 @@ const notificationSchema = new mongoose.Schema({
   order_id: { type: String },
   message: { type: String, required: true },
   details: { type: String },
+  type: { type: String, default: null },
+  link: { type: String, default: null },
   is_read: { type: Boolean, default: false }
 }, { timestamps: { createdAt: 'created_at', updatedAt: false } });
 

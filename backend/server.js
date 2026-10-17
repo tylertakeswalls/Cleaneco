@@ -20,16 +20,40 @@ app.use(helmet({
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" })); // Allow images/resources to be served across origins if needed
 
 // CORS Configuration
+const allowedOrigins = [
+  'https://cleaneco-kappa.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002'
+];
+
 app.use(cors({
-  origin: ['https://cleaneco-kappa.vercel.app', 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  max: 3000, // Generous limit for SPAs with real-time polling
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+  skip: (req) => {
+    // Prevent rate limiting from blocking local development or localhost polling
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    return (
+      process.env.NODE_ENV !== 'production' ||
+      ip.includes('127.0.0.1') ||
+      ip.includes('::1') ||
+      ip.includes('localhost')
+    );
+  }
 });
 app.use('/api', limiter);
 
@@ -56,6 +80,7 @@ const reportsRoutes = require('./routes/reports');
 const paymentsRoutes = require('./routes/payments');
 const contactRoutes = require('./routes/contact');
 const unavailableDatesRoutes = require('./routes/unavailableDates');
+const messagesRoutes = require('./routes/messages');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/services', servicesRoutes);
@@ -67,6 +92,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/unavailable-dates', unavailableDatesRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // Error Handling Middleware (must be after all routes)
 const errorHandler = require('./middleware/errorHandler');

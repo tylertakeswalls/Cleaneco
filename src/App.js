@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -24,11 +25,32 @@ import AdminLayout from './components/AdminLayout';
 import AdminProfile from './pages/AdminProfile';
 import ClientProfile from './pages/ClientProfile';
 import ContactUs from './pages/ContactUs';
+import AdminMessages from './pages/AdminMessages';
+import ClientMessages from './pages/ClientMessages';
+import ClientChatWidget from './components/ClientChatWidget';
 import { ConfirmProvider } from './context/ConfirmContext';
+
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const timer = setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [pathname, search]);
+
+  return null;
+}
 
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <ConfirmProvider>
         <Header />
         <Routes>
@@ -48,12 +70,15 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/order" element={<OrderForm />} />
           <Route path="/orders" element={<OngoingOrders />} />
+          <Route path="/messages" element={<ClientMessages />} />
+          <Route path="/client/messages" element={<ClientMessages />} />
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/payment-cancel" element={<PaymentCancel />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminLanding />} />
             <Route path="profile" element={<AdminProfile />} />
+            <Route path="messages" element={<AdminMessages />} />
             <Route path="orders" element={<OrderDatabase />} />
             <Route path="services" element={<ServiceManagement />} />
             <Route path="order-form" element={<OrderForm />} />
@@ -63,6 +88,7 @@ function App() {
 
         </Routes>
         <Footer />
+        <ClientChatWidget />
       </ConfirmProvider>
     </BrowserRouter>
   );

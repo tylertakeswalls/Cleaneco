@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import { formatDate, getStatusClass } from '../utils/helpers';
 import '../assets/styles/ongoingorders.css';
@@ -10,8 +10,10 @@ import ClientCalendar from '../components/ClientCalendar';
 import BillingTemplate from '../components/BillingTemplate';
 
 function OngoingOrders() {
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [highlightedOrderId, setHighlightedOrderId] = useState(null);
   const [selectedBillingOrder, setSelectedBillingOrder] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmData, setConfirmData] = useState({ id: null, type: null });
@@ -319,6 +321,21 @@ function OngoingOrders() {
     loadOrders();
   }, [loggedInUser, navigate, userId]);
 
+  // Auto-expand and scroll to target order when redirected from a notification
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const targetOrderId = params.get('orderId');
+    if (targetOrderId && orders.length > 0) {
+      setHighlightedOrderId(targetOrderId);
+      setTimeout(() => {
+        const el = document.getElementById(`order-card-${targetOrderId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 350);
+    }
+  }, [location.search, orders]);
+
   useEffect(() => {
     if (showConfirmModal || showResultModal || showPaymentModal || showReservationPaymentModal) {
       document.body.classList.add('modal-open');
@@ -383,38 +400,51 @@ function OngoingOrders() {
           <div className="alert alert-info shadow-sm">No ongoing orders found.</div>
         ) : (
           <div className="accordion mb-5 shadow-sm" id="ordersAccordion" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
-            {orders.map((order, index) => (
-              <div className="accordion-item border-0 border-bottom" key={order.id}>
-                <h2 className="accordion-header" id={`heading${order.id}`}>
-                  <button
-                    className={`accordion-button ${index !== 0 ? 'collapsed' : ''} fw-bold`}
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target={`#collapse${order.id}`}
-                    aria-expanded={index === 0 ? "true" : "false"}
-                    aria-controls={`collapse${order.id}`}
-                    style={{ backgroundColor: '#fff', color: '#333', padding: '1.5rem' }}
-                  >
-                    <div className="d-flex justify-content-between align-items-center w-100 me-3">
-                      <div>
-                        <span className="text-muted small d-block mb-1">Order #{order.order_id}</span>
-                        <span className="fs-5 text-success fw-bold">{order.service_names ? order.service_names.join(' & ') : (order.service_name || order.service_type)}</span>
-                      </div>
-                      <div className="text-end">
-                        <span className={`badge rounded-pill ${getStatusClass(order.status)} mb-1 d-block`} style={{ fontSize: '0.85rem' }}>
-                          {order.status}
-                        </span>
-                        <span className="text-muted small fw-medium">{formatDate(order.date)}</span>
-                      </div>
-                    </div>
-                  </button>
-                </h2>
-                <div
-                  id={`collapse${order.id}`}
-                  className={`accordion-collapse collapse ${index === 0 ? 'show' : ''}`}
-                  aria-labelledby={`heading${order.id}`}
-                  data-bs-parent="#ordersAccordion"
+            {orders.map((order, index) => {
+              const isTarget = highlightedOrderId === order.order_id;
+              const isDefaultExpanded = !highlightedOrderId && index === 0;
+              const isExpanded = isTarget || isDefaultExpanded;
+
+              return (
+                <div 
+                  className={`accordion-item border-0 border-bottom ${isTarget ? 'border border-2 border-success shadow-sm' : ''}`} 
+                  id={`order-card-${order.order_id}`}
+                  key={order.id}
+                  style={{ transition: 'all 0.3s ease' }}
                 >
+                  <h2 className="accordion-header" id={`heading${order.id}`}>
+                    <button
+                      className={`accordion-button ${!isExpanded ? 'collapsed' : ''} fw-bold`}
+                      type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target={`#collapse${order.id}`}
+                      aria-expanded={isExpanded ? "true" : "false"}
+                      aria-controls={`collapse${order.id}`}
+                      style={{ backgroundColor: isTarget ? '#F0FDF4' : '#fff', color: '#333', padding: '1.5rem' }}
+                    >
+                      <div className="d-flex justify-content-between align-items-center w-100 me-3">
+                        <div>
+                          <span className="text-muted small d-block mb-1">
+                            Order #{order.order_id}
+                            {isTarget && <span className="badge bg-success ms-2 small">Selected Order</span>}
+                          </span>
+                          <span className="fs-5 text-success fw-bold">{order.service_names ? order.service_names.join(' & ') : (order.service_name || order.service_type)}</span>
+                        </div>
+                        <div className="text-end">
+                          <span className={`badge rounded-pill ${getStatusClass(order.status)} mb-1 d-block`} style={{ fontSize: '0.85rem' }}>
+                            {order.status}
+                          </span>
+                          <span className="text-muted small fw-medium">{formatDate(order.date)}</span>
+                        </div>
+                      </div>
+                    </button>
+                  </h2>
+                  <div
+                    id={`collapse${order.id}`}
+                    className={`accordion-collapse collapse ${isExpanded ? 'show' : ''}`}
+                    aria-labelledby={`heading${order.id}`}
+                    data-bs-parent="#ordersAccordion"
+                  >
                   <div className="accordion-body p-4 bg-light">
 
                     {/* Progress Tracker */}
@@ -714,7 +744,13 @@ function OngoingOrders() {
                       )}
                     </div>
 
-                    <div className="d-flex justify-content-end gap-2 border-top pt-3">
+                    <div className="d-flex justify-content-end gap-2 border-top pt-3 flex-wrap">
+                      <button 
+                        className="btn btn-outline-cleaneco rounded-pill fw-bold shadow-sm" 
+                        onClick={() => navigate(`/client/messages?orderId=${order.order_id || order.id}`)}
+                      >
+                        <i className="fas fa-comment-dots me-1"></i> Message Support
+                      </button>
                       {order.status === 'Completed' && (
                         <button className="btn btn-cleaneco rounded-pill fw-bold shadow-sm" onClick={() => generateReceipt(order)}>
                           <i className="fas fa-download me-1"></i> Download Receipt
@@ -729,7 +765,8 @@ function OngoingOrders() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
 

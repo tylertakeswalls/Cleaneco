@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
@@ -45,6 +45,7 @@ function OrderDatabase() {
   const [rejectReasonText, setRejectReasonText] = useState('');
   
   const navigate = useNavigate();
+  const location = useLocation();
 
   const showAlert = (title, message, type = 'info') => {
       setModalConfig({ isOpen: true, title, message, type });
@@ -142,6 +143,18 @@ function OrderDatabase() {
 
     loadData();
   }, [navigate]);
+
+  // Auto-open Manage modal when redirected from a notification with orderId
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const targetOrderId = params.get('orderId');
+    if (targetOrderId && orders.length > 0) {
+      const match = orders.find(o => String(o.order_id).toLowerCase() === targetOrderId.toLowerCase());
+      if (match) {
+        openEditModal(match);
+      }
+    }
+  }, [location.search, orders]);
 
   const openEditModal = (order) => {
     setEditModal({ show: true, order });

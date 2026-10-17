@@ -813,6 +813,36 @@ router.post('/:id/quotation/respond', async (req, res) => {
     }
 
     await Order.updateMany({ order_id: order.order_id }, { $set: updateData });
+
+    // Trigger Admin Notification for Quotation Response
+    try {
+      const clientName = `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Client';
+      let notifTitle = '';
+      let notifDetails = '';
+
+      if (response === 'clarify') {
+        notifTitle = `Clarification Requested: Order #${order.order_id}`;
+        notifDetails = `Client ${clientName} requested clarification on the quotation for #${order.order_id}.`;
+      } else if (response === 'approve') {
+        notifTitle = `Quotation Approved: Order #${order.order_id}`;
+        notifDetails = `Client ${clientName} approved the quotation for #${order.order_id}.`;
+      } else if (response === 'decline') {
+        notifTitle = `Quotation Declined: Order #${order.order_id}`;
+        notifDetails = `Client ${clientName} declined the quotation for #${order.order_id}. Order has been cancelled.`;
+      }
+
+      if (notifTitle) {
+        await new Notification({
+          user_id: null,
+          order_id: order.order_id,
+          message: notifTitle,
+          details: notifDetails
+        }).save();
+      }
+    } catch (notifErr) {
+      console.error('Non-critical error creating quotation response notification:', notifErr);
+    }
+
     res.json({ success: true, message: 'Quotation response submitted successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to submit response: ' + error.message });

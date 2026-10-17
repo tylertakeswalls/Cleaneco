@@ -2,6 +2,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import api from '../api/api';
 import logo from '../assets/styles/images/logo_fixed.png';
+import { getNotificationRoute, getNotificationMeta } from '../utils/notificationRoutes';
 
 function Header() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ function Header() {
   const [profilePic, setProfilePic] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [showNotifTray, setShowNotifTray] = useState(false);
 
   // Update auth state on location change (acting as a listener for login/logout)
@@ -36,18 +38,21 @@ function Header() {
         })
         .catch(err => console.error(err));
 
-      // Poll notifications (lazy fetch once + 60s interval)
+      // Poll notifications and messages (fetch once + interval)
       if (loggedInUser !== 'admin') {
         loadNotifications(userId);
+        loadUnreadMessages(userId);
         const interval = setInterval(() => {
           loadNotifications(userId);
-        }, 60000);
+          loadUnreadMessages(userId);
+        }, 15000);
         return () => clearInterval(interval);
       }
     } else {
       setProfilePic('');
       setNotifications([]);
       setUnreadCount(0);
+      setUnreadMessages(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, loggedInUser]);
@@ -81,6 +86,19 @@ function Header() {
     }
   };
 
+  const loadUnreadMessages = async (uid) => {
+    try {
+      const response = await api.get('/messages/unread-count', {
+        params: { userId: uid, role: 'client' }
+      });
+      if (response.data && response.data.success) {
+        setUnreadMessages(response.data.unreadCount || 0);
+      }
+    } catch (error) {
+      // quiet fail on background polling
+    }
+  };
+
   const handleNotificationClick = async (notif) => {
     if (!notif.is_read) {
       try {
@@ -91,6 +109,10 @@ function Header() {
       }
     }
     setShowNotifTray(false);
+    const targetRoute = getNotificationRoute(notif, false);
+    if (targetRoute) {
+      navigate(targetRoute);
+    }
   };
 
   const handleMarkAllNotificationsRead = async () => {
@@ -140,6 +162,16 @@ function Header() {
           </li>
           <li className="nav-item">
             <Link className={`nav-link ${location.pathname === '/orders' ? 'active' : ''}`} to="/orders">Ongoing Orders</Link>
+          </li>
+          <li className="nav-item">
+            <Link className={`nav-link d-flex align-items-center ${location.pathname === '/client/messages' || location.pathname === '/messages' ? 'active' : ''}`} to="/client/messages">
+              <span>Messages</span>
+              {unreadMessages > 0 && (
+                <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '0.65rem' }}>
+                  {unreadMessages}
+                </span>
+              )}
+            </Link>
           </li>
           <li className="nav-item dropdown">
             <button className="nav-link dropdown-toggle btn btn-link" id="servicesDropdown" data-bs-toggle="dropdown">
@@ -230,15 +262,31 @@ function Header() {
                   {notifications.length === 0 ? (
                     <div className="text-center p-3 text-secondary small">No notifications yet.</div>
                   ) : (
-                    notifications.map(notif => (
-                      <div key={notif.id} className={`list-group-item list-group-item-action p-3 border-bottom d-flex align-items-start gap-2 ${notif.is_read ? '' : 'bg-light'}`} style={{ cursor: 'pointer', borderLeft: notif.is_read ? 'none' : '4px solid #0D8D1E' }} onClick={() => handleNotificationClick(notif)}>
-                        <div className="flex-grow-1">
-                          <div className={`small ${notif.is_read ? 'text-secondary' : 'fw-bold text-dark'}`}>{notif.message}</div>
-                          <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '2px' }}>{notif.details}</div>
+                    notifications.map(notif => {
+                      const meta = getNotificationMeta(notif);
+                      return (
+                        <div 
+                          key={notif.id} 
+                          className={`list-group-item list-group-item-action p-3 border-bottom d-flex align-items-center gap-2 ${notif.is_read ? '' : 'bg-light'}`} 
+                          style={{ cursor: 'pointer', borderLeft: notif.is_read ? 'none' : '4px solid #0D8D1E', transition: 'background-color 0.15s ease' }} 
+                          onClick={() => handleNotificationClick(notif)}
+                          title="Click to view details"
+                        >
+                          <div 
+                            className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                            style={{ width: '34px', height: '34px', backgroundColor: meta.iconBg, color: meta.iconColor }}
+                          >
+                            <i className={meta.icon} style={{ fontSize: '0.85rem' }}></i>
+                          </div>
+                          <div className="flex-grow-1 overflow-hidden">
+                            <div className={`small ${notif.is_read ? 'text-secondary' : 'fw-bold text-dark'}`}>{notif.message}</div>
+                            {notif.details && <div className="text-muted text-truncate" style={{ fontSize: '0.75rem', marginTop: '2px' }}>{notif.details}</div>}
+                          </div>
+                          {!notif.is_read && <span className="rounded-circle bg-success flex-shrink-0" style={{ width: '8px', height: '8px' }}></span>}
+                          <i className="fas fa-chevron-right text-muted opacity-50 ms-1 flex-shrink-0" style={{ fontSize: '0.72rem' }}></i>
                         </div>
-                        {!notif.is_read && <span className="rounded-circle bg-success mt-1" style={{ width: '8px', height: '8px', flexShrink: 0 }}></span>}
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
