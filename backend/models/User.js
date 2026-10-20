@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   last_login: { type: Date, default: Date.now },
   isVerified: { type: Boolean, default: false },
   verificationToken: { type: String },
-  resetPasswordToken: { type: String },
+  resetPasswordToken: { type: String, index: true, sparse: true },
   resetPasswordExpires: { type: Date },
   role: { type: String, enum: ['admin', 'client'], default: 'client' },
   loginAttempts: { type: Number, required: true, default: 0 },

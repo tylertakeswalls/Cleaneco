@@ -227,8 +227,9 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     const cleanUsername = username.trim();
+    const escapedUsername = cleanUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const user = await User.findOne({
-      username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') }
+      username: { $regex: new RegExp(`^${escapedUsername}$`, 'i') }
     });
 
     if (!user) {
@@ -246,7 +247,8 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken = resetToken;
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
@@ -277,8 +279,9 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
     }
 
+    const hashedIncoming = crypto.createHash('sha256').update(token).digest('hex');
     const user = await User.findOne({
-      resetPasswordToken: token,
+      resetPasswordToken: hashedIncoming,
       resetPasswordExpires: { $gt: Date.now() }
     });
 
