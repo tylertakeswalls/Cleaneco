@@ -233,6 +233,53 @@ This document summarizes the recent features and structural updates implemented 
 - **Our Services Cards**: Synchronized the service cards on the homepage to display the matching updated imagery for Siphoning/Desludging, Deep Cleaning, and Declogging.
 - **Service Pages Hero Banners**: Updated `services.css` so that the dedicated service pages (`SiphoDeslud.jsx` and `DeepCleaning.jsx`) use the new image assets for their respective hero banner sections.
 
+## 35. Real-Time Client/Admin Messaging Hub & Interactive Notifications
+- **Integrated Communication Suite**:
+  - Implemented full-stack messaging between clients and administrative staff via `ClientChatWidget.jsx`, `ClientMessages.jsx`, and `AdminMessages.jsx`.
+  - Supports conversation threads tied to orders or general service inquiries, complete with unread badge indicators and real-time polling.
+- **Interactive Notification Routing**:
+  - Upgraded notification toasts so clicking a notification navigates directly to the target order and automatically opens the drawer to the relevant tab (`details`, `quotation`, `scheduling`, or `documents`).
+- **Quotation Clarification Integration**:
+  - Client clarification requests automatically generate and link into a dedicated message conversation thread, facilitating seamless negotiations.
+
+## 36. Business Rules 1–4, Dynamic Fleet Availability & 2-Truck Auto-Pairing
+- **Rule 1: High-Capacity & Trip Estimation**:
+  - Implemented automatic trip calculation based on tank capacity and accessibility. Orders requiring 5 or more trips are automatically designated as **Whole-Day Lock orders** requiring deployment of 2 operational vacuum trucks.
+- **Rule 2: Fleet Management & 2-Truck Auto-Pairing**:
+  - Added operational status toggles in **Admin Settings** (`available` vs. `unavailable - maintenance`) for fleet management.
+  - Automatically auto-pairs the two available operational trucks when managing high-capacity orders.
+- **Rule 3: Quotation Clarification & Negotiation**:
+  - Formalized the quotation clarification flow with real-time alerts and state transitions.
+- **Rule 4: Client-Side Final Billing Report & PO Removal**:
+  - Clients dynamically generate and print official itemized Final Billing Statements with electronic signatures, eliminating redundant administrative quotation uploads.
+- **UI Currency Formatting**: Standardized currency symbols (`₱`) across all admin calendar tools and order management dashboards.
+
+## 37. Automated Forgot & Reset Password Flow with Cryptographic Security
+- **Token Security & Cryptographic Hashing**:
+  - Generates 256-bit cryptographic tokens via Node's `crypto.randomBytes(32)`.
+  - In line with OWASP security recommendations, tokens are **hashed with SHA-256** prior to database insertion in MongoDB (`User.resetPasswordToken`) with a sparse index and strict 1-hour expiration timestamp.
+  - Username queries are sanitized against regex special characters to prevent ReDoS.
+- **Cloud Email Dispatch**:
+  - Delivers branded password reset templates via cloud **EmailJS** (`template_ns5zlcs`) with dynamic production URL resolution (`https://cleaneco-kappa.vercel.app/reset-password?token=...`).
+- **Account Recovery & Audit Trail**:
+  - Resetting passwords hashes inputs via bcrypt (10 rounds), resets failed login attempts (`loginAttempts: 0`), clears lockout flags, and writes an in-app audit notification.
+- **Unified UI**:
+  - Polished Forgot Password modal in `Login.jsx` matching system design tokens, and created dedicated `ResetPassword.jsx` page with accessible form controls and password visibility toggles.
+
+## 38. Admin Order State Normalization & Bug Resolution
+- **Centralized Order Pipeline (`processGroupedOrders`)**:
+  - Refactored 5 fragmented and duplicated `.reduce()` mutations in `OrderDatabase.jsx` into a centralized, top-level pure function.
+  - Resolved the bug where confirming an inspection schedule wiped out `service_ids` in React state, restoring immediate rendering of the Quotation Builder cards without requiring manual browser reloads.
+  - Added defensive fallback logic in `openEditModal` and the Quotation tab render.
+
+## 39. Government Compliance Expansion: PCAPI R4A Accreditation
+- **PCAPI R4A Integration**:
+  - Added the **Pollution Control Association of the Philippines (PCAPI Region IV-A Chapter)** accreditation card to `Resources.jsx`, highlighting Cleaneco's commitment to continuous accredited DENR-EMB training for Pollution Control Officers.
+- **Responsive 4-Column Layout**:
+  - Upgraded compliance cards to `col-lg-3 col-md-6 mb-4`, rendering 4 side-by-side cards on desktop, an even 2×2 grid on tablets/half-screen, and a single column on mobile.
+- **Equalized CSS Baselines**:
+  - Enforced normalized logo image constraints (`height: 75px; object-fit: contain;`) and flexbox heading alignments (`min-height: 3.2rem;`) in `resources.css` for visual harmony.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
