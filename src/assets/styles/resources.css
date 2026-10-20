@@ -149,6 +149,8 @@
     box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.05);
     transition: transform 0.3s, box-shadow 0.3s;
     height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .compliance-logo-box:hover {
@@ -157,9 +159,20 @@
 }
 
 .compliance-logo-box img {
-    max-height: 80px;
+    height: 75px;
+    max-height: 75px;
+    object-fit: contain;
     width: auto;
-    margin-bottom: 1rem;
+    margin: 0 auto 1rem auto;
+}
+
+.compliance-logo-box h4 {
+    font-size: 1.15rem;
+    line-height: 1.4;
+    min-height: 3.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .permits-grid {

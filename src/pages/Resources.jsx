@@ -4,6 +4,7 @@ import '../assets/styles/resources.css';
 import doh from '../assets/styles/images/doh.png';
 import denr from '../assets/styles/images/denr.png';
 import lgu from '../assets/styles/images/lgu.png';
+import pcapi from '../assets/styles/images/PCAPI-IV-A-LOGO-V2.png';
 import faq from '../assets/styles/images/faq3.png';
 import AlertModal from '../components/AlertModal';
 
@@ -77,7 +78,7 @@ function Resources() {
         </p>
         <div className="row">
           {/* denr compliance box */}
-          <div className="col-md-4 mb-4">
+          <div className="col-lg-3 col-md-6 mb-4">
             <div className="compliance-logo-box">
               <img src={denr} alt="DENR Logo" className="img-fluid" />
               <h4 className="text-success font-weight-bold mb-3">Department of Environment and Natural Resources (DENR)</h4>
@@ -87,7 +88,7 @@ function Resources() {
             </div>
           </div>
           {/* doh compliance box */}
-          <div className="col-md-4 mb-4">
+          <div className="col-lg-3 col-md-6 mb-4">
             <div className="compliance-logo-box">
               <img src={doh} alt="DOH Logo" className="img-fluid" />
               <h4 className="text-success font-weight-bold mb-3">Department of Health (DOH)</h4>
@@ -97,12 +98,22 @@ function Resources() {
             </div>
           </div>
           {/* lgu compliance box */}
-          <div className="col-md-4 mb-4">
+          <div className="col-lg-3 col-md-6 mb-4">
             <div className="compliance-logo-box">
               <img src={lgu} alt="LGU Logo" className="img-fluid" />
               <h4 className="text-success font-weight-bold mb-3">Local Government Unit (LGU)</h4>
               <p className="text-muted small mb-0">
                 We are fully licensed and accredited by the local government units where we operate. This local partnership validates our operational legitimacy and ensures we contribute positively to local waste management programs and community health.
+              </p>
+            </div>
+          </div>
+          {/* pcapi compliance box */}
+          <div className="col-lg-3 col-md-6 mb-4">
+            <div className="compliance-logo-box">
+              <img src={pcapi} alt="PCAPI R4A Logo" className="img-fluid" />
+              <h4 className="text-success font-weight-bold mb-3">Pollution Control Association of the Philippines (PCAPI R4A)</h4>
+              <p className="text-muted small mb-0">
+                Our active engagement with PCAPI Region IV-A Chapter ensures our technical personnel and Pollution Control Officers undergo continuous accredited DENR-EMB training. This partnership guarantees strict adherence to emerging environmental policies and sustainable, high-standard waste management operations.
               </p>
             </div>
           </div>

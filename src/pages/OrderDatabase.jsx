@@ -13,6 +13,32 @@ import autoTable from 'jspdf-autotable';
 import reportHeaderImg from '../assets/styles/images/report_header.png';
 import { formatName } from '../utils/formatName';
 
+const processGroupedOrders = (rawOrders) => {
+  const grouped = rawOrders.reduce((acc, order) => {
+    if (!acc[order.order_id]) {
+      acc[order.order_id] = {
+        ...order,
+        service_names: [],
+        service_ids: [],
+        first_id: order.id || order._id
+      };
+    }
+    acc[order.order_id].service_names.push(order.service_name || order.service_type);
+    const sId = (order.service_id && typeof order.service_id === 'object') ? (order.service_id._id || order.service_id.id) : order.service_id;
+    if (sId && !acc[order.order_id].service_ids.includes(sId)) {
+      acc[order.order_id].service_ids.push(sId);
+    }
+    return acc;
+  }, {});
+
+  return Object.values(grouped).map(o => ({
+    ...o,
+    id: o.first_id,
+    service_name: o.service_names.join(', '),
+    price: o.price
+  }));
+};
+
 function OrderDatabase() {
   const confirm = useConfirm();
   const container = useRef();
@@ -114,22 +140,7 @@ function OrderDatabase() {
           setTruckTeams(settingsRes.data.truck_teams);
         }
 
-        const grouped = ordersRes.data.reduce((acc, order) => {
-          if (!acc[order.order_id]) {
-            acc[order.order_id] = { ...order, service_names: [], service_ids: [], first_id: order.id };
-          }
-          acc[order.order_id].service_names.push(order.service_name || order.service_type);
-          if (order.service_id && !acc[order.order_id].service_ids.includes(order.service_id)) {
-            acc[order.order_id].service_ids.push(order.service_id);
-          }
-          return acc;
-        }, {});
-        
-        const groupedOrders = Object.values(grouped).map(o => ({
-          ...o,
-          id: o.first_id,
-          service_name: o.service_names.join(', ')
-        }));
+        const groupedOrders = processGroupedOrders(ordersRes.data);
 
         setOrders(groupedOrders);
         calculateRevenue(groupedOrders);
@@ -170,7 +181,14 @@ function OrderDatabase() {
       }
     }
 
-    setEditModal({ show: true, order });
+    const rawIds = (order.service_ids && order.service_ids.length > 0)
+      ? order.service_ids
+      : (order.service_id ? [order.service_id] : []);
+    const normalizedServiceIds = rawIds
+      .map(s => (s && typeof s === 'object') ? (s._id || s.id) : s)
+      .filter(Boolean);
+
+    setEditModal({ show: true, order: { ...order, service_ids: normalizedServiceIds } });
     setEditForm({
       status: order.status || '',
       price: order.price || '',
@@ -333,16 +351,7 @@ function OrderDatabase() {
         showAlert("Success", "Quotation submitted and sent to client!", "success");
         
         const ordersRes = await api.get('/orders');
-        const grouped = ordersRes.data.reduce((acc, order) => {
-          if (!acc[order.order_id]) acc[order.order_id] = { ...order, service_names: [], first_id: order.id };
-          acc[order.order_id].service_names.push(order.service_name || order.service_type);
-
-          return acc;
-        }, {});
-        
-        const groupedOrders = Object.values(grouped).map(o => ({
-          ...o, id: o.first_id, service_name: o.service_names.join(', '), price: o.price
-        }));
+        const groupedOrders = processGroupedOrders(ordersRes.data);
 
         setOrders(groupedOrders);
         calculateRevenue(groupedOrders);
@@ -410,19 +419,7 @@ function OrderDatabase() {
 
       // 3. Reload orders to get updated URLs
       const response = await api.get('/orders');
-      const grouped = response.data.reduce((acc, order) => {
-        if (!acc[order.order_id]) {
-          acc[order.order_id] = { ...order, service_names: [], first_id: order.id };
-        }
-        acc[order.order_id].service_names.push(order.service_name || order.service_type);
-        return acc;
-      }, {});
-      
-      const groupedOrders = Object.values(grouped).map(o => ({
-        ...o,
-        id: o.first_id,
-        service_name: o.service_names.join(', ')
-      }));
+      const groupedOrders = processGroupedOrders(response.data);
 
       setOrders(groupedOrders);
       calculateRevenue(groupedOrders);
@@ -454,20 +451,7 @@ function OrderDatabase() {
       const response = await api.put(`/orders/${editModal.order.id}`, payload);
       if (response.data.success) {
         const ordersRes = await api.get('/orders');
-        const grouped = ordersRes.data.reduce((acc, order) => {
-          if (!acc[order.order_id]) {
-            acc[order.order_id] = { ...order, service_names: [], first_id: order.id };
-          }
-          acc[order.order_id].service_names.push(order.service_name || order.service_type);
-
-          return acc;
-        }, {});
-        const groupedOrders = Object.values(grouped).map(o => ({
-          ...o,
-          id: o.first_id,
-          service_name: o.service_names.join(', '),
-          price: o.price
-        }));
+        const groupedOrders = processGroupedOrders(ordersRes.data);
         setOrders(groupedOrders);
         calculateRevenue(groupedOrders);
         closeEditModal();
@@ -490,20 +474,7 @@ function OrderDatabase() {
       if (response.data.success) {
         // Reload orders
         const ordersRes = await api.get('/orders');
-        const grouped = ordersRes.data.reduce((acc, order) => {
-          if (!acc[order.order_id]) {
-            acc[order.order_id] = { ...order, service_names: [], first_id: order.id };
-          }
-          acc[order.order_id].service_names.push(order.service_name || order.service_type);
-
-          return acc;
-        }, {});
-        const groupedOrders = Object.values(grouped).map(o => ({
-          ...o,
-          id: o.first_id,
-          service_name: o.service_names.join(', '),
-          price: o.price
-        }));
+        const groupedOrders = processGroupedOrders(ordersRes.data);
         setOrders(groupedOrders);
         calculateRevenue(groupedOrders);
         closeEditModal();
@@ -990,7 +961,10 @@ function OrderDatabase() {
                         <span className={`badge ${editModal.order.quotation_status === 'Approved' ? 'bg-success' : editModal.order.quotation_status === 'Clarification Requested' ? 'bg-warning text-dark' : editModal.order.quotation_status === 'Client Declined' ? 'bg-danger' : 'bg-secondary'}`}>{editModal.order.quotation_status || 'Pending Inspection'}</span>
                       </div>
                       
-                      {editModal.order.service_ids && editModal.order.service_ids.map(serviceId => {
+                      {((editModal.order.service_ids && editModal.order.service_ids.length > 0)
+                        ? editModal.order.service_ids
+                        : (editModal.order.service_id ? [(typeof editModal.order.service_id === 'object' ? (editModal.order.service_id._id || editModal.order.service_id.id) : editModal.order.service_id)] : [])
+                      ).map(serviceId => {
                         const service = services.find(s => s.id === serviceId || s._id === serviceId);
                         if (!service) return null;
                         const name = service.name.toLowerCase();
