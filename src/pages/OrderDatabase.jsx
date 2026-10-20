@@ -31,7 +31,6 @@ function OrderDatabase() {
     discount_amount: 0,
     justifications: {}
   });
-  const [quotationFile, setQuotationFile] = useState(null);
   const [serviceReportFile, setServiceReportFile] = useState(null);
   
   const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
@@ -183,7 +182,6 @@ function OrderDatabase() {
       misc_fee: order.misc_fee || '',
       internal_notes: order.internal_notes || ''
     });
-    setQuotationFile(null);
     setServiceReportFile(null);
     setQuotationForm({
       estimate_inputs: order.estimate_inputs ? JSON.parse(JSON.stringify(order.estimate_inputs)) : {},
@@ -403,10 +401,9 @@ function OrderDatabase() {
       });
 
       // 2. Upload documents if any
-      if (quotationFile || serviceReportFile) {
+      if (serviceReportFile) {
         const formData = new FormData();
-        if (quotationFile) formData.append('quotation', quotationFile);
-        if (serviceReportFile) formData.append('service_report', serviceReportFile);
+        formData.append('service_report', serviceReportFile);
 
         await api.post(`/orders/${editModal.order.id}/upload-documents`, formData);
       }
@@ -1267,23 +1264,6 @@ function OrderDatabase() {
                 {activeTab === 'documents' && (
                   <div className="row">
                     <div className="col-md-12">
-                      <div className="form-group mb-4">
-                        <label className="form-label fw-bold small text-muted">Upload Quotation (Approved P.O.)</label>
-                        <input 
-                          type="file" 
-                          accept=".pdf"
-                          className="form-control bg-light border-0 shadow-sm"
-                          onChange={(e) => setQuotationFile(e.target.files[0])}
-                        />
-                        {editModal.order.quotation_pdf_url && (
-                          <div className="mt-2 small">
-                            <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editModal.order.quotation_pdf_url}`} target="_blank" rel="noopener noreferrer" className="text-success text-decoration-none fw-bold">
-                              <i className="fas fa-file-pdf me-1"></i>View Current Quotation
-                            </a>
-                          </div>
-                        )}
-                      </div>
-
                       <div className="form-group mb-4">
                         <label className="form-label fw-bold small text-muted">Upload Service Report / Invoice</label>
                         <input 
