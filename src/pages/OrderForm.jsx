@@ -45,6 +45,13 @@ function OrderForm() {
     const [estimateInputs, setEstimateInputs] = useState({});
     const [baseEstimate, setBaseEstimate] = useState(0);
 
+    // Residential 3-household minimum state
+    const [households, setHouseholds] = useState([
+        { name: '', address: '' },
+        { name: '', address: '' },
+        { name: '', address: '' }
+    ]);
+
     const navigate = useNavigate();
 
     const showAlert = (title, message, type = 'info') => {
@@ -144,6 +151,45 @@ function OrderForm() {
         }));
     };
 
+    // Keep Household 1 in sync with lead client info for residential bookings
+    useEffect(() => {
+        if (formData.clientType === 'residential') {
+            const leadName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+            const leadAddress = formData.address || '';
+            setHouseholds(prev => {
+                const updated = [...prev];
+                while (updated.length < 3) {
+                    updated.push({ name: '', address: '' });
+                }
+                updated[0] = {
+                    name: leadName || updated[0]?.name || '',
+                    address: leadAddress || updated[0]?.address || ''
+                };
+                return updated;
+            });
+        }
+    }, [formData.firstName, formData.lastName, formData.address, formData.clientType]);
+
+    const handleHouseholdChange = (index, field, value) => {
+        setHouseholds(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], [field]: value };
+            return updated;
+        });
+    };
+
+    const addHousehold = () => {
+        setHouseholds(prev => [...prev, { name: '', address: '' }]);
+    };
+
+    const removeHousehold = (index) => {
+        if (households.length <= 3) {
+            showAlert("Minimum Required", "Residential bookings require a minimum of 3 households.", "warning");
+            return;
+        }
+        setHouseholds(prev => prev.filter((_, i) => i !== index));
+    };
+
     useEffect(() => {
         let totalEstimate = 0;
         (formData.service_ids || []).forEach(serviceId => {
@@ -203,6 +249,23 @@ function OrderForm() {
             return;
         }
 
+        if (formData.clientType === 'residential') {
+            if (households.length < 3) {
+                showAlert("Minimum Households Required", "Residential bookings require a minimum of 3 participating households.", "warning");
+                return;
+            }
+            const missingRequired = households.slice(0, 3).some((h) => !h.name?.trim() || !h.address?.trim());
+            if (missingRequired) {
+                showAlert("Household Details Required", "Please provide both the Name and Address for all 3 required households.", "warning");
+                return;
+            }
+            const missingAdditional = households.slice(3).some((h) => !h.name?.trim() || !h.address?.trim());
+            if (missingAdditional) {
+                showAlert("Household Details Incomplete", "Please provide both Name and Address for all additional households, or remove empty entries.", "warning");
+                return;
+            }
+        }
+
         if ((formData.service_ids || []).length === 0) {
             showAlert("Selection Required", "Please select at least one service.", "warning");
             return;
@@ -244,6 +307,9 @@ function OrderForm() {
             submitData.append('service_ids', JSON.stringify(formData.service_ids));
             submitData.append('base_estimate', baseEstimate);
             submitData.append('estimate_inputs', JSON.stringify(estimateInputs));
+            submitData.append('clientType', formData.clientType);
+            submitData.append('num_households', formData.clientType === 'residential' ? households.length : 1);
+            submitData.append('households', JSON.stringify(formData.clientType === 'residential' ? households : []));
             if (sitePhoto) {
                 submitData.append('site_photo', sitePhoto);
             }
@@ -499,6 +565,127 @@ function OrderForm() {
                             onChange={handleChange}
                         />
                     </div>
+
+                    {/* Residential Group Booking (Minimum 3 Households) */}
+                    {formData.clientType === 'residential' && (
+                        <div className="card border-0 p-4 mb-4 shadow-sm" style={{ backgroundColor: '#ffffff', border: '1.5px solid #86efac', borderRadius: '1rem' }}>
+                            <div className="mb-3">
+                                <h5 className="fw-bold mb-1 d-flex align-items-center" style={{ color: '#0D8D1E' }}>
+                                    <i className="fas fa-home me-2"></i>Residential Group Booking
+                                </h5>
+                                <p className="text-muted small mb-0">
+                                    Residential bookings require a minimum of <strong>3 households</strong>. A single <strong>₱1,100</strong> group reservation fee covers all participating homes.
+                                </p>
+                            </div>
+
+                            {/* Household Entries */}
+                            <div className="d-flex flex-column gap-3">
+                                {households.map((household, index) => (
+                                    <div 
+                                        key={index} 
+                                        className="p-3 rounded border"
+                                        style={{ 
+                                            backgroundColor: index === 0 ? '#f0fdf4' : '#ffffff',
+                                            borderColor: index < 3 ? '#bbf7d0' : '#e2e8f0',
+                                            overflow: 'hidden',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    >
+                                        {/* Household Title & Status */}
+                                        <div className="d-flex align-items-center justify-content-between mb-2">
+                                            <div className="d-flex align-items-center gap-2">
+                                                <span 
+                                                    className="badge rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                                    style={{ 
+                                                        width: '22px', 
+                                                        height: '22px', 
+                                                        backgroundColor: index === 0 ? '#0D8D1E' : '#64748b',
+                                                        color: '#ffffff',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {index + 1}
+                                                </span>
+                                                <span className="fw-bold small text-dark">Household #{index + 1}</span>
+                                                {index === 0 && (
+                                                    <span className="badge" style={{ backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.68rem' }}>
+                                                        Lead Applicant
+                                                    </span>
+                                                )}
+                                                {index > 0 && index < 3 && (
+                                                    <span className="badge bg-light text-muted border" style={{ fontSize: '0.68rem' }}>
+                                                        Required
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {index >= 3 && (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-outline-danger btn-sm py-0 px-2 border-0"
+                                                    onClick={() => removeHousehold(index)}
+                                                    title="Remove household"
+                                                    style={{ fontSize: '0.78rem' }}
+                                                >
+                                                    <i className="fas fa-trash-alt me-1"></i>Remove
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Input Fields (50% / 50% on sm/md screens) */}
+                                        <div className="row g-2 mx-0">
+                                            <div className="col-12 col-sm-5 px-1">
+                                                <input 
+                                                    type="text"
+                                                    className="form-control form-control-sm w-100"
+                                                    placeholder="Resident Full Name"
+                                                    value={household.name}
+                                                    onChange={(e) => handleHouseholdChange(index, 'name', e.target.value)}
+                                                    required
+                                                    style={{ minWidth: 0, boxSizing: 'border-box' }}
+                                                />
+                                            </div>
+                                            <div className="col-12 col-sm-7 px-1">
+                                                <input 
+                                                    type="text"
+                                                    className="form-control form-control-sm w-100"
+                                                    placeholder="House / Lot / Street Address"
+                                                    value={household.address}
+                                                    onChange={(e) => handleHouseholdChange(index, 'address', e.target.value)}
+                                                    required
+                                                    style={{ minWidth: 0, boxSizing: 'border-box' }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-3 text-end">
+                                <button
+                                    type="button"
+                                    className="btn btn-sm rounded-pill fw-bold px-3 shadow-sm"
+                                    style={{ 
+                                        color: '#0D8D1E', 
+                                        borderColor: '#0D8D1E', 
+                                        backgroundColor: '#ffffff',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#0D8D1E';
+                                        e.currentTarget.style.color = '#ffffff';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#ffffff';
+                                        e.currentTarget.style.color = '#0D8D1E';
+                                    }}
+                                    onClick={addHousehold}
+                                >
+                                    <i className="fas fa-plus me-1"></i>Add Another Household
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Multi-Service Selection */}
                     <div className="form-group mb-4">

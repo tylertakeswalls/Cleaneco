@@ -64,9 +64,27 @@ function AdminSettings() {
 
   const addTruckTeam = () => {
     if (!newTeamName.trim()) return;
-    const updated = [...truckTeams, newTeamName.trim()];
+    const newTeam = {
+      id: `truck-${Date.now()}`,
+      name: newTeamName.trim(),
+      status: 'available'
+    };
+    const updated = [...truckTeams, newTeam];
     setTruckTeams(updated);
     setNewTeamName('');
+    saveTruckTeams(updated);
+  };
+
+  const toggleTruckStatus = (index) => {
+    const updated = truckTeams.map((team, idx) => {
+      if (idx !== index) return team;
+      const currentStatus = typeof team === 'string' ? 'available' : team.status;
+      const nextStatus = currentStatus === 'available' ? 'unavailable' : 'available';
+      return typeof team === 'string'
+        ? { id: `truck-${Date.now()}`, name: team, status: nextStatus }
+        : { ...team, status: nextStatus };
+    });
+    setTruckTeams(updated);
     saveTruckTeams(updated);
   };
 
@@ -227,19 +245,47 @@ function AdminSettings() {
             ) : (
               <div>
                 <ul className="list-group mb-4">
-                  {truckTeams.map((team, index) => (
-                    <li key={index} className="list-group-item d-flex justify-content-between align-items-center">
-                      <span className="fw-medium">{team}</span>
-                      <button 
-                        className="btn btn-sm btn-outline-danger" 
-                        onClick={() => removeTruckTeam(index)}
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    </li>
-                  ))}
+                  {truckTeams.map((team, index) => {
+                    const teamName = typeof team === 'string' ? team : team.name;
+                    const isAvailable = typeof team === 'string' ? true : team.status !== 'unavailable';
+                    return (
+                      <li key={(typeof team === 'object' && team.id) || index} className="list-group-item d-flex justify-content-between align-items-center p-3">
+                        <div className="d-flex align-items-center gap-3">
+                          <i className="fas fa-truck fs-5" style={{ color: isAvailable ? '#0D8D1E' : '#dc3545' }}></i>
+                          <div>
+                            <span className="fw-bold d-block text-dark">{teamName}</span>
+                            <span className={`badge ${isAvailable ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: '0.75rem' }}>
+                              {isAvailable ? 'Available' : 'Unavailable (Maintenance)'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                          <button 
+                            type="button"
+                            className={`btn btn-sm fw-bold ${isAvailable ? 'btn-outline-danger' : 'btn-outline-success'}`}
+                            onClick={() => toggleTruckStatus(index)}
+                            title={isAvailable ? "Mark Unavailable" : "Mark Available"}
+                          >
+                            {isAvailable ? (
+                              <><i className="fas fa-toggle-on me-1"></i> Set Unavailable</>
+                            ) : (
+                              <><i className="fas fa-toggle-off me-1"></i> Set Available</>
+                            )}
+                          </button>
+                          <button 
+                            type="button"
+                            className="btn btn-sm btn-outline-secondary" 
+                            onClick={() => removeTruckTeam(index)}
+                            title="Remove Team"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
                   {truckTeams.length === 0 && (
-                    <li className="list-group-item text-muted">No truck teams available.</li>
+                    <li className="list-group-item text-muted">No truck teams configured.</li>
                   )}
                 </ul>
 

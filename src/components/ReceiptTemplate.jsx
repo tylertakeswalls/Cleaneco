@@ -1,8 +1,14 @@
 import React from 'react';
-import { formatDate } from '../utils/helpers';
+import { formatDate, formatPHP } from '../utils/helpers';
 
 const ReceiptTemplate = ({ receiptOrder }) => {
   if (!receiptOrder) return null;
+
+  const basePrice = receiptOrder.final_price || receiptOrder.price || 0;
+  const discountAmount = receiptOrder.discount_amount || 0;
+  const taxAmount = basePrice * 0.1;
+  const reservationPaid = 1100;
+  const totalPaid = Math.max(0, (basePrice * 1.1) - reservationPaid);
 
   return (
     <div id="print-receipt" style={{ padding: '40pt', fontFamily: '"Times New Roman", Times, serif', color: 'black', fontSize: '11pt' }}>
@@ -37,23 +43,35 @@ const ReceiptTemplate = ({ receiptOrder }) => {
           </tr>
         </thead>
         <tbody>
+          {discountAmount > 0 && (
+            <>
+              <tr>
+                <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Subtotal</td>
+                <td style={{ padding: '8pt', border: '1px solid #ccc' }}>{formatPHP(receiptOrder.price || receiptOrder.base_estimate || 0)}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '8pt', border: '1px solid #ccc', color: '#d9534f' }}>Less Discount</td>
+                <td style={{ padding: '8pt', border: '1px solid #ccc', color: '#d9534f' }}>{formatPHP(discountAmount, true)}</td>
+              </tr>
+            </>
+          )}
           <tr>
             <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Quotation Total</td>
-            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>PHP {(receiptOrder.final_price || receiptOrder.price || 0).toFixed(2)}</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>{formatPHP(basePrice)}</td>
           </tr>
           <tr>
             <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Service Tax (10%)</td>
-            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>PHP {((receiptOrder.final_price || receiptOrder.price || 0) * 0.1).toFixed(2)}</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>{formatPHP(taxAmount)}</td>
           </tr>
           <tr>
             <td style={{ padding: '8pt', border: '1px solid #ccc' }}>Less Reservation Paid</td>
-            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>-PHP 1100.00</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc' }}>{formatPHP(reservationPaid, true)}</td>
           </tr>
         </tbody>
         <tfoot>
           <tr>
             <td style={{ padding: '8pt', border: '1px solid #ccc', fontWeight: 'bold' }}>Total Paid</td>
-            <td style={{ padding: '8pt', border: '1px solid #ccc', fontWeight: 'bold' }}>PHP {(((receiptOrder.final_price || receiptOrder.price || 0) * 1.1) - 1100).toFixed(2)}</td>
+            <td style={{ padding: '8pt', border: '1px solid #ccc', fontWeight: 'bold' }}>{formatPHP(totalPaid)}</td>
           </tr>
         </tfoot>
       </table>

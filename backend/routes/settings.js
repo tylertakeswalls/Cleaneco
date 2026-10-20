@@ -4,6 +4,13 @@ const multer = require('multer');
 const Setting = require('../models/Setting');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const {
+  getTruckTeams,
+  saveTruckTeams,
+  normalizeTruckTeams,
+  validateTruckTeams,
+  countAvailableTrucks
+} = require('../utils/truckTeams');
 const router = express.Router();
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -113,12 +120,8 @@ router.get('/tos/pdf', async (req, res) => {
 
 router.get('/truck-teams', async (req, res) => {
   try {
-    let teams = await Setting.findOne({ key_name: 'truck_teams' });
-    if (!teams) {
-      teams = new Setting({ key_name: 'truck_teams', value: JSON.stringify(['Truck Team 1', 'Truck Team 2']) });
-      await teams.save();
-    }
-    res.json({ success: true, truck_teams: JSON.parse(teams.value) });
+    const teams = await getTruckTeams();
+    res.json({ success: true, truck_teams: teams, available_count: countAvailableTrucks(teams) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch truck teams' });
   }
@@ -126,13 +129,24 @@ router.get('/truck-teams', async (req, res) => {
 
 router.put('/truck-teams', async (req, res) => {
   try {
-    const { truck_teams } = req.body; // array of strings
-    await Setting.findOneAndUpdate(
-      { key_name: 'truck_teams' },
-      { value: JSON.stringify(truck_teams) },
-      { upsert: true }
-    );
-    res.json({ success: true, message: 'Truck teams updated successfully' });
+    const { truck_teams } = req.body; // array of { id, name, status } (plain strings are also accepted)
+    if (!Array.isArray(truck_teams)) {
+      return res.status(400).json({ success: false, message: 'truck_teams must be an array' });
+    }
+
+    const { teams } = normalizeTruckTeams(truck_teams);
+    const validationError = validateTruckTeams(teams);
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
+    await saveTruckTeams(teams);
+    res.json({
+      success: true,
+      message: 'Truck teams updated successfully',
+      truck_teams: teams,
+      available_count: countAvailableTrucks(teams)
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update truck teams' });
   }

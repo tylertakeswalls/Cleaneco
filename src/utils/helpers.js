@@ -23,3 +23,23 @@ export const getStatusClass = (status) => {
   };
   return statusClasses[status] || "pending-text";
 };
+
+export const formatCurrency = (amount) => {
+  if (amount === undefined || amount === null || isNaN(amount)) return '₱0';
+  const num = parseFloat(amount);
+  return '₱' + num.toLocaleString('en-US', {
+    minimumFractionDigits: num % 1 !== 0 ? 2 : 0,
+    maximumFractionDigits: 2
+  });
+};
+
+export const formatPHP = (amount, isNegative = false) => {
+  if (amount === undefined || amount === null || isNaN(amount)) return 'PHP 0.00';
+  const num = Math.abs(parseFloat(amount));
+  const formatted = 'PHP ' + num.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  return (isNegative || parseFloat(amount) < 0) ? `-${formatted}` : formatted;
+};
+

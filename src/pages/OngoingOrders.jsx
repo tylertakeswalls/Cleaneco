@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
-import { formatDate, getStatusClass } from '../utils/helpers';
+import { formatDate, getStatusClass, formatCurrency } from '../utils/helpers';
 import '../assets/styles/ongoingorders.css';
 import carousel6 from '../assets/styles/images/carousel6.png';
 import paymongoLogo from '../assets/styles/images/paymongo.png';
@@ -46,7 +46,8 @@ function OngoingOrders() {
   const userId = sessionStorage.getItem("userId");
 
   const triggerRequest = (id, type, target = 'inspection') => {
-    setConfirmData({ id, type, target });
+    const targetOrder = orders.find(o => o.id === id || o.first_id === id);
+    setConfirmData({ id, type, target, order: targetOrder });
     if (type === 'Reschedule Requested') {
       setRescheduleDate('');
       setRescheduleTimeSlot('');
@@ -428,7 +429,31 @@ function OngoingOrders() {
                             Order #{order.order_id}
                             {isTarget && <span className="badge bg-success ms-2 small">Selected Order</span>}
                           </span>
-                          <span className="fs-5 text-success fw-bold">{order.service_names ? order.service_names.join(' & ') : (order.service_name || order.service_type)}</span>
+                          {(() => {
+                            const servicesList = (order.service_names && order.service_names.length > 0)
+                              ? order.service_names
+                              : [order.service_name || order.service_type].filter(Boolean);
+
+                            return (
+                              <div className="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                {servicesList.map((sName, sIdx) => (
+                                  <span 
+                                    key={sIdx} 
+                                    className="badge px-3 py-2 rounded-pill fw-bold shadow-sm" 
+                                    style={{ 
+                                      backgroundColor: '#f0fdf4', 
+                                      color: '#0D8D1E', 
+                                      border: '1.5px solid #86efac',
+                                      fontSize: '0.9rem'
+                                    }}
+                                  >
+                                    <i className="fas fa-check-circle me-1 text-success"></i>
+                                    {sName}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="text-end">
                           <span className={`badge rounded-pill ${getStatusClass(order.status)} mb-1 d-block`} style={{ fontSize: '0.85rem' }}>
@@ -448,33 +473,82 @@ function OngoingOrders() {
                   <div className="accordion-body p-4 bg-light">
 
                     {/* Progress Tracker */}
-                    {order.status !== 'Cancelled' && order.status !== 'Pending' ? (
-                      <div className="position-relative mx-2 my-4">
-                        <div className="progress" style={{ height: '4px', position: 'absolute', top: '20px', left: '10%', right: '10%', zIndex: 1, backgroundColor: '#e9ecef' }}>
-                          <div className="progress-bar bg-success" role="progressbar" style={{ width: order.status === 'Completed' ? '100%' : order.has_final_price ? '66%' : (order.confirmed_date && order.truck_team) ? '33%' : '0%' }}></div>
+                    {(() => {
+                      if (order.status === 'Cancelled') {
+                        return (
+                          <div className="alert alert-danger text-center fw-bold shadow-sm mb-4">
+                            <i className="fas fa-ban me-2"></i>This order has been cancelled.
+                          </div>
+                        );
+                      }
+                      if (order.status === 'Pending') {
+                        return null;
+                      }
+
+                      const isCompleted = order.status === 'Completed';
+                      const isServiceExecution = Boolean(order.service_execution_date || isCompleted);
+                      const isQuoted = Boolean(order.has_final_price || isServiceExecution);
+                      const isInspection = Boolean((order.confirmed_date && order.truck_team) || isQuoted);
+
+                      const progressWidth = isCompleted 
+                        ? '100%' 
+                        : isServiceExecution 
+                          ? '75%' 
+                          : isQuoted 
+                            ? '50%' 
+                            : isInspection 
+                              ? '25%' 
+                              : '0%';
+
+                      return (
+                        <div className="position-relative mx-2 my-4">
+                          <div className="progress" style={{ height: '4px', position: 'absolute', top: '20px', left: '10%', right: '10%', zIndex: 1, backgroundColor: '#e9ecef' }}>
+                            <div className="progress-bar bg-success" role="progressbar" style={{ width: progressWidth, transition: 'width 0.4s ease' }}></div>
+                          </div>
+                          <div className="d-flex justify-content-between position-relative text-center" style={{ zIndex: 2 }}>
+                            {/* 1. Reserved */}
+                            <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                              <div className="rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 bg-success text-white shadow-sm" style={{ width: '40px', height: '40px' }}>
+                                <i className="fas fa-check"></i>
+                              </div>
+                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Reserved</small>
+                            </div>
+
+                            {/* 2. For Inspection */}
+                            <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${isInspection ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
+                                <i className="fas fa-search"></i>
+                              </div>
+                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Inspection</small>
+                            </div>
+
+                            {/* 3. Quoted */}
+                            <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${isQuoted ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
+                                <i className="fas fa-file-invoice-dollar"></i>
+                              </div>
+                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Quoted</small>
+                            </div>
+
+                            {/* 4. For Service Execution */}
+                            <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${isServiceExecution ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
+                                <i className="fas fa-truck"></i>
+                              </div>
+                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Service Execution</small>
+                            </div>
+
+                            {/* 5. Completed */}
+                            <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${isCompleted ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
+                                <i className="fas fa-flag-checkered"></i>
+                              </div>
+                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Completed</small>
+                            </div>
+                          </div>
                         </div>
-                        <div className="d-flex justify-content-between position-relative text-center" style={{ zIndex: 2 }}>
-                          <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${order.status !== 'Pending' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-check"></i></div>
-                            <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Reserved</small>
-                          </div>
-                          <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${(order.confirmed_date && order.truck_team) || order.has_final_price || order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-search"></i></div>
-                            <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Inspection</small>
-                          </div>
-                          <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${order.has_final_price || order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-file-invoice-dollar"></i></div>
-                            <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Quoted</small>
-                          </div>
-                          <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                            <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${order.status === 'Completed' ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}><i className="fas fa-flag-checkered"></i></div>
-                            <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Completed</small>
-                          </div>
-                        </div>
-                      </div>
-                    ) : order.status === 'Cancelled' ? (
-                      <div className="alert alert-danger text-center fw-bold shadow-sm mb-4"><i className="fas fa-ban me-2"></i>This order has been cancelled.</div>
-                    ) : null}
+                      );
+                    })()}
                     <hr className="my-4 border-secondary opacity-25" />
 
                     <div className="row mb-4">
@@ -484,27 +558,61 @@ function OngoingOrders() {
                       </div>
                       <div className="col-md-6">
                         <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Final Price Breakdown</p>
-                        <p className="mb-0 fw-bold text-success fs-5">{order.has_final_price ? `Quotation Total: ₱${order.final_price}` : 'Pending Assessment'}</p>
-                        {order.has_final_price && order.final_payment_status !== 'Paid' && order.status === 'Completed' && order.status !== 'Cancelled' && (
-                          <div className="mt-2 bg-white p-3 rounded shadow-sm border">
-                            <div className="d-flex justify-content-between mb-1 small text-muted">
-                              <span>Total with 10% Tax:</span>
-                              <span className="fw-medium">₱{(parseFloat(order.final_price) * 1.1).toFixed(2)}</span>
+                        {order.has_final_price ? (() => {
+                          const basePrice = parseFloat(order.final_price) || 0;
+                          const taxAmount = basePrice * 0.10;
+                          const totalWithTax = basePrice * 1.10;
+                          const reservationFee = 1100;
+                          const remainingBalance = Math.max(0, totalWithTax - reservationFee);
+
+                          return (
+                            <div>
+                              <p className="mb-2 fw-bold text-success fs-5">
+                                {formatCurrency(remainingBalance)} <span className="text-muted fs-6 fw-normal">(Balance Due)</span>
+                              </p>
+
+                              <div className="mt-2 bg-white p-3 rounded shadow-sm border">
+                                <div className="d-flex justify-content-between mb-1 small text-muted">
+                                  <span>Quotation Base Total:</span>
+                                  <span className="fw-semibold text-dark">{formatCurrency(basePrice)}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-1 small text-muted">
+                                  <span>Value-Added Tax (10%):</span>
+                                  <span className="fw-semibold text-dark">+{formatCurrency(taxAmount)}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-1 small text-muted">
+                                  <span>Total with 10% Tax:</span>
+                                  <span className="fw-semibold text-dark">{formatCurrency(totalWithTax)}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-2 small text-muted border-bottom pb-2">
+                                  <span>Less Reservation Paid:</span>
+                                  <span className="text-danger fw-semibold">-{formatCurrency(reservationFee)}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-0 fw-bold">
+                                  <span className="text-dark">Remaining Balance:</span>
+                                  <span className="text-success fs-6">{formatCurrency(remainingBalance)}</span>
+                                </div>
+
+                                {order.final_payment_status === 'Paid' ? (
+                                  <div className="mt-3 badge bg-success w-100 py-2 fs-6">
+                                    <i className="fas fa-check-circle me-1"></i>Final Payment Paid
+                                  </div>
+                                ) : order.status === 'Completed' && order.status !== 'Cancelled' ? (
+                                  !(order.payment_method === 'cheque' && order.cheque_status === 'pending_verification') && (
+                                    <button className="btn btn-success btn-sm fw-bold w-100 rounded-pill shadow-sm mt-3" onClick={() => openFinalPaymentModal(order.order_id)}>
+                                      <i className="fas fa-wallet me-2"></i>Pay Final Amount ({formatCurrency(remainingBalance)})
+                                    </button>
+                                  )
+                                ) : (
+                                  <div className="mt-2 text-muted small fst-italic text-center" style={{ fontSize: '0.78rem' }}>
+                                    Final payment of {formatCurrency(remainingBalance)} is payable upon service completion.
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="d-flex justify-content-between mb-2 small text-muted border-bottom pb-2">
-                              <span>Less Reservation Paid:</span>
-                              <span className="text-danger fw-medium">-₱1100.00</span>
-                            </div>
-                            <div className="d-flex justify-content-between mb-3 fw-bold">
-                              <span>Remaining Balance:</span>
-                              <span className="text-success fs-6">₱{((parseFloat(order.final_price) * 1.1) - 1100).toFixed(2)}</span>
-                            </div>
-                            {!(order.payment_method === 'cheque' && order.cheque_status === 'pending_verification') && (
-                              <button className="btn btn-success btn-sm fw-bold w-100 rounded-pill shadow-sm" onClick={() => openFinalPaymentModal(order.order_id)}>
-                                <i className="fas fa-wallet me-2"></i>Pay Final Amount
-                              </button>
-                            )}
-                          </div>
+                          );
+                        })() : (
+                          <p className="mb-0 fw-bold text-muted fs-6">Pending Assessment</p>
                         )}
                         {(order.status === 'Pending' || order.status === 'Completed') && order.payment_method === 'cheque' && (order.cheque_status === 'pending_verification' || !order.cheque_status) ? (
                           <div className="mt-2 bg-info bg-opacity-10 p-3 rounded shadow-sm border border-info border-opacity-50">
@@ -555,6 +663,77 @@ function OngoingOrders() {
                       </div>
                     </div>
 
+                    {/* Participating Households (Residential Group Booking) */}
+                    {order.households && order.households.length > 0 && (
+                      <div className="p-4 mb-4 rounded bg-white shadow-sm border border-success">
+                        <h6 className="fw-bold mb-3 text-success border-bottom pb-2 border-opacity-25">
+                          <i className="fas fa-users me-2"></i>Participating Households ({order.num_households || order.households.length})
+                        </h6>
+                        <div 
+                          className="table-responsive bg-white" 
+                          style={{ 
+                            borderRadius: '8px', 
+                            border: '1px solid #dee2e6', 
+                            overflow: 'hidden' 
+                          }}
+                        >
+                          <table 
+                            className="table table-sm table-hover mb-0 small" 
+                            style={{ 
+                              borderCollapse: 'separate', 
+                              borderSpacing: 0, 
+                              width: '100%',
+                              marginBottom: 0
+                            }}
+                          >
+                            <thead className="table-light">
+                              <tr>
+                                <th style={{ width: '40px', borderTopLeftRadius: '7px', borderBottom: '1px solid #dee2e6', borderTop: 'none', borderLeft: 'none' }} className="px-3 py-2">#</th>
+                                <th style={{ borderBottom: '1px solid #dee2e6', borderTop: 'none' }} className="py-2">Household Contact / Name</th>
+                                <th style={{ borderTopRightRadius: '7px', borderBottom: '1px solid #dee2e6', borderTop: 'none', borderRight: 'none' }} className="py-2">Address</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {order.households.map((h, i) => {
+                                const isLast = i === order.households.length - 1;
+                                return (
+                                  <tr key={i}>
+                                    <td 
+                                      className="fw-bold px-3 py-2" 
+                                      style={{ 
+                                        borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                        borderBottomLeftRadius: isLast ? '7px' : 0,
+                                        borderLeft: 'none'
+                                      }}
+                                    >
+                                      {i + 1}
+                                    </td>
+                                    <td 
+                                      className="py-2" 
+                                      style={{ borderBottom: isLast ? 'none' : '1px solid #dee2e6' }}
+                                    >
+                                      <span className="fw-semibold text-dark">{h.name}</span>
+                                      {i === 0 && <span className="badge bg-success ms-2">Lead Contact</span>}
+                                    </td>
+                                    <td 
+                                      className="py-2 text-secondary" 
+                                      style={{ 
+                                        borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                        borderBottomRightRadius: isLast ? '7px' : 0,
+                                        borderRight: 'none'
+                                      }}
+                                    >
+                                      {h.address}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Quotation Review & Scheduling Block */}
                     {order.quotation_status !== 'Pending Inspection' && (
                       <div className="p-4 mb-4 rounded bg-white shadow-sm border border-success">
@@ -603,23 +782,62 @@ function OngoingOrders() {
                             </div>
                           ))}
 
-                          <div className="p-3 rounded border" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                            <div className="d-flex justify-content-between mb-1">
-                              <span className="fw-bold text-secondary">Total (Before Discount):</span>
-                              <span className="fw-bold text-dark">₱{order.price}</span>
-                            </div>
-                            {order.discount_amount > 0 && (
-                              <div className="d-flex justify-content-between mb-1">
-                                <span className="fw-bold text-secondary">Discount Applied:</span>
-                                <span className="fw-bold text-danger">-₱{order.discount_amount}</span>
+                          {(() => {
+                            const basePrice = parseFloat(order.final_price) || 0;
+                            const originalPrice = parseFloat(order.price) || basePrice;
+                            const discount = parseFloat(order.discount_amount) || 0;
+                            const taxAmount = basePrice * 0.10;
+                            const totalWithTax = basePrice * 1.10;
+                            const reservationFee = 1100;
+                            const finalPayable = Math.max(0, totalWithTax - reservationFee);
+
+                            return (
+                              <div className="p-3 rounded border" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                                {discount > 0 ? (
+                                  <>
+                                    <div className="d-flex justify-content-between mb-1 small">
+                                      <span className="fw-semibold text-secondary">Service Assessment Subtotal:</span>
+                                      <span className="fw-bold text-dark">{formatCurrency(originalPrice)}</span>
+                                    </div>
+                                    <div className="d-flex justify-content-between mb-1 small">
+                                      <span className="fw-semibold text-secondary">Discount Applied:</span>
+                                      <span className="fw-bold text-danger">-{formatCurrency(discount)}</span>
+                                    </div>
+                                    <div className="d-flex justify-content-between mb-1 small">
+                                      <span className="fw-semibold text-secondary">Quotation Subtotal:</span>
+                                      <span className="fw-bold text-dark">{formatCurrency(basePrice)}</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="d-flex justify-content-between mb-1 small">
+                                    <span className="fw-semibold text-secondary">Quotation Subtotal:</span>
+                                    <span className="fw-bold text-dark">{formatCurrency(basePrice)}</span>
+                                  </div>
+                                )}
+                                <div className="d-flex justify-content-between mb-1 small">
+                                  <span className="fw-semibold text-secondary">Value-Added Tax (10%):</span>
+                                  <span className="fw-bold text-dark">+{formatCurrency(taxAmount)}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-1 small">
+                                  <span className="fw-semibold text-secondary">Total with 10% Tax:</span>
+                                  <span className="fw-bold text-dark">{formatCurrency(totalWithTax)}</span>
+                                </div>
+                                <div className="d-flex justify-content-between mb-2 small border-bottom pb-2 border-success-subtle">
+                                  <span className="fw-semibold text-secondary">Less Reservation Fee Paid:</span>
+                                  <span className="fw-bold text-danger">-{formatCurrency(reservationFee)}</span>
+                                </div>
+                                <div className="d-flex justify-content-between align-items-center pt-1">
+                                  <div>
+                                    <span className="fw-bold text-dark fs-6 d-block">Actual Final Balance Payable:</span>
+                                    <span className="text-muted small" style={{ fontSize: '0.78rem' }}>(Net amount after 10% tax and reservation credit)</span>
+                                  </div>
+                                  <span className="fw-bold" style={{ color: '#166534', fontSize: '1.25rem' }}>
+                                    {formatCurrency(finalPayable)}
+                                  </span>
+                                </div>
                               </div>
-                            )}
-                            <hr className="my-2" style={{ borderColor: '#86efac' }} />
-                            <div className="d-flex justify-content-between align-items-center">
-                              <span className="fw-bold text-dark">Final Quotation Total:</span>
-                              <span className="fw-bold" style={{ color: '#166534', fontSize: '1.1rem' }}>₱{order.final_price}</span>
-                            </div>
-                          </div>
+                            );
+                          })()}
                         </div>
 
                         {order.quotation_status === 'Pending Client Approval' && (
@@ -656,6 +874,8 @@ function OngoingOrders() {
                               selectedDate={serviceDate}
                               selectedTimeSlot={serviceTimeSlot}
                               onSelectDateTime={(date, slot) => { setServiceDate(date); setServiceTimeSlot(slot); }}
+                              mode="execution"
+                              totalTrips={order.total_trips || 1}
                             />
                             <button className="btn btn-primary fw-bold w-100 shadow-sm" onClick={() => handleSetServiceDate(order.id)} disabled={isSubmittingDate}>
                               Confirm Schedule
@@ -822,6 +1042,8 @@ function OngoingOrders() {
                         selectedDate={rescheduleDate}
                         selectedTimeSlot={rescheduleTimeSlot}
                         onSelectDateTime={(date, slot) => { setRescheduleDate(date); setRescheduleTimeSlot(slot); }}
+                        mode={confirmData.target === 'execution' ? 'execution' : 'inspection'}
+                        totalTrips={confirmData.order?.total_trips || 1}
                       />
                     </div>
                     <div className="form-group">

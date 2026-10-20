@@ -62,7 +62,13 @@ const orderSchema = new mongoose.Schema({
   }],
   quotation_status: { type: String, enum: ['Pending Inspection', 'Pending Client Approval', 'Clarification Requested', 'Approved', 'Client Declined'], default: 'Pending Inspection' },
   service_execution_date: { type: Date },
-  service_execution_time_slot: { type: String }
+  service_execution_time_slot: { type: String },
+  total_trips: { type: Number, default: 1 },
+  num_households: { type: Number, default: 1 },
+  households: [{
+    name: { type: String },
+    address: { type: String }
+  }]
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 module.exports = mongoose.model('Order', orderSchema);

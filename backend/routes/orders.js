@@ -83,9 +83,20 @@ router.get('/stats', async (req, res) => {
 
 router.get('/availability', async (req, res) => {
   try {
-    // 1. Get initial booking slots (deduplicated by order_id to prevent multi-service duplicate counts)
-    const availabilityData = await Order.aggregate([
-      { $match: { status: { $nin: ['Cancelled', 'Completed'] } } },
+    const { getTruckTeams, countAvailableTrucks } = require('../utils/truckTeams');
+    const truckTeams = await getTruckTeams();
+    const availableTruckCount = countAvailableTrucks(truckTeams);
+
+    // 1. Gather active inspection bookings (inspections not yet completed, deduplicated by order_id)
+    const inspectionData = await Order.aggregate([
+      {
+        $match: {
+          status: { $nin: ['Cancelled', 'Completed'] },
+          service_execution_date: null,
+          has_final_price: { $ne: true },
+          quotation_status: { $in: [null, 'Pending Inspection', ''] }
+        }
+      },
       {
         $group: {
           _id: "$order_id",
@@ -97,49 +108,104 @@ router.get('/availability', async (req, res) => {
       {
         $group: {
           _id: { date: "$date", time_slot: "$time_slot" },
-          booking_count: { $sum: 1 }
+          count: { $sum: 1 }
         }
       }
     ]);
 
-    const availability = availabilityData.map(item => ({
-      date: item._id.date,
-      time_slot: item._id.time_slot,
-      booking_count: item.booking_count
-    }));
+    // 2. Gather active service execution bookings (deduplicated by order_id)
+    const executionOrders = await Order.aggregate([
+      {
+        $match: {
+          status: { $nin: ['Cancelled'] },
+          service_execution_date: { $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: "$order_id",
+          date: { $first: { $dateToString: { format: "%Y-%m-%d", date: "$service_execution_date" } } },
+          time_slot: { $first: "$service_execution_time_slot" },
+          total_trips: { $first: { $ifNull: ["$total_trips", 1] } }
+        }
+      },
+      { $match: { "date": { $ne: null } } }
+    ]);
 
-    // 2. Full-Day Lock: Any confirmed service execution locks the ENTIRE calendar day
-    const executionOrders = await Order.find({
-      status: { $nin: ['Cancelled'] },
-      service_execution_date: { $ne: null }
-    }).select('order_id service_execution_date service_execution_time_slot').lean();
+    // Map by date
+    const dateMap = {};
 
-    const executionDates = new Set();
-    executionOrders.forEach(o => {
-      if (o.service_execution_date) {
-        const d = new Date(o.service_execution_date);
-        const iso = d.toISOString().split('T')[0];
-        executionDates.add(iso);
-        const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        executionDates.add(local);
+    const ensureDate = (d) => {
+      if (!dateMap[d]) {
+        dateMap[d] = {
+          fullDayLock: false,
+          slots: {
+            Morning: { inspections: 0, executions: 0 },
+            Afternoon: { inspections: 0, executions: 0 },
+            Evening: { inspections: 0, executions: 0 }
+          }
+        };
+      }
+      return dateMap[d];
+    };
+
+    // Populate inspections
+    inspectionData.forEach(item => {
+      const d = item._id.date;
+      const slot = item._id.time_slot;
+      if (['Morning', 'Afternoon', 'Evening'].includes(slot)) {
+        const entry = ensureDate(d);
+        entry.slots[slot].inspections += item.count;
       }
     });
 
-    // Mark all 3 slots (Morning, Afternoon, Evening) as booked with is_execution flag
-    executionDates.forEach(dateStr => {
+    // Populate executions
+    executionOrders.forEach(o => {
+      const d = o.date;
+      const entry = ensureDate(d);
+      const trips = Number(o.total_trips) || 1;
+
+      if (trips >= 5) {
+        // 5+ trips locks the whole day (2 trucks utilized all day)
+        entry.fullDayLock = true;
+      } else {
+        const slot = o.time_slot;
+        if (['Morning', 'Afternoon', 'Evening'].includes(slot)) {
+          entry.slots[slot].executions += 1;
+        }
+      }
+    });
+
+    // Flatten into response array
+    const availability = [];
+    const allDates = Object.keys(dateMap);
+
+    allDates.forEach(dateStr => {
+      const entry = dateMap[dateStr];
       ['Morning', 'Afternoon', 'Evening'].forEach(slot => {
+        const slotData = entry.slots[slot];
+        const executions = slotData.executions;
+        const inspections = slotData.inspections;
+        const isFullDay = entry.fullDayLock;
+        const trucksLeft = isFullDay ? 0 : Math.max(0, availableTruckCount - executions);
+
         availability.push({
           date: dateStr,
           time_slot: slot,
-          booking_count: 1,
-          is_execution: true
+          booking_count: executions + inspections + (isFullDay ? 1 : 0),
+          executions_count: executions,
+          inspections_count: inspections,
+          available_trucks: availableTruckCount,
+          trucks_left: trucksLeft,
+          is_full_day_execution: isFullDay,
+          is_execution: isFullDay
         });
       });
     });
 
     res.json(availability);
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch availability' });
+    res.status(500).json({ success: false, message: 'Failed to fetch availability: ' + error.message });
   }
 });
 
@@ -163,7 +229,35 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
       return res.status(400).json({ success: false, message: 'The selected date is unavailable for booking' });
     }
 
-    // Check if date is locked by a confirmed service execution (Full-Day Lock)
+    // Validate residential households requirement
+    let households = [];
+    if (data.households) {
+      try {
+        households = typeof data.households === 'string' ? JSON.parse(data.households) : data.households;
+      } catch (e) {
+        households = [];
+      }
+    }
+    const numHouseholds = parseInt(data.num_households || (households && households.length) || 1, 10);
+    const clientType = data.clientType || 'residential';
+
+    if (clientType === 'residential') {
+      if (numHouseholds < 3 || !Array.isArray(households) || households.length < 3) {
+        return res.status(400).json({
+          success: false,
+          message: 'Residential bookings require a minimum of 3 participating households.'
+        });
+      }
+      const invalidHousehold = households.slice(0, 3).some(h => !h.name || !h.address || !h.name.trim() || !h.address.trim());
+      if (invalidHousehold) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide both the name and address for each required household.'
+        });
+      }
+    }
+
+    // Check if date is locked by a confirmed 5+ trip service execution (Full-Day Lock)
     const inspDate = new Date(data.date);
     const startOfInsp = new Date(inspDate);
     startOfInsp.setUTCHours(0, 0, 0, 0);
@@ -178,22 +272,26 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
     const minInsp = new Date(Math.min(startOfInsp.getTime(), localStartInsp.getTime()));
     const maxInsp = new Date(Math.max(endOfInsp.getTime(), localEndInsp.getTime()));
 
-    const existingExecOnDate = await Order.findOne({
+    const existingFullDayExec = await Order.findOne({
       status: { $nin: ['Cancelled'] },
-      service_execution_date: { $gte: minInsp, $lte: maxInsp }
+      service_execution_date: { $gte: minInsp, $lte: maxInsp },
+      total_trips: { $gte: 5 }
     });
-    if (existingExecOnDate) {
-      return res.status(400).json({ success: false, message: 'The selected date is fully booked for a service execution.' });
+    if (existingFullDayExec) {
+      return res.status(400).json({ success: false, message: 'The selected date is fully booked for a full-day service execution.' });
     }
 
-    // Check if the specific inspection time slot is already booked
+    // Check if the specific inspection time slot is already booked by an active pending inspection
     const existingSlotBooking = await Order.findOne({
       status: { $nin: ['Cancelled', 'Completed'] },
+      service_execution_date: null,
+      has_final_price: { $ne: true },
+      quotation_status: { $in: [null, 'Pending Inspection', ''] },
       date: { $gte: minInsp, $lte: maxInsp },
       time_slot: data.timeSlot
     });
     if (existingSlotBooking) {
-      return res.status(400).json({ success: false, message: `The ${data.timeSlot} slot on this date is already booked.` });
+      return res.status(400).json({ success: false, message: `The ${data.timeSlot} inspection slot on this date is already booked.` });
     }
 
     let serviceIds = [];
@@ -227,6 +325,32 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
       return res.status(400).json({ success: false, message: 'Invalid service selected' });
     }
 
+    // Calculate initial estimated total trips from initial estimate inputs
+    let initialTotalTrips = 1;
+    if (data.estimate_inputs) {
+      try {
+        const parsedInputs = typeof data.estimate_inputs === 'string' ? JSON.parse(data.estimate_inputs) : data.estimate_inputs;
+        let sumTrips = 0;
+        services.forEach(srv => {
+          const sName = (srv.name || '').toLowerCase();
+          const sInputs = parsedInputs[srv._id] || parsedInputs[srv.id] || {};
+          if (sName.includes('siphon') || sName.includes('desludg')) {
+            const nTanks = parseInt(sInputs.numTanks || 1, 10);
+            const cType = parseInt(sInputs.capacityType || 1, 10);
+            sumTrips += Math.max(1, nTanks * cType);
+          } else if (sName.includes('deep clean') || sName.includes('declog')) {
+            const nTanks = parseInt(sInputs.numTanks || 1, 10);
+            sumTrips += Math.max(1, nTanks);
+          } else {
+            sumTrips += 1;
+          }
+        });
+        if (sumTrips > 0) initialTotalTrips = sumTrips;
+      } catch (err) {
+        console.error('Error calculating total trips:', err);
+      }
+    }
+
     const orderId = 'ORD' + Date.now() + Math.floor(Math.random() * 1000);
     const totalAmount = 1100; // 1000 fee + 100 tax
 
@@ -255,6 +379,9 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
         base_estimate: data.base_estimate ? parseFloat(data.base_estimate) : 0,
         estimate_inputs: data.estimate_inputs ? JSON.parse(data.estimate_inputs) : {},
         site_photo_url: sitePhotoUrl,
+        total_trips: initialTotalTrips,
+        num_households: numHouseholds,
+        households: households,
         payment_method: data.payment_method || 'online',
         cheque_payer_name: data.cheque_payer_name,
         cheque_number: data.cheque_number,
@@ -433,13 +560,82 @@ router.put('/:id', async (req, res) => {
       const rEnd = new Date(reschedDate);
       rEnd.setHours(23, 59, 59, 999);
 
-      const execConflict = await Order.findOne({
-        order_id: { $ne: oldOrder.order_id },
-        status: { $nin: ['Cancelled'] },
-        service_execution_date: { $gte: rStart, $lte: rEnd }
-      });
-      if (execConflict) {
-        return res.status(400).json({ success: false, message: 'The selected reschedule date is fully booked for a service execution.' });
+      const isExecution = (updateData.reschedule_target === 'execution') || (oldOrder.service_execution_date && !oldOrder.reschedule_target);
+      const reschedSlot = updateData.reschedule_time_slot || (isExecution ? oldOrder.service_execution_time_slot : oldOrder.time_slot);
+
+      const { getTruckTeams, countAvailableTrucks } = require('../utils/truckTeams');
+      const truckTeams = await getTruckTeams();
+      const availableTruckCount = countAvailableTrucks(truckTeams);
+
+      if (isExecution) {
+        const totalTrips = Number(oldOrder.total_trips) || 1;
+        if (totalTrips >= 5) {
+          if (availableTruckCount < 2) {
+            return res.status(400).json({ success: false, message: 'Rescheduling a 5+ trip booking requires at least 2 available trucks.' });
+          }
+          const anyExec = await Order.findOne({
+            order_id: { $ne: oldOrder.order_id },
+            status: { $nin: ['Cancelled'] },
+            service_execution_date: { $gte: rStart, $lte: rEnd }
+          });
+          if (anyExec) {
+            return res.status(400).json({ success: false, message: 'This date already has another service scheduled. 5+ trip orders require the entire day.' });
+          }
+        } else {
+          if (availableTruckCount < 1) {
+            return res.status(400).json({ success: false, message: 'No trucks are currently operational to schedule this service.' });
+          }
+          const fullDayExec = await Order.findOne({
+            order_id: { $ne: oldOrder.order_id },
+            status: { $nin: ['Cancelled'] },
+            service_execution_date: { $gte: rStart, $lte: rEnd },
+            total_trips: { $gte: 5 }
+          });
+          if (fullDayExec) {
+            return res.status(400).json({ success: false, message: 'The selected date is reserved for a full-day (5+ trips) service.' });
+          }
+          if (reschedSlot) {
+            const execsInSlot = await Order.aggregate([
+              {
+                $match: {
+                  order_id: { $ne: oldOrder.order_id },
+                  status: { $nin: ['Cancelled'] },
+                  service_execution_date: { $gte: rStart, $lte: rEnd },
+                  service_execution_time_slot: reschedSlot
+                }
+              },
+              { $group: { _id: "$order_id" } }
+            ]);
+            if (execsInSlot.length >= availableTruckCount) {
+              return res.status(400).json({ success: false, message: `The ${reschedSlot} slot on this date is fully booked (${availableTruckCount} of ${availableTruckCount} trucks in use).` });
+            }
+          }
+        }
+      } else {
+        // Rescheduling an inspection
+        const fullDayExec = await Order.findOne({
+          order_id: { $ne: oldOrder.order_id },
+          status: { $nin: ['Cancelled'] },
+          service_execution_date: { $gte: rStart, $lte: rEnd },
+          total_trips: { $gte: 5 }
+        });
+        if (fullDayExec) {
+          return res.status(400).json({ success: false, message: 'The selected date is fully booked for a full-day service execution.' });
+        }
+        if (reschedSlot) {
+          const inspInSlot = await Order.findOne({
+            order_id: { $ne: oldOrder.order_id },
+            status: { $nin: ['Cancelled', 'Completed'] },
+            service_execution_date: null,
+            has_final_price: { $ne: true },
+            quotation_status: { $in: [null, 'Pending Inspection', ''] },
+            date: { $gte: rStart, $lte: rEnd },
+            time_slot: reschedSlot
+          });
+          if (inspInSlot) {
+            return res.status(400).json({ success: false, message: `The ${reschedSlot} slot on this date is already booked for another site inspection.` });
+          }
+        }
       }
     }
 
@@ -758,10 +954,12 @@ router.post('/:id/verify-cheque', async (req, res) => {
 router.post('/:id/quotation', async (req, res) => {
   try {
     const { id } = req.params;
-    const { estimate_inputs, justifications, discount_amount, final_price, price } = req.body;
+    const { estimate_inputs, justifications, discount_amount, final_price, price, total_trips } = req.body;
 
     const order = await Order.findById(id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const tripsToSave = total_trips ? parseInt(total_trips, 10) : (order.total_trips || 1);
 
     await Order.updateMany(
       { order_id: order.order_id },
@@ -772,6 +970,7 @@ router.post('/:id/quotation', async (req, res) => {
           discount_amount: discount_amount || 0,
           price: price || 0,
           final_price: final_price || 0,
+          total_trips: tripsToSave,
           has_final_price: true,
           quotation_status: 'Pending Client Approval'
         }
@@ -888,17 +1087,74 @@ router.post('/:id/service-date', async (req, res) => {
     const minDateCheck = new Date(Math.min(startOfDay.getTime(), localStart.getTime()));
     const maxDateCheck = new Date(Math.max(endOfDay.getTime(), localEnd.getTime()));
 
-    const existingExecution = await Order.findOne({
-      order_id: { $ne: order.order_id },
-      status: { $nin: ['Cancelled'] },
-      service_execution_date: { $gte: minDateCheck, $lte: maxDateCheck }
-    });
+    const { getTruckTeams, countAvailableTrucks } = require('../utils/truckTeams');
+    const truckTeams = await getTruckTeams();
+    const availableTruckCount = countAvailableTrucks(truckTeams);
 
-    if (existingExecution) {
-      return res.status(400).json({
-        success: false,
-        message: 'This date is already fully booked for another service execution.'
+    const totalTrips = Number(order.total_trips) || 1;
+
+    if (totalTrips >= 5) {
+      if (availableTruckCount < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'This service execution requires 2 operational vacuum trucks (5+ trips), but fewer are currently available. Please contact support.'
+        });
+      }
+
+      const existingExecution = await Order.findOne({
+        order_id: { $ne: order.order_id },
+        status: { $nin: ['Cancelled'] },
+        service_execution_date: { $gte: minDateCheck, $lte: maxDateCheck }
       });
+
+      if (existingExecution) {
+        return res.status(400).json({
+          success: false,
+          message: 'A 5+ trip service execution requires the entire day. Other services are already booked on this date.'
+        });
+      }
+    } else {
+      if (availableTruckCount < 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'No vacuum trucks are currently available. Please contact support or select another date.'
+        });
+      }
+
+      const fullDayExecution = await Order.findOne({
+        order_id: { $ne: order.order_id },
+        status: { $nin: ['Cancelled'] },
+        service_execution_date: { $gte: minDateCheck, $lte: maxDateCheck },
+        total_trips: { $gte: 5 }
+      });
+
+      if (fullDayExecution) {
+        return res.status(400).json({
+          success: false,
+          message: 'This date is reserved for a high-capacity (5+ trips) service execution.'
+        });
+      }
+
+      const executionsInSlot = await Order.aggregate([
+        {
+          $match: {
+            order_id: { $ne: order.order_id },
+            status: { $nin: ['Cancelled'] },
+            service_execution_date: { $gte: minDateCheck, $lte: maxDateCheck },
+            service_execution_time_slot: service_execution_time_slot
+          }
+        },
+        {
+          $group: { _id: "$order_id" }
+        }
+      ]);
+
+      if (executionsInSlot.length >= availableTruckCount) {
+        return res.status(400).json({
+          success: false,
+          message: `The ${service_execution_time_slot} slot on this date is fully booked (${availableTruckCount} of ${availableTruckCount} trucks booked).`
+        });
+      }
     }
 
     // Update all order items in the grouped booking

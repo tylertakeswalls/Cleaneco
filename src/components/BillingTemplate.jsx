@@ -1,8 +1,15 @@
 import React from 'react';
-import { formatDate } from '../utils/helpers';
+import { formatDate, formatPHP } from '../utils/helpers';
 
 const BillingTemplate = ({ billingOrder }) => {
   if (!billingOrder) return null;
+
+  const basePrice = billingOrder.final_price || billingOrder.price || 0;
+  const originalPrice = billingOrder.price || billingOrder.base_estimate || 0;
+  const discountAmount = billingOrder.discount_amount || 0;
+  const taxAmount = basePrice * 0.1;
+  const reservationPaid = 1100;
+  const remainingBalance = Math.max(0, (basePrice * 1.1) - reservationPaid);
 
   return (
     <div id="print-billing" style={{ padding: '40pt', fontFamily: '"Times New Roman", Times, serif', color: 'black', fontSize: '12pt' }}>
@@ -67,7 +74,7 @@ const BillingTemplate = ({ billingOrder }) => {
           ) : (
             <tr>
               <td style={{ padding: '8pt', border: '1px solid #000' }}>{billingOrder.service_type || billingOrder.service_name} (Base Estimate)</td>
-              <td style={{ padding: '8pt', border: '1px solid #000', textAlign: 'right' }}>PHP {(billingOrder.base_estimate || 0).toFixed(2)}</td>
+              <td style={{ padding: '8pt', border: '1px solid #000', textAlign: 'right' }}>{formatPHP(billingOrder.base_estimate || 0)}</td>
             </tr>
           )}
         </tbody>
@@ -78,29 +85,29 @@ const BillingTemplate = ({ billingOrder }) => {
           <tbody>
             <tr>
               <td style={{ padding: '5pt 10pt', textAlign: 'right', fontWeight: 'bold' }}>Subtotal:</td>
-              <td style={{ padding: '5pt 10pt', textAlign: 'right' }}>PHP {(billingOrder.price || billingOrder.base_estimate || 0).toFixed(2)}</td>
+              <td style={{ padding: '5pt 10pt', textAlign: 'right' }}>{formatPHP(originalPrice)}</td>
             </tr>
-            {billingOrder.discount_amount > 0 && (
+            {discountAmount > 0 && (
               <tr>
                 <td style={{ padding: '5pt 10pt', textAlign: 'right', fontWeight: 'bold', color: 'red' }}>Less Discount:</td>
-                <td style={{ padding: '5pt 10pt', textAlign: 'right', color: 'red' }}>-PHP {billingOrder.discount_amount.toFixed(2)}</td>
+                <td style={{ padding: '5pt 10pt', textAlign: 'right', color: 'red' }}>{formatPHP(discountAmount, true)}</td>
               </tr>
             )}
             <tr>
               <td style={{ padding: '5pt 10pt', textAlign: 'right', fontWeight: 'bold' }}>Quotation Total:</td>
-              <td style={{ padding: '5pt 10pt', textAlign: 'right' }}>PHP {(billingOrder.final_price || billingOrder.price || 0).toFixed(2)}</td>
+              <td style={{ padding: '5pt 10pt', textAlign: 'right' }}>{formatPHP(basePrice)}</td>
             </tr>
             <tr>
               <td style={{ padding: '5pt 10pt', textAlign: 'right', fontWeight: 'bold', color: '#666' }}>Service Tax (10%):</td>
-              <td style={{ padding: '5pt 10pt', textAlign: 'right', color: '#666' }}>PHP {((billingOrder.final_price || billingOrder.price || 0) * 0.1).toFixed(2)}</td>
+              <td style={{ padding: '5pt 10pt', textAlign: 'right', color: '#666' }}>{formatPHP(taxAmount)}</td>
             </tr>
             <tr>
               <td style={{ padding: '5pt 10pt', textAlign: 'right', fontWeight: 'bold', color: 'red' }}>Less Reservation Paid:</td>
-              <td style={{ padding: '5pt 10pt', textAlign: 'right', color: 'red' }}>-PHP 1100.00</td>
+              <td style={{ padding: '5pt 10pt', textAlign: 'right', color: 'red' }}>{formatPHP(reservationPaid, true)}</td>
             </tr>
             <tr>
               <td style={{ padding: '5pt 10pt', textAlign: 'right', fontWeight: 'bold', fontSize: '14pt', borderTop: '2px solid #000' }}>Remaining Balance:</td>
-              <td style={{ padding: '5pt 10pt', textAlign: 'right', fontWeight: 'bold', fontSize: '14pt', borderTop: '2px solid #000' }}>PHP {(((billingOrder.final_price || billingOrder.price || 0) * 1.1) - 1100).toFixed(2)}</td>
+              <td style={{ padding: '5pt 10pt', textAlign: 'right', fontWeight: 'bold', fontSize: '14pt', borderTop: '2px solid #000' }}>{formatPHP(remainingBalance)}</td>
             </tr>
           </tbody>
         </table>

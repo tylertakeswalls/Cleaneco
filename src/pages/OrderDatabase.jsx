@@ -154,9 +154,23 @@ function OrderDatabase() {
         openEditModal(match);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, orders]);
 
   const openEditModal = (order) => {
+    const trips = Number(order.total_trips) || 1;
+    let initialTruckTeam = order.truck_team || '';
+
+    // If order has >= 5 trips and no truck assigned yet, auto-pair operational trucks if at least 2 exist
+    if (trips >= 5 && !initialTruckTeam) {
+      const operational = truckTeams.filter(t => (typeof t === 'string' ? true : t.status !== 'unavailable'));
+      if (operational.length >= 2) {
+        const nameA = typeof operational[0] === 'string' ? operational[0] : operational[0].name;
+        const nameB = typeof operational[1] === 'string' ? operational[1] : operational[1].name;
+        initialTruckTeam = `${nameA} & ${nameB}`;
+      }
+    }
+
     setEditModal({ show: true, order });
     setEditForm({
       status: order.status || '',
@@ -165,7 +179,7 @@ function OrderDatabase() {
       approval_fee: order.approval_fee || '',
       confirmed_date: order.confirmed_date ? new Date(order.confirmed_date).toISOString().split('T')[0] : '',
       confirmed_time_slot: order.confirmed_time_slot || '',
-      truck_team: order.truck_team || '',
+      truck_team: initialTruckTeam,
       misc_fee: order.misc_fee || '',
       internal_notes: order.internal_notes || ''
     });
@@ -247,8 +261,62 @@ function OrderDatabase() {
     return total;
   };
 
+  const calculateTotalTrips = () => {
+    if (!editModal.order || !editModal.order.service_ids) return 1;
+    let trips = 0;
+    editModal.order.service_ids.forEach(serviceId => {
+      const service = services.find(s => s.id === serviceId || s._id === serviceId);
+      if (service) {
+        const name = service.name.toLowerCase();
+        const inputs = quotationForm.estimate_inputs[serviceId] || {};
+        if (name.includes('siphon') || name.includes('desludg')) {
+          const numTanks = parseInt(inputs.numTanks || 1, 10);
+          const capacityType = parseInt(inputs.capacityType || 1, 10);
+          trips += Math.max(1, numTanks * capacityType);
+        } else if (name.includes('deep clean') || name.includes('declog')) {
+          const numTanks = parseInt(inputs.numTanks || 1, 10);
+          trips += Math.max(1, numTanks);
+        } else {
+          trips += 1;
+        }
+      }
+    });
+    return Math.max(1, trips);
+  };
+
   const quotationSubtotal = getQuotationSubtotal();
   const quotationTotal = Math.max(0, quotationSubtotal - (parseFloat(quotationForm.discount_amount) || 0));
+  const estimatedTrips = calculateTotalTrips();
+
+  const isHighCapacityOrder = ((Number(editModal.order?.total_trips) || 0) >= 5) || (estimatedTrips >= 5);
+  const operationalTrucks = truckTeams.filter(t => (typeof t === 'string' ? true : t.status !== 'unavailable'));
+  const selectedHighCapTrucks = editForm.truck_team
+    ? editForm.truck_team.split(/[,&]/).map(s => s.trim()).filter(Boolean)
+    : [];
+
+  const handleToggleHighCapacityTruck = (teamName) => {
+    let updated;
+    if (selectedHighCapTrucks.includes(teamName)) {
+      updated = selectedHighCapTrucks.filter(t => t !== teamName);
+    } else {
+      updated = [...selectedHighCapTrucks, teamName];
+    }
+    setEditForm(prev => ({
+      ...prev,
+      truck_team: updated.join(' & ')
+    }));
+  };
+
+  const handleAutoAssignTwoTrucks = () => {
+    if (operationalTrucks.length >= 2) {
+      const nameA = typeof operationalTrucks[0] === 'string' ? operationalTrucks[0] : operationalTrucks[0].name;
+      const nameB = typeof operationalTrucks[1] === 'string' ? operationalTrucks[1] : operationalTrucks[1].name;
+      setEditForm(prev => ({
+        ...prev,
+        truck_team: `${nameA} & ${nameB}`
+      }));
+    }
+  };
 
   const handleSubmitQuotation = async () => {
     if (!editModal.order) return;
@@ -259,7 +327,8 @@ function OrderDatabase() {
         justifications: quotationForm.justifications,
         discount_amount: quotationForm.discount_amount,
         price: quotationSubtotal,
-        final_price: quotationTotal
+        final_price: quotationTotal,
+        total_trips: estimatedTrips
       };
       const response = await api.post(`/orders/${editModal.order.id}/quotation`, payload);
       if (response.data.success) {
@@ -309,6 +378,16 @@ function OrderDatabase() {
 
   const proceedSaveOrderChanges = async () => {
     if (!editModal.order) return;
+
+    const trips = (Number(editModal.order.total_trips) || 0) || estimatedTrips || 1;
+    if (trips >= 5 && editModal.order.quotation_status === 'Approved' && editForm.truck_team) {
+      const selected = editForm.truck_team.split(/[,&]/).map(s => s.trim()).filter(Boolean);
+      if (selected.length !== 2) {
+        showAlert("Invalid Truck Assignment", `High-capacity orders (5+ trips) require exactly 2 operational trucks to be assigned (${selected.length} currently selected).`, "warning");
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {
@@ -794,6 +873,110 @@ function OrderDatabase() {
                           )}
                         </div>
                       )}
+
+                      {editModal.order.households && editModal.order.households.length > 0 && (
+                        <div className="card border-0 shadow-sm p-3 mb-4 bg-light">
+                          <h6 className="fw-bold text-dark mb-2">
+                            <i className="fas fa-users me-2 text-success"></i>Participating Households ({editModal.order.num_households || editModal.order.households.length})
+                          </h6>
+                          <div 
+                            className="table-responsive bg-white" 
+                            style={{ 
+                              borderRadius: '8px', 
+                              border: '1px solid #dee2e6', 
+                              overflow: 'hidden' 
+                            }}
+                          >
+                            <table 
+                              className="table table-sm bg-white mb-0 small" 
+                              style={{ 
+                                borderCollapse: 'separate', 
+                                borderSpacing: 0, 
+                                width: '100%',
+                                marginBottom: 0
+                              }}
+                            >
+                              <thead className="table-light">
+                                <tr>
+                                  <th 
+                                    style={{ 
+                                      width: '40px', 
+                                      borderTopLeftRadius: '7px', 
+                                      borderBottom: '1px solid #dee2e6', 
+                                      borderRight: '1px solid #dee2e6',
+                                      borderTop: 'none', 
+                                      borderLeft: 'none' 
+                                    }}
+                                    className="px-2 py-1 text-center"
+                                  >
+                                    #
+                                  </th>
+                                  <th 
+                                    style={{ 
+                                      borderBottom: '1px solid #dee2e6', 
+                                      borderRight: '1px solid #dee2e6',
+                                      borderTop: 'none' 
+                                    }}
+                                    className="px-2 py-1"
+                                  >
+                                    Name
+                                  </th>
+                                  <th 
+                                    style={{ 
+                                      borderTopRightRadius: '7px', 
+                                      borderBottom: '1px solid #dee2e6', 
+                                      borderTop: 'none', 
+                                      borderRight: 'none' 
+                                    }}
+                                    className="px-2 py-1"
+                                  >
+                                    Address
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {editModal.order.households.map((h, i) => {
+                                  const isLast = i === editModal.order.households.length - 1;
+                                  return (
+                                    <tr key={i}>
+                                      <td 
+                                        className="fw-bold px-2 py-1 text-center" 
+                                        style={{ 
+                                          borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                          borderRight: '1px solid #dee2e6',
+                                          borderBottomLeftRadius: isLast ? '7px' : 0,
+                                          borderLeft: 'none'
+                                        }}
+                                      >
+                                        {i + 1}
+                                      </td>
+                                      <td 
+                                        className="px-2 py-1" 
+                                        style={{ 
+                                          borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                          borderRight: '1px solid #dee2e6'
+                                        }}
+                                      >
+                                        {h.name} {i === 0 && <span className="badge bg-success ms-1">Lead</span>}
+                                      </td>
+                                      <td 
+                                        className="px-2 py-1" 
+                                        style={{ 
+                                          borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                          borderBottomRightRadius: isLast ? '7px' : 0,
+                                          borderRight: 'none'
+                                        }}
+                                      >
+                                        {h.address}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -868,6 +1051,17 @@ function OrderDatabase() {
 
                       <div className="card shadow-sm border mb-4" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
                         <div className="card-body p-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="fw-bold text-secondary">Estimated Total Trips:</span>
+                            <span className="fw-bold text-dark">
+                              {estimatedTrips} {estimatedTrips === 1 ? 'Trip' : 'Trips'}
+                              {estimatedTrips >= 5 ? (
+                                <span className="badge bg-danger ms-2">Whole-Day Lock (2 Trucks)</span>
+                              ) : (
+                                <span className="badge bg-success ms-2">Single Slot (1 Truck)</span>
+                              )}
+                            </span>
+                          </div>
                           <div className="d-flex justify-content-between align-items-center mb-2">
                             <span className="fw-bold text-secondary">Total (Before Discount):</span>
                             <span className="fw-bold text-dark">₱{quotationSubtotal.toLocaleString()}</span>
@@ -954,21 +1148,114 @@ function OrderDatabase() {
                                   readOnly
                                 />
                               </div>
-                              <div className="form-group mb-0">
-                                <label className="form-label fw-bold small text-secondary">Assign Truck Team</label>
-                                <select 
-                                  name="truck_team"
-                                  className="form-select shadow-sm border-success"
-                                  value={editForm.truck_team}
-                                  onChange={handleEditChange}
-                                >
-                                  <option value="">-- Select a Team --</option>
-                                  {truckTeams.map(team => (
-                                    <option key={team} value={team}>{team}</option>
-                                  ))}
-                                </select>
-                                <small className="text-muted mt-1 d-block">Assign a team to deploy on the execution date.</small>
-                              </div>
+                              {isHighCapacityOrder ? (
+                                <div className="form-group mb-0">
+                                  <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                    <label className="form-label fw-bold small text-secondary mb-0">
+                                      Assign 2 Vacuum Trucks <span className="badge bg-danger ms-1">Whole-Day (5+ Trips)</span>
+                                    </label>
+                                    {selectedHighCapTrucks.length === 2 ? (
+                                      <span className="badge bg-success"><i className="fas fa-check-circle me-1"></i>2 Trucks Selected</span>
+                                    ) : (
+                                      <span className="badge bg-warning text-dark"><i className="fas fa-exclamation-circle me-1"></i>{selectedHighCapTrucks.length}/2 Selected</span>
+                                    )}
+                                  </div>
+
+                                  {operationalTrucks.length < 2 && (
+                                    <div className="alert alert-warning py-2 px-3 small mb-2">
+                                      <i className="fas fa-exclamation-triangle me-1"></i>
+                                      <strong>Notice:</strong> Only {operationalTrucks.length} operational truck{operationalTrucks.length === 1 ? ' is' : 's are'} available in Settings. At least 2 are required.
+                                    </div>
+                                  )}
+
+                                  <div className="p-3 bg-white rounded border border-success border-opacity-50 shadow-sm">
+                                    <div className="small text-muted mb-2">
+                                      {operationalTrucks.length === 2 ? (
+                                        <span>Both operational trucks are automatically paired for this full-day execution:</span>
+                                      ) : (
+                                        <span>Select exactly <strong>2 operational trucks</strong> to deploy for this whole-day execution:</span>
+                                      )}
+                                    </div>
+
+                                    <div className="d-flex flex-column gap-2">
+                                      {truckTeams.map((team, idx) => {
+                                        const teamName = typeof team === 'string' ? team : team.name;
+                                        const isAvailable = typeof team === 'string' ? true : team.status !== 'unavailable';
+                                        const isChecked = selectedHighCapTrucks.includes(teamName);
+
+                                        return (
+                                          <div 
+                                            key={(typeof team === 'object' && team.id) || idx}
+                                            className={`d-flex align-items-center justify-content-between p-2 px-3 rounded border ${isChecked ? 'bg-success bg-opacity-10 border-success' : 'border-light-subtle'}`}
+                                            style={{ opacity: !isAvailable ? 0.6 : 1 }}
+                                          >
+                                            <div className="form-check mb-0 d-flex align-items-center">
+                                              <input
+                                                className="form-check-input me-2 mt-0"
+                                                type="checkbox"
+                                                id={`truck-team-cb-${idx}`}
+                                                checked={isChecked}
+                                                disabled={!isAvailable}
+                                                onChange={() => handleToggleHighCapacityTruck(teamName)}
+                                                style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}
+                                              />
+                                              <label className="form-check-label fw-bold text-dark mb-0" htmlFor={`truck-team-cb-${idx}`} style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}>
+                                                <i className="fas fa-truck me-2 text-success"></i>
+                                                {teamName}
+                                              </label>
+                                            </div>
+                                            <span className={`badge ${isAvailable ? (isChecked ? 'bg-success' : 'bg-secondary') : 'bg-danger'}`} style={{ fontSize: '0.72rem' }}>
+                                              {!isAvailable ? 'Unavailable (Maintenance)' : isChecked ? 'Assigned' : 'Available'}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {operationalTrucks.length >= 2 && selectedHighCapTrucks.length !== 2 && (
+                                      <div className="mt-2 text-end">
+                                        <button
+                                          type="button"
+                                          className="btn btn-link btn-sm text-decoration-none p-0 text-success fw-bold"
+                                          onClick={handleAutoAssignTwoTrucks}
+                                        >
+                                          <i className="fas fa-magic me-1"></i>Auto-Select {operationalTrucks.length === 2 ? 'Both Available Trucks' : 'First 2 Available Trucks'}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="mt-2 small text-muted">
+                                    Current Assignment: <strong>{editForm.truck_team || 'None (Unassigned)'}</strong>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="form-group mb-0">
+                                  <label className="form-label fw-bold small text-secondary">Assign Truck Team</label>
+                                  <select 
+                                    name="truck_team"
+                                    className="form-select shadow-sm border-success"
+                                    value={editForm.truck_team}
+                                    onChange={handleEditChange}
+                                  >
+                                    <option value="">-- Select a Team --</option>
+                                    {truckTeams.map((team, idx) => {
+                                      const teamName = typeof team === 'string' ? team : team.name;
+                                      const isAvailable = typeof team === 'string' ? true : team.status !== 'unavailable';
+                                      return (
+                                        <option 
+                                          key={(typeof team === 'object' && team.id) || idx} 
+                                          value={teamName}
+                                          disabled={!isAvailable && editForm.truck_team !== teamName}
+                                        >
+                                          {teamName} {!isAvailable ? '(Unavailable - Maintenance)' : ''}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                  <small className="text-muted mt-1 d-block">Assign a team to deploy on the execution date.</small>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </>
