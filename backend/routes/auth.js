@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
-const { sendVerificationEmail } = require('../utils/emailHelper');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailHelper');
 
 const router = express.Router();
 
@@ -196,6 +196,125 @@ router.post('/resend-verification', async (req, res) => {
     res.json({ success: true, message: 'Verification email resent successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to resend email: ' + error.message });
+  }
+});
+
+// Helper: Mask email address (e.g. mongo@gmail.com -> mo*****@g***.com)
+const maskEmail = (email) => {
+  if (!email || !email.includes('@')) return email || '';
+  const [localPart, domain] = email.split('@');
+  const dotIndex = domain.lastIndexOf('.');
+  const domainName = dotIndex !== -1 ? domain.substring(0, dotIndex) : domain;
+  const domainExt = dotIndex !== -1 ? domain.substring(dotIndex) : '';
+
+  let maskedLocal;
+  if (localPart.length <= 2) {
+    maskedLocal = localPart[0] + '*****';
+  } else {
+    maskedLocal = localPart.substring(0, 2) + '*****';
+  }
+
+  const maskedDomain = domainName.length <= 2 ? domainName[0] + '***' : domainName[0] + '***';
+  return `${maskedLocal}@${maskedDomain}${domainExt}`;
+};
+
+// Request password reset link by username
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || !username.trim()) {
+      return res.status(400).json({ success: false, message: 'Please provide your username.' });
+    }
+
+    const cleanUsername = username.trim();
+    const user = await User.findOne({
+      username: { $regex: new RegExp(`^${cleanUsername}$`, 'i') }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: `No account found with username "${cleanUsername}". Please check your spelling or register.`
+      });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'This account does not have a registered email address. Please contact IT support.'
+      });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    await sendPasswordResetEmail(user.email, resetToken, user.first_name);
+
+    return res.json({
+      success: true,
+      message: 'Password reset link sent successfully.',
+      maskedEmail: maskEmail(user.email),
+      username: user.username
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process password reset: ' + error.message });
+  }
+});
+
+// Reset password using token
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Missing password reset token.' });
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'This password reset link is invalid or has expired. Please request a new one.'
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+    await user.save();
+
+    try {
+      await Notification.create({
+        user_id: user._id,
+        title: 'Password Changed',
+        message: 'Your account password was successfully reset.',
+        type: 'account'
+      });
+    } catch (notifErr) {
+      console.warn('Could not create reset password notification:', notifErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Your password has been successfully reset! You can now log in.'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Password reset failed: ' + error.message });
   }
 });
 

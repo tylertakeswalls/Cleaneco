@@ -274,4 +274,48 @@ const sendRescheduleEmail = async (email, firstName, orderId, isApproved, newDat
   });
 };
 
-module.exports = { sendConfirmationEmail, sendVerificationEmail, sendContactEmail, sendRescheduleEmail };
+const sendPasswordResetEmail = async (email, token, firstName) => {
+  const clientBaseUrl = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://cleaneco-kappa.vercel.app' : 'http://localhost:3000');
+  const resetLink = `${clientBaseUrl}/reset-password?token=${token}`;
+  const subject = 'Reset Your Cleaneco Account Password';
+  
+  const contentHtml = `
+      <div style="text-align: center;">
+          <h2 style="color: #1e293b; margin-top: 0; font-size: 22px;">Hello ${firstName || 'Valued Client'},</h2>
+          <p style="font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 20px;">
+              We received a request to reset the password for your Cleaneco account. Click the button below to create a new password:
+          </p>
+          <a href='${resetLink}' class='btn-action' style='color: #ffffff; text-decoration: none;'>Reset My Password</a>
+          <div class="notes-box" style="margin-top: 25px; text-align: left;">
+              <p style="margin: 0; font-size: 13px; color: #64748b;">
+                  <strong>Note:</strong> This password reset link will expire in <strong>1 hour</strong>. If you did not request this password reset, please ignore this email or contact support if you suspect unauthorized access.
+              </p>
+          </div>
+          <p style="font-size: 13px; margin-top: 20px; color: #94a3b8; text-align: left;">
+              If the button above does not work, copy and paste this link into your browser:<br><br>
+              <a href='${resetLink}' style='color: ${primaryColor}; word-break: break-all;'>${resetLink}</a>
+          </p>
+      </div>
+  `;
+
+  const htmlMessage = baseEmailTemplate({
+      subject,
+      title: 'Cleaneco Waste Management Services',
+      headerSubtitle: "Password Reset Request",
+      contentHtml
+  });
+
+  await sendEmailJS('template_ns5zlcs', {
+    to_email: email,
+    subject: subject,
+    html_content: htmlMessage
+  });
+};
+
+module.exports = { 
+  sendConfirmationEmail, 
+  sendVerificationEmail, 
+  sendPasswordResetEmail, 
+  sendContactEmail, 
+  sendRescheduleEmail 
+};

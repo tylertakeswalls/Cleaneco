@@ -10,6 +10,7 @@ import DeepCleaning from './pages/DeepCleaning';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import VerifyEmail from './pages/VerifyEmail';
+import ResetPassword from './pages/ResetPassword';
 import OrderForm from './pages/OrderForm';
 import OngoingOrders from './pages/OngoingOrders';
 import ThankYou from './pages/ThankYou';
@@ -67,6 +68,7 @@ function App() {
           <Route path="/client/services/deep-cleaning-declogging" element={<DeepCleaning />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify" element={<VerifyEmail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/login" element={<Login />} />
           <Route path="/order" element={<OrderForm />} />
           <Route path="/orders" element={<OngoingOrders />} />
