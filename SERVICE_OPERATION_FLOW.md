@@ -30,11 +30,15 @@ graph TD
 ### Phase 1: Booking & Inspection Scheduling
 
 #### 1. Service Selection & Booking Request (Client)
-- **Action**: Client navigates to `/order` and selects a service (*Septic Tank Cleaning / Siphoning*, *Deep Cleaning & Declogging*, *Grease Trap Maintenance*).
+- **Action**: Client navigates to `/order` and selects one or more services.
+- **Dynamic Pricing & Form Factors**:
+  - Each service dynamically loads its client questionnaire and formula factors configured by administrators in Service Management (`/services`).
+  - **Factor Types**: Number multipliers (e.g. Number of Tanks / Units), Dropdown Multipliers (e.g. Tank Capacity / Size), and Dropdown Surcharges (e.g. Difficult Site Accessibility with optional site photo upload).
+  - **Inspection-Only Services**: Services configured for on-site assessment bypass upfront estimates, stating *"Price determined after inspection"*.
+  - **Permanent Pricing Snapshot**: When an order is created, the system captures an immutable `pricing_snapshot` of the exact rates, factors, and surcharges in effect at that moment. Future rate updates by administrators will never alter previously booked orders.
 - **Form Inputs**:
   - **Account Classification**: `Residential`, `Commercial`, or `Industrial` (Commercial & Industrial accounts require registered Company Name).
-  - **Site Accessibility**: `Easy (10–20m)`, `Moderate`, or `Challenging (Long Hoses / Difficult Terrain)` with optional site photo upload.
-  - **Initial Estimation Parameters**: Estimated tank capacity, number of septic chambers, sludge accumulation levels.
+  - **Dynamic Service Fields**: Configured factors for each selected service.
   - **Preferred Inspection Schedule**: Date & time slot (Morning, Afternoon, Evening) chosen from the interactive calendar. Locked holidays and admin-blackout dates are automatically disabled.
 
 #### 2. Reservation Fee Payment (Client)

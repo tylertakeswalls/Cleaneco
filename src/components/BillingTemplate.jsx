@@ -46,31 +46,53 @@ const BillingTemplate = ({ billingOrder }) => {
         </thead>
         <tbody>
           {billingOrder.estimate_inputs && Object.keys(billingOrder.estimate_inputs).length > 0 ? (
-            Object.entries(billingOrder.estimate_inputs).map(([serviceId, inputs], sIdx) => (
-              <React.Fragment key={sIdx}>
-                <tr>
-                  <td colSpan="2" style={{ padding: '8pt', border: '1px solid #000', fontWeight: 'bold', fontStyle: 'italic' }}>
-                    Service Configuration (ID: {serviceId})
-                  </td>
-                </tr>
-                {Object.entries(inputs).map(([key, value], iIdx) => {
+            Object.entries(billingOrder.estimate_inputs).map(([serviceId, inputs], sIdx) => {
+              const snapshot = (billingOrder.pricing_snapshot && (billingOrder.pricing_snapshot[serviceId] || Object.values(billingOrder.pricing_snapshot)[0])) || null;
+              const serviceHeading = snapshot?.name || billingOrder.service_type || billingOrder.service_name || `Service (ID: ${serviceId})`;
+
+              let fieldEntries = [];
+              if (snapshot && Array.isArray(snapshot.fields) && snapshot.fields.length > 0) {
+                fieldEntries = snapshot.fields.map(field => {
+                  const rawVal = inputs[field.key];
+                  let displayVal = rawVal !== undefined && rawVal !== '' ? rawVal : (field.default ?? '');
+                  if (field.type === 'multiplier' || field.type === 'surcharge') {
+                    const opt = (field.options || []).find(o => String(o.value) === String(displayVal));
+                    if (opt) displayVal = opt.label;
+                  }
+                  return { key: field.key, label: field.label, displayValue: displayVal };
+                });
+              } else {
+                fieldEntries = Object.entries(inputs).map(([key, value]) => {
                   const label = key === 'numTanks' ? 'Number of Septic Tanks' : key === 'capacityType' ? 'Capacity / Type' : key === 'accessibility' ? 'Site Accessibility' : key;
                   let displayValue = value;
                   if (key === 'capacityType') displayValue = value === '1' ? 'Standard (1 Trip)' : 'Large (2+ Trips)';
                   if (key === 'accessibility') displayValue = String(value || 'easy').charAt(0).toUpperCase() + String(value || 'easy').slice(1);
-                  const justification = billingOrder.justifications?.[serviceId]?.[key];
-                  return (
-                    <tr key={iIdx}>
-                      <td style={{ padding: '8pt 8pt 8pt 20pt', border: '1px solid #000' }}>
-                        <strong>{label}:</strong> {displayValue}
-                        {justification && <div style={{ fontSize: '10pt', fontStyle: 'italic', marginTop: '2pt' }}>Note: {justification}</div>}
-                      </td>
-                      <td style={{ padding: '8pt', border: '1px solid #000', textAlign: 'right' }}>-</td>
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            ))
+                  return { key, label, displayValue };
+                });
+              }
+
+              return (
+                <React.Fragment key={sIdx}>
+                  <tr>
+                    <td colSpan="2" style={{ padding: '8pt', border: '1px solid #000', fontWeight: 'bold', fontStyle: 'italic', backgroundColor: '#f8fafc' }}>
+                      {serviceHeading}
+                    </td>
+                  </tr>
+                  {fieldEntries.map((item, iIdx) => {
+                    const justification = billingOrder.justifications?.[serviceId]?.[item.key];
+                    return (
+                      <tr key={iIdx}>
+                        <td style={{ padding: '8pt 8pt 8pt 20pt', border: '1px solid #000' }}>
+                          <strong>{item.label}:</strong> {item.displayValue}
+                          {justification && <div style={{ fontSize: '10pt', fontStyle: 'italic', marginTop: '2pt' }}>Note: {justification}</div>}
+                        </td>
+                        <td style={{ padding: '8pt', border: '1px solid #000', textAlign: 'right' }}>-</td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })
           ) : (
             <tr>
               <td style={{ padding: '8pt', border: '1px solid #000' }}>{billingOrder.service_type || billingOrder.service_name} (Base Estimate)</td>

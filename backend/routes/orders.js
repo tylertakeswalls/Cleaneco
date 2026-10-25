@@ -3,6 +3,7 @@ const express = require('express');
 const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
+const { calculateOrderTotals, calculateStartingPrice } = require('../utils/pricing');
 const { sendConfirmationEmail, sendRescheduleEmail } = require('../utils/emailHelper');
 const multer = require('multer');
 const path = require('path');
@@ -325,31 +326,48 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
       return res.status(400).json({ success: false, message: 'Invalid service selected' });
     }
 
-    // Calculate initial estimated total trips from initial estimate inputs
-    let initialTotalTrips = 1;
+    // Parse estimate_inputs safely
+    let parsedInputs = {};
     if (data.estimate_inputs) {
       try {
-        const parsedInputs = typeof data.estimate_inputs === 'string' ? JSON.parse(data.estimate_inputs) : data.estimate_inputs;
-        let sumTrips = 0;
-        services.forEach(srv => {
-          const sName = (srv.name || '').toLowerCase();
-          const sInputs = parsedInputs[srv._id] || parsedInputs[srv.id] || {};
-          if (sName.includes('siphon') || sName.includes('desludg')) {
-            const nTanks = parseInt(sInputs.numTanks || 1, 10);
-            const cType = parseInt(sInputs.capacityType || 1, 10);
-            sumTrips += Math.max(1, nTanks * cType);
-          } else if (sName.includes('deep clean') || sName.includes('declog')) {
-            const nTanks = parseInt(sInputs.numTanks || 1, 10);
-            sumTrips += Math.max(1, nTanks);
-          } else {
-            sumTrips += 1;
-          }
-        });
-        if (sumTrips > 0) initialTotalTrips = sumTrips;
+        parsedInputs = typeof data.estimate_inputs === 'string' ? JSON.parse(data.estimate_inputs) : data.estimate_inputs;
       } catch (err) {
-        console.error('Error calculating total trips:', err);
+        console.error('Error parsing estimate_inputs:', err);
       }
     }
+
+    // Build pricing snapshot for each selected service
+    const pricingSnapshot = {};
+    services.forEach(srv => {
+      const sId = String(srv._id);
+      pricingSnapshot[sId] = {
+        id: sId,
+        name: srv.name,
+        description: srv.description,
+        pricing_mode: srv.pricing_mode || 'calculated',
+        rate: srv.rate || 0,
+        fixed_fee: srv.fixed_fee || 0,
+        base_price: srv.base_price || 0,
+        fields: (srv.fields || []).map(f => ({
+          key: f.key,
+          label: f.label,
+          type: f.type,
+          min: f.min,
+          default: f.default,
+          counts_toward_trips: f.counts_toward_trips,
+          options: (f.options || []).map(o => ({
+            value: o.value,
+            label: o.label,
+            factor: o.factor,
+            amount: o.amount,
+            requires_photo: o.requires_photo
+          }))
+        }))
+      };
+    });
+
+    // Server-side calculation of verified base estimate and total trips
+    const { totalEstimate, totalTrips } = calculateOrderTotals(services, parsedInputs);
 
     const orderId = 'ORD' + Date.now() + Math.floor(Math.random() * 1000);
     const totalAmount = 1100; // 1000 fee + 100 tax
@@ -376,10 +394,11 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
         price: 1000,
         tax_amount: 100,
         discount_amount: 0,
-        base_estimate: data.base_estimate ? parseFloat(data.base_estimate) : 0,
-        estimate_inputs: data.estimate_inputs ? JSON.parse(data.estimate_inputs) : {},
+        base_estimate: totalEstimate,
+        estimate_inputs: parsedInputs,
+        pricing_snapshot: pricingSnapshot,
         site_photo_url: sitePhotoUrl,
-        total_trips: initialTotalTrips,
+        total_trips: totalTrips,
         num_households: numHouseholds,
         households: households,
         payment_method: data.payment_method || 'online',
@@ -396,7 +415,7 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
       return {
         ...order.toObject(),
         service_name: service.name,
-        base_price: service.base_price
+        starting_price: calculateStartingPrice(service.toObject ? service.toObject() : service)
       };
     }));
 

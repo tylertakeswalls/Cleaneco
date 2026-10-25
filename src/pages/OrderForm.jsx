@@ -6,6 +6,8 @@ import carousel4 from '../assets/styles/images/carousel4.png';
 import paymongoLogo from '../assets/styles/images/paymongo.png';
 import ClientCalendar from '../components/ClientCalendar';
 import AlertModal from '../components/AlertModal';
+import ServicePricingFields from '../components/ServicePricingFields';
+import { calculateOrderTotals } from '../utils/pricing';
 
 function OrderForm() {
     const [formData, setFormData] = useState({
@@ -191,31 +193,11 @@ function OrderForm() {
     };
 
     useEffect(() => {
-        let totalEstimate = 0;
-        (formData.service_ids || []).forEach(serviceId => {
-            const service = services.find(s => s.id === serviceId || s._id === serviceId);
-            if (service) {
-                const name = service.name.toLowerCase();
-                const inputs = estimateInputs[serviceId] || {};
-                
-                if (name.includes('siphon') || name.includes('desludg')) {
-                    const numTanks = parseInt(inputs.numTanks || 1);
-                    const capacityType = parseInt(inputs.capacityType || 1);
-                    const accessibility = inputs.accessibility || 'easy';
-                    const trips = numTanks * capacityType;
-                    let cost = trips * 8000;
-                    if (accessibility === 'difficult') {
-                        cost += 1500;
-                    }
-                    totalEstimate += cost;
-                } else if (name.includes('deep clean') || name.includes('declog')) {
-                    const numTanks = parseInt(inputs.numTanks || 1);
-                    totalEstimate += numTanks * 8000;
-                } else {
-                    totalEstimate += service.base_price || 0;
-                }
-            }
-        });
+        const selectedServices = (formData.service_ids || [])
+            .map(sId => services.find(s => s.id === sId || s._id === sId))
+            .filter(Boolean);
+
+        const { totalEstimate } = calculateOrderTotals(selectedServices, estimateInputs);
         setBaseEstimate(totalEstimate);
     }, [formData.service_ids, estimateInputs, services]);
 
@@ -724,74 +706,19 @@ function OrderForm() {
                                             </p>
                                             {isSelected && (
                                                 <div className="mt-3 p-3 rounded" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }} onClick={(e) => e.stopPropagation()}>
-                                                    {service.name.toLowerCase().includes('siphon') || service.name.toLowerCase().includes('desludg') ? (
-                                                        <>
-                                                            <div className="form-group mb-3">
-                                                                <label className="form-label small mb-1 fw-bold">Number of Septic Tanks</label>
-                                                                <input 
-                                                                    type="number" 
-                                                                    className="form-control form-control-sm"
-                                                                    placeholder="e.g. 1"
-                                                                    min="1"
-                                                                    value={estimateInputs[service.id || service._id]?.numTanks || '1'}
-                                                                    onChange={(e) => handleEstimateInputChange(service.id || service._id, 'numTanks', e.target.value)}
-                                                                />
-                                                            </div>
-                                                            <div className="form-group mb-3">
-                                                                <label className="form-label small mb-1 fw-bold">Estimated Tank Capacity / Type</label>
-                                                                <select 
-                                                                    className="form-select form-select-sm"
-                                                                    value={estimateInputs[service.id || service._id]?.capacityType || '1'}
-                                                                    onChange={(e) => handleEstimateInputChange(service.id || service._id, 'capacityType', e.target.value)}
-                                                                >
-                                                                    <option value="1">Standard Residential (1 Trip / ~10 cu.m)</option>
-                                                                    <option value="2">Large Commercial / Multi-tank (2+ Trips)</option>
-                                                                </select>
-                                                            </div>
-                                                            <div className="form-group mb-0">
-                                                                <label className="form-label small mb-1 fw-bold">Site Accessibility</label>
-                                                                <select 
-                                                                    className="form-select form-select-sm"
-                                                                    value={estimateInputs[service.id || service._id]?.accessibility || 'easy'}
-                                                                    onChange={(e) => handleEstimateInputChange(service.id || service._id, 'accessibility', e.target.value)}
-                                                                >
-                                                                    <option value="easy">Easy (Truck can park within 10–20 meters)</option>
-                                                                    <option value="difficult">Difficult / Deep (Needs long extension hoses or narrow alley access)</option>
-                                                                </select>
-                                                            </div>
-                                                            {estimateInputs[service.id || service._id]?.accessibility === 'difficult' && (
-                                                                <div className="form-group mb-0 mt-3">
-                                                                    <label className="form-label small mb-1 fw-bold text-danger"><i className="fas fa-camera me-1"></i>Upload Photo of Site/Driveway (Optional)</label>
-                                                                    <input 
-                                                                        type="file" 
-                                                                        className="form-control form-control-sm"
-                                                                        accept="image/*"
-                                                                        onChange={(e) => {
-                                                                            if(e.target.files[0] && e.target.files[0].size > 5 * 1024 * 1024) {
-                                                                                showAlert("File Too Large", "Please upload an image smaller than 5MB.", "warning");
-                                                                                e.target.value = "";
-                                                                            } else {
-                                                                                setSitePhoto(e.target.files[0]);
-                                                                            }
-                                                                        }}
-                                                                    />
-                                                                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>Max size 5MB. Helps our team prepare extension hoses.</small>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    ) : service.name.toLowerCase().includes('deep clean') || service.name.toLowerCase().includes('declog') ? (
-                                                        <div className="form-group mb-0">
-                                                            <label className="form-label small mb-1 fw-bold">Number of Septic Tanks</label>
-                                                            <input 
-                                                                type="number" 
-                                                                className="form-control form-control-sm"
-                                                                placeholder="e.g. 1"
-                                                                min="1"
-                                                                value={estimateInputs[service.id || service._id]?.numTanks || '1'}
-                                                                onChange={(e) => handleEstimateInputChange(service.id || service._id, 'numTanks', e.target.value)}
-                                                            />
-                                                        </div>
-                                                    ) : null}
+                                                    <ServicePricingFields
+                                                        service={service}
+                                                        values={estimateInputs[service.id || service._id] || {}}
+                                                        onChange={(fieldKey, val) => handleEstimateInputChange(service.id || service._id, fieldKey, val)}
+                                                        showPhotoUpload={true}
+                                                        onPhotoChange={(file) => {
+                                                            if (file && file.size > 5 * 1024 * 1024) {
+                                                                showAlert("File Too Large", "Please upload an image smaller than 5MB.", "warning");
+                                                            } else {
+                                                                setSitePhoto(file);
+                                                            }
+                                                        }}
+                                                    />
                                                 </div>
                                             )}
                                         </div>

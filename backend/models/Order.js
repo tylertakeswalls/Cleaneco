@@ -36,6 +36,7 @@ const orderSchema = new mongoose.Schema({
   misc_fee: { type: Number, default: 0 },
   estimate_inputs: { type: mongoose.Schema.Types.Mixed },
   justifications: { type: mongoose.Schema.Types.Mixed },
+  pricing_snapshot: { type: mongoose.Schema.Types.Mixed },
   site_photo_url: { type: String },
   final_payment_status: { type: String, enum: ['Pending', 'Paid'], default: 'Pending' },
   has_final_price: { type: Boolean, default: false },

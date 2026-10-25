@@ -12,6 +12,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import reportHeaderImg from '../assets/styles/images/report_header.png';
 import { formatName } from '../utils/formatName';
+import ServicePricingFields from '../components/ServicePricingFields';
+import { calculateOrderTotals } from '../utils/pricing';
 
 const processGroupedOrders = (rawOrders) => {
   const grouped = rawOrders.reduce((acc, order) => {
@@ -246,63 +248,25 @@ function OrderDatabase() {
     }));
   };
 
-  const getQuotationSubtotal = () => {
-    if (!editModal.order || !editModal.order.service_ids) return 0;
-    
-    let total = 0;
-    editModal.order.service_ids.forEach(serviceId => {
-      const service = services.find(s => s.id === serviceId || s._id === serviceId);
-      if (service) {
-        const name = service.name.toLowerCase();
-        const inputs = quotationForm.estimate_inputs[serviceId] || {};
-        
-        if (name.includes('siphon') || name.includes('desludg')) {
-            const numTanks = parseInt(inputs.numTanks || 1);
-            const capacityType = parseInt(inputs.capacityType || 1);
-            const accessibility = inputs.accessibility || 'easy';
-            const trips = numTanks * capacityType;
-            let cost = trips * 8000;
-            if (accessibility === 'difficult') {
-                cost += 1500;
-            }
-            total += cost;
-        } else if (name.includes('deep clean') || name.includes('declog')) {
-            const numTanks = parseInt(inputs.numTanks || 1);
-            total += numTanks * 8000;
-        } else {
-            total += service.base_price || 0;
-        }
-      }
-    });
-    return total;
+  const getOrderServices = () => {
+    if (!editModal.order) return [];
+    const serviceIds = editModal.order.service_ids && editModal.order.service_ids.length > 0
+      ? editModal.order.service_ids
+      : (editModal.order.service_id ? [(typeof editModal.order.service_id === 'object' ? (editModal.order.service_id._id || editModal.order.service_id.id) : editModal.order.service_id)] : []);
+
+    const snapshot = editModal.order.pricing_snapshot || {};
+
+    return serviceIds.map(sId => {
+      if (snapshot[sId]) return snapshot[sId];
+      const live = services.find(s => s.id === sId || s._id === sId);
+      return live || null;
+    }).filter(Boolean);
   };
 
-  const calculateTotalTrips = () => {
-    if (!editModal.order || !editModal.order.service_ids) return 1;
-    let trips = 0;
-    editModal.order.service_ids.forEach(serviceId => {
-      const service = services.find(s => s.id === serviceId || s._id === serviceId);
-      if (service) {
-        const name = service.name.toLowerCase();
-        const inputs = quotationForm.estimate_inputs[serviceId] || {};
-        if (name.includes('siphon') || name.includes('desludg')) {
-          const numTanks = parseInt(inputs.numTanks || 1, 10);
-          const capacityType = parseInt(inputs.capacityType || 1, 10);
-          trips += Math.max(1, numTanks * capacityType);
-        } else if (name.includes('deep clean') || name.includes('declog')) {
-          const numTanks = parseInt(inputs.numTanks || 1, 10);
-          trips += Math.max(1, numTanks);
-        } else {
-          trips += 1;
-        }
-      }
-    });
-    return Math.max(1, trips);
-  };
-
-  const quotationSubtotal = getQuotationSubtotal();
+  const orderServices = getOrderServices();
+  const { totalEstimate: quotationSubtotal, totalTrips: calculatedTrips } = calculateOrderTotals(orderServices, quotationForm.estimate_inputs);
   const quotationTotal = Math.max(0, quotationSubtotal - (parseFloat(quotationForm.discount_amount) || 0));
-  const estimatedTrips = calculateTotalTrips();
+  const estimatedTrips = quotationForm.total_trips ? parseInt(quotationForm.total_trips, 10) : calculatedTrips;
 
   const isHighCapacityOrder = ((Number(editModal.order?.total_trips) || 0) >= 5) || (estimatedTrips >= 5);
   const operationalTrucks = truckTeams.filter(t => (typeof t === 'string' ? true : t.status !== 'unavailable'));
@@ -961,60 +925,22 @@ function OrderDatabase() {
                         <span className={`badge ${editModal.order.quotation_status === 'Approved' ? 'bg-success' : editModal.order.quotation_status === 'Clarification Requested' ? 'bg-warning text-dark' : editModal.order.quotation_status === 'Client Declined' ? 'bg-danger' : 'bg-secondary'}`}>{editModal.order.quotation_status || 'Pending Inspection'}</span>
                       </div>
                       
-                      {((editModal.order.service_ids && editModal.order.service_ids.length > 0)
-                        ? editModal.order.service_ids
-                        : (editModal.order.service_id ? [(typeof editModal.order.service_id === 'object' ? (editModal.order.service_id._id || editModal.order.service_id.id) : editModal.order.service_id)] : [])
-                      ).map(serviceId => {
-                        const service = services.find(s => s.id === serviceId || s._id === serviceId);
-                        if (!service) return null;
-                        const name = service.name.toLowerCase();
+                      {orderServices.map(service => {
+                        const serviceId = service.id || service._id;
                         return (
                           <div key={serviceId} className="card border-0 shadow-sm mb-4">
                             <div className="card-header bg-light border-0 py-3">
                               <h6 className="mb-0 fw-bold text-success">{service.name}</h6>
                             </div>
                             <div className="card-body bg-white pt-3 pb-3 px-4">
-                              {name.includes('siphon') || name.includes('desludg') ? (
-                                <>
-                                  <div className="form-group mb-3">
-                                      <label className="form-label small mb-1 fw-bold">Number of Septic Tanks</label>
-                                      <div className="d-flex gap-2">
-                                        <input type="number" className="form-control form-control-sm" style={{flex: 1}} value={quotationForm.estimate_inputs[serviceId]?.numTanks || '1'} onChange={(e) => handleQuotationInputChange(serviceId, 'numTanks', e.target.value)} />
-                                        <input type="text" className="form-control form-control-sm" style={{flex: 2}} placeholder="Reason (e.g. Found hidden tank)" value={quotationForm.justifications[serviceId]?.numTanks || ''} onChange={(e) => handleJustificationChange(serviceId, 'numTanks', e.target.value)} />
-                                      </div>
-                                  </div>
-                                  <div className="form-group mb-3">
-                                      <label className="form-label small mb-1 fw-bold">Estimated Tank Capacity / Type</label>
-                                      <div className="d-flex gap-2">
-                                        <select className="form-select form-select-sm" style={{flex: 1}} value={quotationForm.estimate_inputs[serviceId]?.capacityType || '1'} onChange={(e) => handleQuotationInputChange(serviceId, 'capacityType', e.target.value)}>
-                                            <option value="1">Standard (1 Trip)</option>
-                                            <option value="2">Large (2+ Trips)</option>
-                                        </select>
-                                        <input type="text" className="form-control form-control-sm" style={{flex: 1}} placeholder="Reason" value={quotationForm.justifications[serviceId]?.capacityType || ''} onChange={(e) => handleJustificationChange(serviceId, 'capacityType', e.target.value)} />
-                                      </div>
-                                  </div>
-                                  <div className="form-group mb-0">
-                                      <label className="form-label small mb-1 fw-bold">Site Accessibility</label>
-                                      <div className="d-flex gap-2">
-                                        <select className="form-select form-select-sm" style={{flex: 1}} value={quotationForm.estimate_inputs[serviceId]?.accessibility || 'easy'} onChange={(e) => handleQuotationInputChange(serviceId, 'accessibility', e.target.value)}>
-                                            <option value="easy">Easy (10-20m)</option>
-                                            <option value="difficult">Difficult (Long hoses)</option>
-                                        </select>
-                                        <input type="text" className="form-control form-control-sm" style={{flex: 1}} placeholder="Reason" value={quotationForm.justifications[serviceId]?.accessibility || ''} onChange={(e) => handleJustificationChange(serviceId, 'accessibility', e.target.value)} />
-                                      </div>
-                                  </div>
-                                </>
-                              ) : name.includes('deep clean') || name.includes('declog') ? (
-                                <div className="form-group mb-0">
-                                    <label className="form-label small mb-1 fw-bold">Number of Septic Tanks</label>
-                                    <div className="d-flex gap-2">
-                                      <input type="number" className="form-control form-control-sm" style={{flex: 1}} value={quotationForm.estimate_inputs[serviceId]?.numTanks || '1'} onChange={(e) => handleQuotationInputChange(serviceId, 'numTanks', e.target.value)} />
-                                      <input type="text" className="form-control form-control-sm" style={{flex: 2}} placeholder="Reason" value={quotationForm.justifications[serviceId]?.numTanks || ''} onChange={(e) => handleJustificationChange(serviceId, 'numTanks', e.target.value)} />
-                                    </div>
-                                </div>
-                              ) : (
-                                <div className="text-muted small">Fixed price service (₱{service.base_price || 0}).</div>
-                              )}
+                              <ServicePricingFields
+                                service={service}
+                                values={quotationForm.estimate_inputs[serviceId] || {}}
+                                onChange={(fieldKey, val) => handleQuotationInputChange(serviceId, fieldKey, val)}
+                                justifications={quotationForm.justifications[serviceId] || {}}
+                                onJustificationChange={(fieldKey, reason) => handleJustificationChange(serviceId, fieldKey, reason)}
+                                showJustifications={true}
+                              />
                             </div>
                           </div>
                         );

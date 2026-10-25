@@ -746,19 +746,37 @@ function OngoingOrders() {
                               <h6 className="fw-bold text-dark">Service Configuration: {srv.service_name || srv.service_type}</h6>
                               <ul className="list-unstyled mb-0 ms-3 mt-2">
                                 {(() => {
-                                  const inputs = (order.estimate_inputs && srv.service_id && order.estimate_inputs[srv.service_id]) || {};
-                                  const serviceName = (srv.service_name || srv.service_type || '').toLowerCase();
+                                  const sId = srv.service_id ? String(srv.service_id) : (srv.id ? String(srv.id) : '');
+                                  const snapshot = (order.pricing_snapshot && (order.pricing_snapshot[sId] || Object.values(order.pricing_snapshot)[0])) || null;
+                                  const inputs = (order.estimate_inputs && (order.estimate_inputs[sId] || order.estimate_inputs[srv.service_id])) || {};
                                   const items = [];
 
-                                  if (serviceName.includes('siphon') || serviceName.includes('desludg')) {
-                                    items.push({ key: 'numTanks', label: 'Number of Septic Tanks', value: inputs.numTanks || 1 });
-                                    items.push({ key: 'capacityType', label: 'Capacity / Type', value: String(inputs.capacityType || 1) === '1' ? 'Standard (1 Trip)' : 'Large (2+ Trips)' });
-                                    const accVal = inputs.accessibility || 'easy';
-                                    items.push({ key: 'accessibility', label: 'Site Accessibility', value: accVal.charAt(0).toUpperCase() + accVal.slice(1) });
-                                  } else if (serviceName.includes('deep clean') || serviceName.includes('declog')) {
-                                    items.push({ key: 'numTanks', label: 'Number of Septic Tanks', value: inputs.numTanks || 1 });
+                                  if (snapshot && Array.isArray(snapshot.fields) && snapshot.fields.length > 0) {
+                                    snapshot.fields.forEach(field => {
+                                      const rawVal = inputs[field.key];
+                                      let displayVal = rawVal !== undefined && rawVal !== '' ? rawVal : (field.default ?? '');
+                                      if (field.type === 'multiplier' || field.type === 'surcharge') {
+                                        const opt = (field.options || []).find(o => String(o.value) === String(displayVal));
+                                        if (opt) displayVal = opt.label;
+                                      }
+                                      items.push({ key: field.key, label: field.label, value: displayVal });
+                                    });
                                   } else {
-                                    items.push({ key: 'service', label: 'Service Request', value: 'Standard Assessment' });
+                                    const serviceName = (srv.service_name || srv.service_type || '').toLowerCase();
+                                    if (serviceName.includes('siphon') || serviceName.includes('desludg')) {
+                                      items.push({ key: 'numTanks', label: 'Number of Septic Tanks', value: inputs.numTanks || 1 });
+                                      items.push({ key: 'capacityType', label: 'Capacity / Type', value: String(inputs.capacityType || 1) === '1' ? 'Standard (1 Trip)' : 'Large (2+ Trips)' });
+                                      const accVal = inputs.accessibility || 'easy';
+                                      items.push({ key: 'accessibility', label: 'Site Accessibility', value: accVal.charAt(0).toUpperCase() + accVal.slice(1) });
+                                    } else if (serviceName.includes('deep clean') || serviceName.includes('declog')) {
+                                      items.push({ key: 'numTanks', label: 'Number of Septic Tanks', value: inputs.numTanks || 1 });
+                                    } else if (Object.keys(inputs).length > 0) {
+                                      Object.entries(inputs).forEach(([k, v]) => {
+                                        items.push({ key: k, label: k, value: v });
+                                      });
+                                    } else {
+                                      items.push({ key: 'service', label: 'Service Request', value: 'Standard Assessment' });
+                                    }
                                   }
 
                                   return items.map((item, iIdx) => {
