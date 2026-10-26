@@ -13,8 +13,8 @@ const emptyServiceTemplate = {
     description: '',
     status: 'available',
     pricing_mode: 'calculated',
-    rate: 0,
-    fixed_fee: 0,
+    rate: '',
+    fixed_fee: '',
     fields: []
 };
 
@@ -58,6 +58,8 @@ function ServiceManagement() {
         setIsEditing(false);
         setFormService({
             ...emptyServiceTemplate,
+            rate: '',
+            fixed_fee: '',
             fields: []
         });
         setIsFormModalOpen(true);
@@ -192,9 +194,15 @@ function ServiceManagement() {
         }
 
         setIsSaving(true);
+        const payload = {
+            ...formService,
+            rate: parseFloat(formService.rate) || 0,
+            fixed_fee: parseFloat(formService.fixed_fee) || 0
+        };
+
         try {
             if (isEditing) {
-                const response = await api.put(`/services/${formService.id}`, formService);
+                const response = await api.put(`/services/${formService.id}`, payload);
                 if (response.data.success) {
                     showAlert("Success", "Service updated successfully", "success");
                     closeFormModal();
@@ -203,7 +211,7 @@ function ServiceManagement() {
                     showAlert("Warning", response.data.message || "Failed to update service", "warning");
                 }
             } else {
-                const response = await api.post('/services', formService);
+                const response = await api.post('/services', payload);
                 if (response.data.success) {
                     showAlert("Success", "Service added successfully", "success");
                     closeFormModal();
@@ -598,15 +606,16 @@ function ServiceManagement() {
                                                 <div className="col-md-6">
                                                     <label className="form-label fw-bold small text-dark mb-1">Base Rate (₱) *</label>
                                                     <div className="input-group">
-                                                        <span className="input-group-text bg-white fw-bold text-success border-end-0">₱</span>
+                                                        <span className="input-group-text">₱</span>
                                                         <input
                                                             type="number"
-                                                            className="form-control border-start-0 ps-1"
+                                                            className="form-control"
                                                             min="0"
-                                                            step="1"
-                                                            placeholder="e.g. 8000"
-                                                            value={formService.rate}
-                                                            onChange={(e) => setFormService({ ...formService, rate: parseFloat(e.target.value) || 0 })}
+                                                            step="any"
+                                                            placeholder="0"
+                                                            value={formService.rate === 0 && !isEditing ? '' : (formService.rate ?? '')}
+                                                            onFocus={(e) => e.target.select()}
+                                                            onChange={(e) => setFormService({ ...formService, rate: e.target.value })}
                                                         />
                                                     </div>
                                                     <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
@@ -616,15 +625,16 @@ function ServiceManagement() {
                                                 <div className="col-md-6">
                                                     <label className="form-label fw-bold small text-dark mb-1">Fixed Fee (₱) (Optional)</label>
                                                     <div className="input-group">
-                                                        <span className="input-group-text bg-white fw-bold text-success border-end-0">₱</span>
+                                                        <span className="input-group-text">₱</span>
                                                         <input
                                                             type="number"
-                                                            className="form-control border-start-0 ps-1"
+                                                            className="form-control"
                                                             min="0"
-                                                            step="1"
-                                                            placeholder="e.g. 0"
-                                                            value={formService.fixed_fee}
-                                                            onChange={(e) => setFormService({ ...formService, fixed_fee: parseFloat(e.target.value) || 0 })}
+                                                            step="any"
+                                                            placeholder="0"
+                                                            value={formService.fixed_fee === 0 && !isEditing ? '' : (formService.fixed_fee ?? '')}
+                                                            onFocus={(e) => e.target.select()}
+                                                            onChange={(e) => setFormService({ ...formService, fixed_fee: e.target.value })}
                                                         />
                                                     </div>
                                                     <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
@@ -654,8 +664,7 @@ function ServiceManagement() {
                                                     </div>
                                                     <button
                                                         type="button"
-                                                        className="btn btn-sm btn-outline-success rounded-pill px-3 fw-bold shadow-sm"
-                                                        style={{ borderColor: '#0D8D1E', color: '#0D8D1E' }}
+                                                        className="btn btn-sm btn-outline-cleaneco rounded-pill px-3 fw-bold shadow-sm"
                                                         onClick={addField}
                                                     >
                                                         <i className="fas fa-plus me-1"></i>Add Factor Field
@@ -738,13 +747,14 @@ function ServiceManagement() {
 
                                                                 {field.type === 'number' ? (
                                                                     <div className="row g-3">
-                                                                        <div className="col-6">
+                                                                         <div className="col-6">
                                                                             <label className="form-label small mb-1 text-muted">Minimum Value</label>
                                                                             <input
                                                                                 type="number"
                                                                                 className="form-control form-control-sm"
                                                                                 value={field.min ?? 1}
-                                                                                onChange={(e) => updateField(fIdx, { min: parseInt(e.target.value) || 1 })}
+                                                                                onFocus={(e) => e.target.select()}
+                                                                                onChange={(e) => updateField(fIdx, { min: e.target.value === '' ? '' : parseInt(e.target.value) })}
                                                                             />
                                                                         </div>
                                                                         <div className="col-6">
@@ -753,7 +763,8 @@ function ServiceManagement() {
                                                                                 type="number"
                                                                                 className="form-control form-control-sm"
                                                                                 value={field.default ?? 1}
-                                                                                onChange={(e) => updateField(fIdx, { default: parseInt(e.target.value) || 1 })}
+                                                                                onFocus={(e) => e.target.select()}
+                                                                                onChange={(e) => updateField(fIdx, { default: e.target.value === '' ? '' : parseInt(e.target.value) })}
                                                                             />
                                                                         </div>
                                                                     </div>
@@ -765,7 +776,7 @@ function ServiceManagement() {
                                                                             </span>
                                                                             <button
                                                                                 type="button"
-                                                                                className="btn btn-sm btn-outline-primary rounded-pill px-2 py-0 fw-bold"
+                                                                                className="btn btn-sm btn-outline-cleaneco rounded-pill px-2 py-0 fw-bold"
                                                                                 style={{ fontSize: '0.75rem' }}
                                                                                 onClick={() => addOption(fIdx)}
                                                                             >
@@ -785,26 +796,28 @@ function ServiceManagement() {
                                                                                 />
                                                                                 {field.type === 'multiplier' ? (
                                                                                     <div className="input-group input-group-sm" style={{ flex: '2 1 120px' }}>
-                                                                                        <span className="input-group-text bg-white">×</span>
+                                                                                        <span className="input-group-text">×</span>
                                                                                         <input
                                                                                             type="number"
                                                                                             step="0.1"
                                                                                             className="form-control"
-                                                                                            placeholder="Factor"
-                                                                                            value={opt.factor ?? 1}
-                                                                                            onChange={(e) => updateOption(fIdx, oIdx, { factor: parseFloat(e.target.value) || 1 })}
+                                                                                            placeholder="1"
+                                                                                            value={opt.factor ?? ''}
+                                                                                            onFocus={(e) => e.target.select()}
+                                                                                            onChange={(e) => updateOption(fIdx, oIdx, { factor: e.target.value === '' ? '' : parseFloat(e.target.value) })}
                                                                                         />
                                                                                     </div>
                                                                                 ) : (
                                                                                     <div className="input-group input-group-sm" style={{ flex: '2 1 130px' }}>
-                                                                                        <span className="input-group-text bg-white">+₱</span>
+                                                                                        <span className="input-group-text">+₱</span>
                                                                                         <input
                                                                                             type="number"
-                                                                                            step="1"
+                                                                                            step="any"
                                                                                             className="form-control"
-                                                                                            placeholder="Amount"
-                                                                                            value={opt.amount ?? 0}
-                                                                                            onChange={(e) => updateOption(fIdx, oIdx, { amount: parseFloat(e.target.value) || 0 })}
+                                                                                            placeholder="0"
+                                                                                            value={opt.amount === 0 ? '' : (opt.amount ?? '')}
+                                                                                            onFocus={(e) => e.target.select()}
+                                                                                            onChange={(e) => updateOption(fIdx, oIdx, { amount: e.target.value === '' ? '' : parseFloat(e.target.value) })}
                                                                                         />
                                                                                     </div>
                                                                                 )}
