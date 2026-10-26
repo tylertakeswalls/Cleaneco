@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../api/api';
 import '../assets/styles/servicemanagement.css';
 import '../assets/styles/orderdatabase.css';
@@ -426,28 +427,56 @@ function ServiceManagement() {
             </div>
 
             {/* Service & Pricing Configuration Modal */}
-            {isFormModalOpen && (
+            {/* Service & Pricing Configuration Modal */}
+            {isFormModalOpen && createPortal(
                 <div
-                    className="modal show d-block"
+                    className="service-modal-overlay"
                     tabIndex="-1"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}
+                    onClick={closeFormModal}
                 >
-                    <div className="modal-dialog modal-lg modal-dialog-scrollable">
-                        <div className="modal-content border-0 shadow-lg">
-                            <div className="modal-header bg-success text-white">
-                                <h5 className="modal-title fw-bold">
+                    <div
+                        className="service-modal-dialog"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="service-modal-content shadow-lg">
+                            {/* Modal Header */}
+                            <div className="service-modal-header">
+                                <h5 className="modal-title">
                                     <i className="fas fa-sliders-h me-2"></i>
-                                    {isEditing ? `Edit Service: ${formService.name}` : 'Add New Service & Pricing Configuration'}
+                                    <span>
+                                        {isEditing ? `Edit Service: ${formService.name}` : 'Add New Service & Pricing Configuration'}
+                                    </span>
                                 </h5>
-                                <button type="button" className="btn-close btn-close-white" onClick={closeFormModal}></button>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    onClick={closeFormModal}
+                                    aria-label="Close"
+                                ></button>
                             </div>
-                            <form onSubmit={handleSaveService}>
-                                <div className="modal-body p-4">
-                                    {/* General Information */}
-                                    <h6 className="fw-bold text-success border-bottom pb-2 mb-3">General Information</h6>
-                                    <div className="row mb-3">
+
+                            {/* Form container */}
+                            <form
+                                className="service-modal-form"
+                                onSubmit={handleSaveService}
+                            >
+                                {/* Scrollable Modal Body */}
+                                <div className="service-modal-body">
+                                    {/* Section 1: General Information */}
+                                    <div className="d-flex align-items-center mb-3 pb-2 border-bottom">
+                                        <span
+                                            className="d-inline-flex align-items-center justify-content-center rounded-circle me-2"
+                                            style={{ width: '28px', height: '28px', backgroundColor: '#e8f5e9', color: '#0D8D1E' }}
+                                        >
+                                            <i className="fas fa-info-circle" style={{ fontSize: '0.85rem' }}></i>
+                                        </span>
+                                        <h6 className="fw-bold mb-0" style={{ color: '#0D8D1E', fontSize: '1rem', letterSpacing: '0.2px' }}>
+                                            General Information
+                                        </h6>
+                                    </div>
+                                    <div className="row g-3 mb-3">
                                         <div className="col-md-8">
-                                            <label className="form-label fw-bold small">Service Name *</label>
+                                            <label className="form-label fw-bold small text-dark mb-1">Service Name *</label>
                                             <input
                                                 type="text"
                                                 className="form-control"
@@ -458,7 +487,7 @@ function ServiceManagement() {
                                             />
                                         </div>
                                         <div className="col-md-4">
-                                            <label className="form-label fw-bold small">Status</label>
+                                            <label className="form-label fw-bold small text-dark mb-1">Status</label>
                                             <select
                                                 className="form-select"
                                                 value={formService.status}
@@ -471,7 +500,7 @@ function ServiceManagement() {
                                     </div>
 
                                     <div className="mb-4">
-                                        <label className="form-label fw-bold small">Description</label>
+                                        <label className="form-label fw-bold small text-dark mb-1">Description</label>
                                         <textarea
                                             className="form-control"
                                             rows="2"
@@ -481,111 +510,195 @@ function ServiceManagement() {
                                         />
                                     </div>
 
-                                    {/* Pricing Setup */}
-                                    <h6 className="fw-bold text-success border-bottom pb-2 mb-3">Pricing Setup</h6>
-                                    <div className="mb-3">
-                                        <label className="form-label fw-bold small d-block">Pricing Mode</label>
-                                        <div className="d-flex gap-4">
-                                            <div className="form-check">
-                                                <input
-                                                    className="form-check-input"
-                                                    type="radio"
-                                                    name="pricingMode"
-                                                    id="modeCalculated"
-                                                    value="calculated"
-                                                    checked={formService.pricing_mode === 'calculated'}
-                                                    onChange={() => setFormService({ ...formService, pricing_mode: 'calculated' })}
-                                                />
-                                                <label className="form-check-label" htmlFor="modeCalculated">
-                                                    <strong>Calculated Estimate</strong> (Formula based on client inputs)
-                                                </label>
+                                    {/* Section 2: Pricing Setup */}
+                                    <div className="d-flex align-items-center mb-3 pb-2 border-bottom mt-4">
+                                        <span
+                                            className="d-inline-flex align-items-center justify-content-center rounded-circle me-2"
+                                            style={{ width: '28px', height: '28px', backgroundColor: '#e8f5e9', color: '#0D8D1E' }}
+                                        >
+                                            <i className="fas fa-calculator" style={{ fontSize: '0.85rem' }}></i>
+                                        </span>
+                                        <h6 className="fw-bold mb-0" style={{ color: '#0D8D1E', fontSize: '1rem', letterSpacing: '0.2px' }}>
+                                            Pricing Setup
+                                        </h6>
+                                    </div>
+
+                                    {/* Pricing Mode Interactive Cards */}
+                                    <div className="row g-3 mb-4">
+                                        <div className="col-md-6">
+                                            <div
+                                                className="p-3 rounded-3 border h-100"
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    borderColor: formService.pricing_mode === 'calculated' ? '#0D8D1E' : '#e2e8f0',
+                                                    backgroundColor: formService.pricing_mode === 'calculated' ? '#f0fdf4' : '#fff',
+                                                    transition: 'all 0.2s ease',
+                                                    borderWidth: formService.pricing_mode === 'calculated' ? '2px' : '1px'
+                                                }}
+                                                onClick={() => setFormService({ ...formService, pricing_mode: 'calculated' })}
+                                            >
+                                                <div className="form-check mb-1">
+                                                    <input
+                                                        className="form-check-input"
+                                                        type="radio"
+                                                        name="pricingMode"
+                                                        id="modeCalculated"
+                                                        value="calculated"
+                                                        checked={formService.pricing_mode === 'calculated'}
+                                                        onChange={() => setFormService({ ...formService, pricing_mode: 'calculated' })}
+                                                        style={{ accentColor: '#0D8D1E', cursor: 'pointer' }}
+                                                    />
+                                                    <label className="form-check-label fw-bold text-dark cursor-pointer ms-1" htmlFor="modeCalculated">
+                                                        Calculated Estimate
+                                                    </label>
+                                                </div>
+                                                <small className="text-secondary d-block ps-4">
+                                                    Interactive formula based on client questionnaire answers and surcharges.
+                                                </small>
                                             </div>
-                                            <div className="form-check">
-                                                <input
-                                                    className="form-check-input"
-                                                    type="radio"
-                                                    name="pricingMode"
-                                                    id="modeInspectionOnly"
-                                                    value="inspection_only"
-                                                    checked={formService.pricing_mode === 'inspection_only'}
-                                                    onChange={() => setFormService({ ...formService, pricing_mode: 'inspection_only' })}
-                                                />
-                                                <label className="form-check-label" htmlFor="modeInspectionOnly">
-                                                    <strong>Inspection Only</strong> (No initial estimate; price quoted after site visit)
-                                                </label>
+                                        </div>
+                                        <div className="col-md-6">
+                                            <div
+                                                className="p-3 rounded-3 border h-100"
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    borderColor: formService.pricing_mode === 'inspection_only' ? '#0D8D1E' : '#e2e8f0',
+                                                    backgroundColor: formService.pricing_mode === 'inspection_only' ? '#f0fdf4' : '#fff',
+                                                    transition: 'all 0.2s ease',
+                                                    borderWidth: formService.pricing_mode === 'inspection_only' ? '2px' : '1px'
+                                                }}
+                                                onClick={() => setFormService({ ...formService, pricing_mode: 'inspection_only' })}
+                                            >
+                                                <div className="form-check mb-1">
+                                                    <input
+                                                        className="form-check-input"
+                                                        type="radio"
+                                                        name="pricingMode"
+                                                        id="modeInspectionOnly"
+                                                        value="inspection_only"
+                                                        checked={formService.pricing_mode === 'inspection_only'}
+                                                        onChange={() => setFormService({ ...formService, pricing_mode: 'inspection_only' })}
+                                                        style={{ accentColor: '#0D8D1E', cursor: 'pointer' }}
+                                                    />
+                                                    <label className="form-check-label fw-bold text-dark cursor-pointer ms-1" htmlFor="modeInspectionOnly">
+                                                        Inspection Only
+                                                    </label>
+                                                </div>
+                                                <small className="text-secondary d-block ps-4">
+                                                    No upfront estimate; price will be determined and quoted after site inspection.
+                                                </small>
                                             </div>
                                         </div>
                                     </div>
 
                                     {formService.pricing_mode === 'calculated' && (
                                         <>
-                                            <div className="row mb-3 bg-light p-3 rounded border">
+                                            {/* Rates configuration */}
+                                            <div className="row g-3 mb-4 p-3 rounded-3 border" style={{ backgroundColor: '#f8fafc' }}>
                                                 <div className="col-md-6">
-                                                    <label className="form-label fw-bold small">Base Rate (₱) *</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-control"
-                                                        min="0"
-                                                        step="1"
-                                                        placeholder="e.g. 8000"
-                                                        value={formService.rate}
-                                                        onChange={(e) => setFormService({ ...formService, rate: parseFloat(e.target.value) || 0 })}
-                                                    />
-                                                    <small className="text-muted">The primary per-unit price multiplied by factors.</small>
+                                                    <label className="form-label fw-bold small text-dark mb-1">Base Rate (₱) *</label>
+                                                    <div className="input-group">
+                                                        <span className="input-group-text bg-white fw-bold text-success border-end-0">₱</span>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control border-start-0 ps-1"
+                                                            min="0"
+                                                            step="1"
+                                                            placeholder="e.g. 8000"
+                                                            value={formService.rate}
+                                                            onChange={(e) => setFormService({ ...formService, rate: parseFloat(e.target.value) || 0 })}
+                                                        />
+                                                    </div>
+                                                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                                        The primary per-unit price multiplied by factors.
+                                                    </small>
                                                 </div>
                                                 <div className="col-md-6">
-                                                    <label className="form-label fw-bold small">Fixed Fee (₱) (Optional)</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-control"
-                                                        min="0"
-                                                        step="1"
-                                                        placeholder="e.g. 0"
-                                                        value={formService.fixed_fee}
-                                                        onChange={(e) => setFormService({ ...formService, fixed_fee: parseFloat(e.target.value) || 0 })}
-                                                    />
-                                                    <small className="text-muted">Always added flat (e.g. mobilization charge).</small>
+                                                    <label className="form-label fw-bold small text-dark mb-1">Fixed Fee (₱) (Optional)</label>
+                                                    <div className="input-group">
+                                                        <span className="input-group-text bg-white fw-bold text-success border-end-0">₱</span>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control border-start-0 ps-1"
+                                                            min="0"
+                                                            step="1"
+                                                            placeholder="e.g. 0"
+                                                            value={formService.fixed_fee}
+                                                            onChange={(e) => setFormService({ ...formService, fixed_fee: parseFloat(e.target.value) || 0 })}
+                                                        />
+                                                    </div>
+                                                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                                        Always added flat (e.g. mobilization or base callout charge).
+                                                    </small>
                                                 </div>
                                             </div>
 
                                             {/* Dynamic Pricing Fields */}
-                                            <div className="mb-3">
-                                                <div className="d-flex justify-content-between align-items-center mb-2">
-                                                    <label className="form-label fw-bold small mb-0">
-                                                        Pricing Factors / Fields (Client Questions)
-                                                    </label>
+                                            <div className="mb-4">
+                                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                                    <div className="d-flex align-items-center">
+                                                        <span
+                                                            className="d-inline-flex align-items-center justify-content-center rounded-circle me-2"
+                                                            style={{ width: '28px', height: '28px', backgroundColor: '#e8f5e9', color: '#0D8D1E' }}
+                                                        >
+                                                            <i className="fas fa-layer-group" style={{ fontSize: '0.85rem' }}></i>
+                                                        </span>
+                                                        <div>
+                                                            <span className="fw-bold text-dark small d-block">
+                                                                Pricing Factors / Fields (Client Questions)
+                                                            </span>
+                                                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                {(formService.fields || []).length} factor{(formService.fields || []).length === 1 ? '' : 's'} configured
+                                                            </small>
+                                                        </div>
+                                                    </div>
                                                     <button
                                                         type="button"
-                                                        className="btn btn-sm btn-outline-success"
+                                                        className="btn btn-sm btn-outline-success rounded-pill px-3 fw-bold shadow-sm"
+                                                        style={{ borderColor: '#0D8D1E', color: '#0D8D1E' }}
                                                         onClick={addField}
                                                     >
-                                                        <i className="fas fa-plus me-1"></i>Add Field
+                                                        <i className="fas fa-plus me-1"></i>Add Factor Field
                                                     </button>
                                                 </div>
 
                                                 {(formService.fields || []).length === 0 ? (
-                                                    <div className="p-3 text-center text-muted bg-light rounded border border-dashed">
-                                                        No pricing fields added yet. This service will charge a flat rate of ₱{formService.rate || 0}.
+                                                    <div className="p-4 text-center text-muted bg-light rounded-3 border border-dashed mb-3">
+                                                        <i className="fas fa-layer-group fa-2x mb-2 text-secondary opacity-50 d-block"></i>
+                                                        <p className="mb-1 fw-bold small text-dark">No custom factors added yet.</p>
+                                                        <p className="mb-0 small text-muted">
+                                                            This service will charge a flat rate of ₱{(formService.rate || 0).toLocaleString()} with no extra client questions.
+                                                        </p>
                                                     </div>
                                                 ) : (
                                                     (formService.fields || []).map((field, fIdx) => (
-                                                        <div key={fIdx} className="card border mb-3 shadow-none bg-white">
-                                                            <div className="card-header bg-light py-2 d-flex justify-content-between align-items-center">
-                                                                <span className="fw-bold small text-dark">
-                                                                    Factor #{fIdx + 1}: {field.label || 'Untitled'}
-                                                                </span>
+                                                        <div
+                                                            key={fIdx}
+                                                            className="card border mb-3 shadow-none bg-white"
+                                                            style={{ borderRadius: '12px', overflow: 'hidden', borderColor: '#e2e8f0' }}
+                                                        >
+                                                            <div className="card-header py-2 px-3 d-flex justify-content-between align-items-center" style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                                                <div className="d-flex align-items-center">
+                                                                    <span className="badge me-2" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '0.75rem' }}>
+                                                                        Factor #{fIdx + 1}
+                                                                    </span>
+                                                                    <span className="fw-bold small text-dark">
+                                                                        {field.label || 'Untitled Factor'}
+                                                                    </span>
+                                                                </div>
                                                                 <button
                                                                     type="button"
-                                                                    className="btn btn-link text-danger p-0 text-decoration-none small"
+                                                                    className="btn btn-sm text-danger p-0 border-0 text-decoration-none fw-bold"
+                                                                    style={{ fontSize: '0.8rem' }}
                                                                     onClick={() => removeField(fIdx)}
                                                                 >
-                                                                    <i className="fas fa-trash me-1"></i>Remove
+                                                                    <i className="fas fa-trash-alt me-1"></i>Delete
                                                                 </button>
                                                             </div>
                                                             <div className="card-body p-3">
-                                                                <div className="row g-2 mb-2">
-                                                                    <div className="col-md-6">
-                                                                        <label className="form-label small mb-1 fw-bold">Question / Label</label>
+                                                                <div className="row g-3 mb-3">
+                                                                    <div className="col-md-7">
+                                                                        <label className="form-label small mb-1 fw-bold text-dark">Question / Label *</label>
                                                                         <input
                                                                             type="text"
                                                                             className="form-control form-control-sm"
@@ -595,8 +708,8 @@ function ServiceManagement() {
                                                                             required
                                                                         />
                                                                     </div>
-                                                                    <div className="col-md-6">
-                                                                        <label className="form-label small mb-1 fw-bold">Factor Type</label>
+                                                                    <div className="col-md-5">
+                                                                        <label className="form-label small mb-1 fw-bold text-dark">Factor Type</label>
                                                                         <select
                                                                             className="form-select form-select-sm"
                                                                             value={field.type}
@@ -609,23 +722,24 @@ function ServiceManagement() {
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="form-check mb-2">
+                                                                <div className="form-check mb-3 p-2 bg-light rounded-2 border">
                                                                     <input
-                                                                        className="form-check-input"
+                                                                        className="form-check-input ms-1"
                                                                         type="checkbox"
                                                                         id={`tripsCheck_${fIdx}`}
                                                                         checked={Boolean(field.counts_toward_trips)}
                                                                         onChange={(e) => updateField(fIdx, { counts_toward_trips: e.target.checked })}
+                                                                        style={{ accentColor: '#0D8D1E' }}
                                                                     />
-                                                                    <label className="form-check-label small" htmlFor={`tripsCheck_${fIdx}`}>
-                                                                        <strong>Counts toward trips</strong> (Multiplies truck trips for scheduling)
+                                                                    <label className="form-check-label small ms-2 text-dark" htmlFor={`tripsCheck_${fIdx}`}>
+                                                                        <strong>Counts toward trips</strong> — Multiplies truck trips for scheduling & fleet management
                                                                     </label>
                                                                 </div>
 
                                                                 {field.type === 'number' ? (
-                                                                    <div className="row g-2">
+                                                                    <div className="row g-3">
                                                                         <div className="col-6">
-                                                                            <label className="form-label small mb-1">Minimum Value</label>
+                                                                            <label className="form-label small mb-1 text-muted">Minimum Value</label>
                                                                             <input
                                                                                 type="number"
                                                                                 className="form-control form-control-sm"
@@ -634,7 +748,7 @@ function ServiceManagement() {
                                                                             />
                                                                         </div>
                                                                         <div className="col-6">
-                                                                            <label className="form-label small mb-1">Default Value</label>
+                                                                            <label className="form-label small mb-1 text-muted">Default Value</label>
                                                                             <input
                                                                                 type="number"
                                                                                 className="form-control form-control-sm"
@@ -644,32 +758,34 @@ function ServiceManagement() {
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="mt-3 p-2 bg-light rounded border">
+                                                                    <div className="mt-2 p-3 bg-light rounded-3 border">
                                                                         <div className="d-flex justify-content-between align-items-center mb-2">
-                                                                            <span className="small fw-bold">Dropdown Options</span>
+                                                                            <span className="small fw-bold text-dark">
+                                                                                <i className="fas fa-list me-1 text-secondary"></i>Dropdown Options
+                                                                            </span>
                                                                             <button
                                                                                 type="button"
-                                                                                className="btn btn-xs btn-outline-primary"
-                                                                                style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                                                                                className="btn btn-sm btn-outline-primary rounded-pill px-2 py-0 fw-bold"
+                                                                                style={{ fontSize: '0.75rem' }}
                                                                                 onClick={() => addOption(fIdx)}
                                                                             >
                                                                                 <i className="fas fa-plus me-1"></i>Add Option
                                                                             </button>
                                                                         </div>
                                                                         {(field.options || []).map((opt, oIdx) => (
-                                                                            <div key={oIdx} className="d-flex gap-2 align-items-center mb-2">
+                                                                            <div key={oIdx} className="d-flex gap-2 align-items-center mb-2 flex-wrap">
                                                                                 <input
                                                                                     type="text"
                                                                                     className="form-control form-control-sm"
                                                                                     placeholder="Option Label"
-                                                                                    style={{ flex: 3 }}
+                                                                                    style={{ flex: '3 1 180px' }}
                                                                                     value={opt.label}
                                                                                     onChange={(e) => updateOption(fIdx, oIdx, { label: e.target.value })}
                                                                                     required
                                                                                 />
                                                                                 {field.type === 'multiplier' ? (
-                                                                                    <div className="input-group input-group-sm" style={{ flex: 2 }}>
-                                                                                        <span className="input-group-text">×</span>
+                                                                                    <div className="input-group input-group-sm" style={{ flex: '2 1 120px' }}>
+                                                                                        <span className="input-group-text bg-white">×</span>
                                                                                         <input
                                                                                             type="number"
                                                                                             step="0.1"
@@ -680,8 +796,8 @@ function ServiceManagement() {
                                                                                         />
                                                                                     </div>
                                                                                 ) : (
-                                                                                    <div className="input-group input-group-sm" style={{ flex: 2 }}>
-                                                                                        <span className="input-group-text">+₱</span>
+                                                                                    <div className="input-group input-group-sm" style={{ flex: '2 1 130px' }}>
+                                                                                        <span className="input-group-text bg-white">+₱</span>
                                                                                         <input
                                                                                             type="number"
                                                                                             step="1"
@@ -701,8 +817,9 @@ function ServiceManagement() {
                                                                                             id={`optPhoto_${fIdx}_${oIdx}`}
                                                                                             checked={Boolean(opt.requires_photo)}
                                                                                             onChange={(e) => updateOption(fIdx, oIdx, { requires_photo: e.target.checked })}
+                                                                                            style={{ accentColor: '#0D8D1E' }}
                                                                                         />
-                                                                                        <label className="form-check-label small" htmlFor={`optPhoto_${fIdx}_${oIdx}`}>
+                                                                                        <label className="form-check-label small cursor-pointer" htmlFor={`optPhoto_${fIdx}_${oIdx}`}>
                                                                                             Photo
                                                                                         </label>
                                                                                     </div>
@@ -710,9 +827,10 @@ function ServiceManagement() {
 
                                                                                 <button
                                                                                     type="button"
-                                                                                    className="btn btn-sm btn-outline-danger"
+                                                                                    className="btn btn-sm btn-outline-danger border-0"
                                                                                     onClick={() => removeOption(fIdx, oIdx)}
                                                                                     disabled={(field.options || []).length <= 1}
+                                                                                    title="Delete option"
                                                                                 >
                                                                                     <i className="fas fa-times"></i>
                                                                                 </button>
@@ -727,23 +845,42 @@ function ServiceManagement() {
                                             </div>
 
                                             {/* Live Starting Price Preview */}
-                                            <div className="p-3 rounded bg-success bg-opacity-10 border border-success d-flex justify-content-between align-items-center">
+                                            <div
+                                                className="p-3 rounded-3 d-flex justify-content-between align-items-center mb-2"
+                                                style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}
+                                            >
                                                 <div>
-                                                    <span className="fw-bold text-success d-block">Starting Price Preview:</span>
-                                                    <small className="text-muted">Calculated automatically using initial/default selections</small>
+                                                    <span className="fw-bold text-success d-flex align-items-center">
+                                                        <i className="fas fa-tag me-2"></i>Starting Price Preview
+                                                    </span>
+                                                    <small className="text-secondary">
+                                                        Calculated automatically using initial/default selections
+                                                    </small>
                                                 </div>
-                                                <div className="fs-4 fw-bold text-success">
+                                                <div className="fs-3 fw-bold text-success">
                                                     ₱{currentStartingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </div>
                                             </div>
                                         </>
                                     )}
                                 </div>
-                                <div className="modal-footer bg-light">
-                                    <button type="button" className="btn btn-secondary" onClick={closeFormModal} disabled={isSaving}>
+
+                                {/* Modal Footer (Sticky Bottom) */}
+                                <div className="service-modal-footer">
+                                    <button
+                                        type="button"
+                                        className="btn btn-light rounded-pill px-4 fw-bold shadow-sm border"
+                                        onClick={closeFormModal}
+                                        disabled={isSaving}
+                                    >
                                         Cancel
                                     </button>
-                                    <button type="submit" className="btn btn-success" disabled={isSaving}>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-success rounded-pill px-4 fw-bold shadow-sm"
+                                        style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}
+                                        disabled={isSaving}
+                                    >
                                         {isSaving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Service')}
                                     </button>
                                 </div>
@@ -751,7 +888,7 @@ function ServiceManagement() {
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
         </>
     );
 }

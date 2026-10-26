@@ -234,6 +234,14 @@
     max-width: 500px;
 }
 
+.modal-dialog.modal-lg {
+    max-width: 820px !important;
+}
+
+.modal-dialog.modal-xl {
+    max-width: 1140px !important;
+}
+
 .modal-dialog-centered {
     display: flex;
     align-items: center;
