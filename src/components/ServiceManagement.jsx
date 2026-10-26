@@ -507,15 +507,17 @@ function ServiceManagement() {
                                         </div>
                                     </div>
 
-                                    <div className="mb-4">
-                                        <label className="form-label fw-bold small text-dark mb-1">Description</label>
-                                        <textarea
-                                            className="form-control"
-                                            rows="2"
-                                            placeholder="Briefly describe what this service includes..."
-                                            value={formService.description}
-                                            onChange={(e) => setFormService({ ...formService, description: e.target.value })}
-                                        />
+                                    <div className="row g-3 mb-4">
+                                        <div className="col-12">
+                                            <label className="form-label fw-bold small text-dark mb-1">Description</label>
+                                            <textarea
+                                                className="form-control"
+                                                rows="2"
+                                                placeholder="Briefly describe what this service includes..."
+                                                value={formService.description}
+                                                onChange={(e) => setFormService({ ...formService, description: e.target.value })}
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* Section 2: Pricing Setup */}
@@ -602,44 +604,46 @@ function ServiceManagement() {
                                     {formService.pricing_mode === 'calculated' && (
                                         <>
                                             {/* Rates configuration */}
-                                            <div className="row g-3 mb-4 p-3 rounded-3 border" style={{ backgroundColor: '#f8fafc' }}>
-                                                <div className="col-md-6">
-                                                    <label className="form-label fw-bold small text-dark mb-1">Base Rate (₱) *</label>
-                                                    <div className="input-group">
-                                                        <span className="input-group-text">₱</span>
-                                                        <input
-                                                            type="number"
-                                                            className="form-control"
-                                                            min="0"
-                                                            step="any"
-                                                            placeholder="0"
-                                                            value={formService.rate === 0 && !isEditing ? '' : (formService.rate ?? '')}
-                                                            onFocus={(e) => e.target.select()}
-                                                            onChange={(e) => setFormService({ ...formService, rate: e.target.value })}
-                                                        />
+                                            <div className="p-3 rounded-3 border mb-4" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
+                                                <div className="row g-3">
+                                                    <div className="col-md-6">
+                                                        <label className="form-label fw-bold small text-dark mb-1">Base Rate (₱) *</label>
+                                                        <div className="input-group">
+                                                            <span className="input-group-text">₱</span>
+                                                            <input
+                                                                type="number"
+                                                                className="form-control"
+                                                                min="0"
+                                                                step="any"
+                                                                placeholder="0"
+                                                                value={formService.rate === 0 && !isEditing ? '' : (formService.rate ?? '')}
+                                                                onFocus={(e) => e.target.select()}
+                                                                onChange={(e) => setFormService({ ...formService, rate: e.target.value })}
+                                                            />
+                                                        </div>
+                                                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                                            The primary per-unit price multiplied by factors.
+                                                        </small>
                                                     </div>
-                                                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                                                        The primary per-unit price multiplied by factors.
-                                                    </small>
-                                                </div>
-                                                <div className="col-md-6">
-                                                    <label className="form-label fw-bold small text-dark mb-1">Fixed Fee (₱) (Optional)</label>
-                                                    <div className="input-group">
-                                                        <span className="input-group-text">₱</span>
-                                                        <input
-                                                            type="number"
-                                                            className="form-control"
-                                                            min="0"
-                                                            step="any"
-                                                            placeholder="0"
-                                                            value={formService.fixed_fee === 0 && !isEditing ? '' : (formService.fixed_fee ?? '')}
-                                                            onFocus={(e) => e.target.select()}
-                                                            onChange={(e) => setFormService({ ...formService, fixed_fee: e.target.value })}
-                                                        />
+                                                    <div className="col-md-6">
+                                                        <label className="form-label fw-bold small text-dark mb-1">Fixed Fee (₱) (Optional)</label>
+                                                        <div className="input-group">
+                                                            <span className="input-group-text">₱</span>
+                                                            <input
+                                                                type="number"
+                                                                className="form-control"
+                                                                min="0"
+                                                                step="any"
+                                                                placeholder="0"
+                                                                value={formService.fixed_fee === 0 && !isEditing ? '' : (formService.fixed_fee ?? '')}
+                                                                onFocus={(e) => e.target.select()}
+                                                                onChange={(e) => setFormService({ ...formService, fixed_fee: e.target.value })}
+                                                            />
+                                                        </div>
+                                                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                                            Always added flat (e.g. mobilization or base callout charge).
+                                                        </small>
                                                     </div>
-                                                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                                                        Always added flat (e.g. mobilization or base callout charge).
-                                                    </small>
                                                 </div>
                                             </div>
 

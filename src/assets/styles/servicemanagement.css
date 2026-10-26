@@ -548,4 +548,64 @@
     padding: 0 10px !important;
     font-size: 0.85rem !important;
 }
+
+/* Consistent grid layout and edge alignment inside modal body */
+.service-modal-body .row {
+    margin-left: -8px !important;
+    margin-right: -8px !important;
+}
+
+.service-modal-body .row > [class*="col-"],
+.service-modal-body .row > .col,
+.service-modal-body .row > .col-12,
+.service-modal-body .row > .col-6,
+.service-modal-body .row > .col-md-4,
+.service-modal-body .row > .col-md-5,
+.service-modal-body .row > .col-md-6,
+.service-modal-body .row > .col-md-7,
+.service-modal-body .row > .col-md-8 {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+/* Ensure all standalone inputs and selects have identical border, border-radius, height, and focus states */
+.service-modal-body .form-control:not(.input-group .form-control),
+.service-modal-body .form-select {
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    font-size: 0.95rem !important;
+    color: #1e293b !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.service-modal-body input.form-control:not(.form-control-sm):not(.input-group .form-control),
+.service-modal-body select.form-select:not(.form-select-sm) {
+    height: 40px !important;
+    min-height: 40px !important;
+    line-height: 40px !important;
+    padding: 0 14px !important;
+}
+
+.service-modal-body textarea.form-control {
+    padding: 10px 14px !important;
+    min-height: 80px !important;
+}
+
+.service-modal-body .form-control:not(.input-group .form-control):focus,
+.service-modal-body .form-select:focus {
+    border-color: #0D8D1E !important;
+    box-shadow: 0 0 0 3px rgba(13, 141, 30, 0.15) !important;
+    outline: none !important;
+}
+
+.service-modal-body .form-control-sm,
+.service-modal-body .form-select-sm {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    font-size: 0.85rem !important;
+}
+
 
