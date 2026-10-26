@@ -67,21 +67,20 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, description, pricing_mode, rate, fixed_fee, fields, status, base_price } = req.body;
+    const { name, description, rate, fixed_fee, fields, status, base_price } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Service name is required' });
     }
 
-    const mode = pricing_mode === 'inspection_only' ? 'inspection_only' : 'calculated';
     const cleanFields = sanitizeFields(fields);
 
     const service = new Service({
       name: name.trim(),
       description: description ? description.trim() : '',
-      pricing_mode: mode,
-      rate: mode === 'calculated' ? (Math.max(0, parseFloat(rate)) || 0) : 0,
-      fixed_fee: mode === 'calculated' ? (Math.max(0, parseFloat(fixed_fee)) || 0) : 0,
-      fields: mode === 'calculated' ? cleanFields : [],
+      pricing_mode: 'calculated',
+      rate: Math.max(0, parseFloat(rate)) || 0,
+      fixed_fee: Math.max(0, parseFloat(fixed_fee)) || 0,
+      fields: cleanFields,
       base_price: parseFloat(base_price) || 0,
       status: status === 'unavailable' ? 'unavailable' : 'available'
     });
@@ -105,9 +104,6 @@ router.put('/:id', async (req, res) => {
     if (req.body.name !== undefined) updateData.name = req.body.name.trim();
     if (req.body.description !== undefined) updateData.description = req.body.description.trim();
     if (req.body.status !== undefined) updateData.status = req.body.status;
-    if (req.body.pricing_mode !== undefined) {
-      updateData.pricing_mode = req.body.pricing_mode === 'inspection_only' ? 'inspection_only' : 'calculated';
-    }
     if (req.body.rate !== undefined) updateData.rate = Math.max(0, parseFloat(req.body.rate) || 0);
     if (req.body.fixed_fee !== undefined) updateData.fixed_fee = Math.max(0, parseFloat(req.body.fixed_fee) || 0);
     if (req.body.base_price !== undefined) updateData.base_price = parseFloat(req.body.base_price) || 0;

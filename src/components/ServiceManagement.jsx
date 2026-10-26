@@ -12,7 +12,6 @@ const emptyServiceTemplate = {
     name: '',
     description: '',
     status: 'available',
-    pricing_mode: 'calculated',
     rate: '',
     fixed_fee: '',
     fields: []
@@ -72,7 +71,6 @@ function ServiceManagement() {
             name: service.name || '',
             description: service.description || '',
             status: service.status || 'available',
-            pricing_mode: service.pricing_mode || 'calculated',
             rate: service.rate !== undefined ? service.rate : (service.base_price || 0),
             fixed_fee: service.fixed_fee || 0,
             base_price: service.base_price || 0,
@@ -412,10 +410,9 @@ function ServiceManagement() {
                                                 </tr>
                                             ) : (
                                                 filteredServices.map(service => {
-                                                    const isInspectionOnly = service.pricing_mode === 'inspection_only';
-                                                    const displayStartingPrice = isInspectionOnly 
-                                                        ? null 
-                                                        : (service.starting_price !== undefined ? service.starting_price : calculateStartingPrice(service));
+                                                    const displayStartingPrice = service.starting_price !== undefined 
+                                                        ? service.starting_price 
+                                                        : calculateStartingPrice(service);
 
                                                     return (
                                                         <tr key={service.id || service._id}>
@@ -425,26 +422,18 @@ function ServiceManagement() {
                                                                 {service.description || '-'}
                                                             </td>
                                                             <td>
-                                                                {isInspectionOnly ? (
-                                                                    <span className="badge bg-info text-dark">Inspection Only</span>
-                                                                ) : (
-                                                                    <div className="small">
-                                                                        <span className="fw-bold text-success">Rate: ₱{parseFloat(service.rate || 0).toLocaleString()}</span>
-                                                                        {service.fixed_fee > 0 && <span className="text-muted ms-1">+ ₱{parseFloat(service.fixed_fee).toLocaleString()} fee</span>}
-                                                                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                                                            {(service.fields || []).length} dynamic factor{(service.fields || []).length === 1 ? '' : 's'}
-                                                                        </div>
+                                                                <div className="small">
+                                                                    <span className="fw-bold text-success">Rate: ₱{parseFloat(service.rate || 0).toLocaleString()}</span>
+                                                                    {service.fixed_fee > 0 && <span className="text-muted ms-1">+ ₱{parseFloat(service.fixed_fee).toLocaleString()} fee</span>}
+                                                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                        {(service.fields || []).length} dynamic factor{(service.fields || []).length === 1 ? '' : 's'}
                                                                     </div>
-                                                                )}
+                                                                </div>
                                                             </td>
                                                             <td className="fw-bold">
-                                                                {isInspectionOnly ? (
-                                                                    <span className="text-muted small">On-site Quote</span>
-                                                                ) : (
-                                                                    <span className="text-success">
-                                                                        ₱{parseFloat(displayStartingPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                    </span>
-                                                                )}
+                                                                <span className="text-success">
+                                                                    ₱{parseFloat(displayStartingPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </span>
                                                             </td>
                                                             <td>
                                                                 <span className={`badge ${service.status === 'available' ? 'bg-success' : 'bg-danger'}`}>
@@ -586,77 +575,6 @@ function ServiceManagement() {
                                             Pricing Setup
                                         </h6>
                                     </div>
-
-                                    {/* Pricing Mode Interactive Cards */}
-                                    <div className="row g-3 mb-4">
-                                        <div className="col-md-6">
-                                            <div
-                                                className="p-3 rounded-3 border h-100"
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    borderColor: formService.pricing_mode === 'calculated' ? '#0D8D1E' : '#e2e8f0',
-                                                    backgroundColor: formService.pricing_mode === 'calculated' ? '#f0fdf4' : '#fff',
-                                                    transition: 'all 0.2s ease',
-                                                    borderWidth: formService.pricing_mode === 'calculated' ? '2px' : '1px'
-                                                }}
-                                                onClick={() => setFormService({ ...formService, pricing_mode: 'calculated' })}
-                                            >
-                                                <div className="form-check mb-1">
-                                                    <input
-                                                        className="form-check-input"
-                                                        type="radio"
-                                                        name="pricingMode"
-                                                        id="modeCalculated"
-                                                        value="calculated"
-                                                        checked={formService.pricing_mode === 'calculated'}
-                                                        onChange={() => setFormService({ ...formService, pricing_mode: 'calculated' })}
-                                                        style={{ accentColor: '#0D8D1E', cursor: 'pointer' }}
-                                                    />
-                                                    <label className="form-check-label fw-bold text-dark cursor-pointer ms-1" htmlFor="modeCalculated">
-                                                        Calculated Estimate
-                                                    </label>
-                                                </div>
-                                                <small className="text-secondary d-block ps-4">
-                                                    Interactive formula based on client questionnaire answers and surcharges.
-                                                </small>
-                                            </div>
-                                        </div>
-                                        <div className="col-md-6">
-                                            <div
-                                                className="p-3 rounded-3 border h-100"
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    borderColor: formService.pricing_mode === 'inspection_only' ? '#0D8D1E' : '#e2e8f0',
-                                                    backgroundColor: formService.pricing_mode === 'inspection_only' ? '#f0fdf4' : '#fff',
-                                                    transition: 'all 0.2s ease',
-                                                    borderWidth: formService.pricing_mode === 'inspection_only' ? '2px' : '1px'
-                                                }}
-                                                onClick={() => setFormService({ ...formService, pricing_mode: 'inspection_only' })}
-                                            >
-                                                <div className="form-check mb-1">
-                                                    <input
-                                                        className="form-check-input"
-                                                        type="radio"
-                                                        name="pricingMode"
-                                                        id="modeInspectionOnly"
-                                                        value="inspection_only"
-                                                        checked={formService.pricing_mode === 'inspection_only'}
-                                                        onChange={() => setFormService({ ...formService, pricing_mode: 'inspection_only' })}
-                                                        style={{ accentColor: '#0D8D1E', cursor: 'pointer' }}
-                                                    />
-                                                    <label className="form-check-label fw-bold text-dark cursor-pointer ms-1" htmlFor="modeInspectionOnly">
-                                                        Inspection Only
-                                                    </label>
-                                                </div>
-                                                <small className="text-secondary d-block ps-4">
-                                                    No upfront estimate; price will be determined and quoted after site inspection.
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {formService.pricing_mode === 'calculated' && (
-                                        <>
                                             {/* Rates configuration */}
                                             <div className="p-3 rounded-3 border mb-4" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
                                                 <div className="row g-3">
@@ -941,8 +859,6 @@ function ServiceManagement() {
                                                     ₱{currentStartingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </div>
                                             </div>
-                                        </>
-                                    )}
                                 </div>
 
                                 {/* Modal Footer (Sticky Bottom) */}

@@ -15,19 +15,6 @@ export function calculateServiceEstimate(serviceConfig, inputs = {}) {
     return { subtotal: 0, trips: 1, isInspectionOnly: false, ratePortion: 0, surcharges: 0, fixedFee: 0, breakdown: [] };
   }
 
-  // 1. Inspection only mode
-  if (serviceConfig.pricing_mode === 'inspection_only') {
-    return {
-      subtotal: 0,
-      trips: 1,
-      isInspectionOnly: true,
-      ratePortion: 0,
-      surcharges: 0,
-      fixedFee: 0,
-      breakdown: [{ label: 'Inspection Only', amount: 0 }]
-    };
-  }
-
   const fields = Array.isArray(serviceConfig.fields) ? serviceConfig.fields : [];
 
   // Fallback for legacy services with no fields and no rate, but having base_price
@@ -113,7 +100,6 @@ export function calculateServiceEstimate(serviceConfig, inputs = {}) {
  */
 export function calculateStartingPrice(serviceConfig) {
   if (!serviceConfig) return 0;
-  if (serviceConfig.pricing_mode === 'inspection_only') return 0;
 
   const defaults = {};
   (serviceConfig.fields || []).forEach(f => {

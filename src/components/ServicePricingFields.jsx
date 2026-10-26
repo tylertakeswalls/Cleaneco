@@ -17,14 +17,6 @@ function ServicePricingFields({
 }) {
   if (!service) return null;
 
-  if (service.pricing_mode === 'inspection_only') {
-    return (
-      <div className="alert alert-info py-2 px-3 small mb-0" style={{ borderRadius: '0.5rem' }}>
-        <i className="fas fa-info-circle me-1"></i> Price will be determined after on-site inspection.
-      </div>
-    );
-  }
-
   const fields = service.fields || [];
   if (fields.length === 0) {
     return (

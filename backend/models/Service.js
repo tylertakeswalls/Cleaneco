@@ -22,7 +22,7 @@ const serviceSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String },
   base_price: { type: Number },
-  pricing_mode: { type: String, enum: ['calculated', 'inspection_only'], default: 'calculated' },
+  pricing_mode: { type: String, default: 'calculated' },
   rate: { type: Number, default: 0 },
   fixed_fee: { type: Number, default: 0 },
   fields: [pricingFieldSchema],
