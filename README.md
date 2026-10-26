@@ -280,6 +280,25 @@ This document summarizes the recent features and structural updates implemented 
 - **Equalized CSS Baselines**:
   - Enforced normalized logo image constraints (`height: 75px; object-fit: contain;`) and flexbox heading alignments (`min-height: 3.2rem;`) in `resources.css` for visual harmony.
 
+## 40. Dynamic Admin-Configurable Service Pricing Engine & Modal UX Refinement
+- **Dynamic Pricing Engine & Snapshots**:
+  - Replaced hardcoded service calculators with a database-driven, configurable pricing engine ([`backend/utils/pricing.js`](file:///c:/xampp/firstapp/backend/utils/pricing.js) and [`src/utils/pricing.js`](file:///c:/xampp/firstapp/src/utils/pricing.js)).
+  - **Factor Types Supported**:
+    - **Number Multipliers**: Direct numeric inputs (e.g., number of septic tanks or grease traps) with customizable minimum constraints and trip-counting options.
+    - **Dropdown Multipliers**: Configurable options with custom factors (e.g., standard residential vs. large commercial tank capacity).
+    - **Dropdown Surcharges**: Configurable fee add-ons (e.g., difficult site accessibility requiring long extension hoses) with optional photo upload flags.
+  - **Permanent Pricing Snapshot (`pricing_snapshot`)**:
+    - Stores an immutable snapshot of exact rates, factors, and surcharges within the order document at booking time. Future rate or factor edits in Service Management will never alter historical orders.
+  - **Shared Component Decomposition ([`ServicePricingFields.jsx`](file:///c:/xampp/firstapp/src/components/ServicePricingFields.jsx))**:
+    - Reusable UI component powering dynamic questionnaires across the Client Order Form (`OrderForm.jsx`), Admin Quotation Editor (`OrderDatabase.jsx`), and Client Ongoing Orders view (`OngoingOrders.jsx`).
+- **Interactive Quotation & Inspection Factor Editor**:
+  - Administrators can review and adjust dynamic factors directly in the **Quotation Tab** of `OrderDatabase.jsx`, with auto-calculated subtotals, factor justifications, and live discount recalculations.
+- **Service Management Modal & UX Polish ([`ServiceManagement.jsx`](file:///c:/xampp/firstapp/src/components/ServiceManagement.jsx))**:
+  - **Layout & Scrolling**: Fixed modal element widths and border alignment across all sections, standardized internal scrollable containers, and added sticky header/footer actions.
+  - **Input Sanitization**: Eliminated field key collisions, sanitized option values, resolved leading-zero input handling on currency fields, and aligned delete actions with custom checkboxes.
+- **Service Deletion Guard**:
+  - Implemented backend protection in `backend/routes/services.js` that blocks deletion of any service referenced by existing orders, prompting administrators to mark it as "Unavailable" instead to preserve order history integrity.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

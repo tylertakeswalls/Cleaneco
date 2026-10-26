@@ -34,7 +34,6 @@ graph TD
 - **Dynamic Pricing & Form Factors**:
   - Each service dynamically loads its client questionnaire and formula factors configured by administrators in Service Management (`/services`).
   - **Factor Types**: Number multipliers (e.g. Number of Tanks / Units), Dropdown Multipliers (e.g. Tank Capacity / Size), and Dropdown Surcharges (e.g. Difficult Site Accessibility with optional site photo upload).
-  - **Inspection-Only Services**: Services configured for on-site assessment bypass upfront estimates, stating *"Price determined after inspection"*.
   - **Permanent Pricing Snapshot**: When an order is created, the system captures an immutable `pricing_snapshot` of the exact rates, factors, and surcharges in effect at that moment. Future rate updates by administrators will never alter previously booked orders.
 - **Form Inputs**:
   - **Account Classification**: `Residential`, `Commercial`, or `Industrial` (Commercial & Industrial accounts require registered Company Name).
