@@ -86,22 +86,39 @@ function ServiceManagement() {
         setFormService(emptyServiceTemplate);
     };
 
+    // Turns a human label into a safe identifier, e.g. "Trap Size" -> "trap_size"
+    const slugify = (text) =>
+        String(text || '').toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+
+    // Appends _2, _3... until the candidate doesn't clash with any taken value
+    const makeUnique = (candidate, taken) => {
+        let result = candidate;
+        let n = 2;
+        while (taken.includes(result)) {
+            result = `${candidate}_${n++}`;
+        }
+        return result;
+    };
+
     // Dynamic field manipulation
     const addField = () => {
-        const nextIdx = (formService.fields || []).length + 1;
-        const newField = {
-            key: `field_${nextIdx}`,
-            label: `New Factor ${nextIdx}`,
-            type: 'number',
-            min: 1,
-            default: 1,
-            counts_toward_trips: false,
-            options: []
-        };
-        setFormService(prev => ({
-            ...prev,
-            fields: [...(prev.fields || []), newField]
-        }));
+        setFormService(prev => {
+            const existing = prev.fields || [];
+            const nextIdx = existing.length + 1;
+            const label = `New Factor ${nextIdx}`;
+            const newField = {
+                key: makeUnique(slugify(label), existing.map(f => f.key)),
+                // Key keeps following the label until the service is saved
+                _autoKey: true,
+                label,
+                type: 'number',
+                min: 1,
+                default: 1,
+                counts_toward_trips: false,
+                options: []
+            };
+            return { ...prev, fields: [...existing, newField] };
+        });
     };
 
     const updateField = (index, updates) => {
@@ -114,22 +131,25 @@ function ServiceManagement() {
             if (updates.type && updates.type !== current.type) {
                 if (updates.type === 'multiplier' && (!merged.options || merged.options.length === 0)) {
                     merged.options = [
-                        { value: 'standard', label: 'Standard', factor: 1, amount: 0, requires_photo: false },
-                        { value: 'large', label: 'Large', factor: 2, amount: 0, requires_photo: false }
+                        { value: 'standard', label: 'Standard', factor: 1, amount: 0, requires_photo: false, _autoValue: true },
+                        { value: 'large', label: 'Large', factor: 2, amount: 0, requires_photo: false, _autoValue: true }
                     ];
                     merged.default = 'standard';
                 } else if (updates.type === 'surcharge' && (!merged.options || merged.options.length === 0)) {
                     merged.options = [
-                        { value: 'standard', label: 'Standard Access', factor: 1, amount: 0, requires_photo: false },
-                        { value: 'difficult', label: 'Difficult Access', factor: 1, amount: 1500, requires_photo: true }
+                        { value: 'standard_access', label: 'Standard Access', factor: 1, amount: 0, requires_photo: false, _autoValue: true },
+                        { value: 'difficult_access', label: 'Difficult Access', factor: 1, amount: 1500, requires_photo: true, _autoValue: true }
                     ];
-                    merged.default = 'standard';
+                    merged.default = 'standard_access';
                 }
             }
 
-            // Automatically format key if label is changed and key was derived
-            if (updates.label && (!current.key || current.key.startsWith('field_'))) {
-                merged.key = updates.label.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '');
+            // New (unsaved) fields: re-derive the key from the FULL label on every edit,
+            // keeping it unique among the other fields. Saved fields keep their key so
+            // existing orders still map their answers correctly.
+            if (updates.label !== undefined && (current._autoKey || !current.key)) {
+                const otherKeys = updated.filter((_, i) => i !== index).map(f => f.key);
+                merged.key = makeUnique(slugify(updates.label) || `field_${index + 1}`, otherKeys);
             }
 
             updated[index] = merged;
@@ -151,9 +171,11 @@ function ServiceManagement() {
             const field = { ...updated[fieldIndex] };
             const opts = [...(field.options || [])];
             const optIdx = opts.length + 1;
+            const label = `Option ${optIdx}`;
             opts.push({
-                value: `option_${optIdx}`,
-                label: `Option ${optIdx}`,
+                value: makeUnique(slugify(label), opts.map(o => String(o.value))),
+                _autoValue: true,
+                label,
                 factor: 1,
                 amount: 0,
                 requires_photo: false
@@ -169,7 +191,21 @@ function ServiceManagement() {
             const updated = [...(prev.fields || [])];
             const field = { ...updated[fieldIndex] };
             const opts = [...(field.options || [])];
-            opts[optionIndex] = { ...opts[optionIndex], ...updates };
+            const current = opts[optionIndex];
+            const merged = { ...current, ...updates };
+
+            // New (unsaved) options: keep the stored value in sync with the label,
+            // unique within this dropdown (so "Medium" is stored as "medium", not "large").
+            if (updates.label !== undefined && current._autoValue) {
+                const otherValues = opts.filter((_, i) => i !== optionIndex).map(o => String(o.value));
+                merged.value = makeUnique(slugify(updates.label) || `option_${optionIndex + 1}`, otherValues);
+                // If this option was the default, keep the default pointing at it
+                if (String(field.default) === String(current.value)) {
+                    field.default = merged.value;
+                }
+            }
+
+            opts[optionIndex] = merged;
             field.options = opts;
             updated[fieldIndex] = field;
             return { ...prev, fields: updated };
@@ -180,7 +216,12 @@ function ServiceManagement() {
         setFormService(prev => {
             const updated = [...(prev.fields || [])];
             const field = { ...updated[fieldIndex] };
+            const removed = (field.options || [])[optionIndex];
             field.options = (field.options || []).filter((_, i) => i !== optionIndex);
+            // Don't leave the default pointing at a deleted option
+            if (removed && String(field.default) === String(removed.value)) {
+                field.default = field.options[0]?.value ?? '';
+            }
             updated[fieldIndex] = field;
             return { ...prev, fields: updated };
         });
@@ -194,8 +235,21 @@ function ServiceManagement() {
         }
 
         setIsSaving(true);
+        const cleanFields = (formService.fields || []).map(f => {
+            const { _autoKey, ...restField } = f;
+            const cleanOptions = (f.options || []).map(opt => {
+                const { _autoValue, ...restOpt } = opt;
+                return restOpt;
+            });
+            return {
+                ...restField,
+                options: cleanOptions
+            };
+        });
+
         const payload = {
             ...formService,
+            fields: cleanFields,
             rate: parseFloat(formService.rate) || 0,
             fixed_fee: parseFloat(formService.fixed_fee) || 0
         };

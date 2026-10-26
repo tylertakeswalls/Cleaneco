@@ -5,23 +5,44 @@ const { calculateStartingPrice } = require('../utils/pricing');
 const router = express.Router();
 
 function sanitizeFields(fields = []) {
+  const seenKeys = new Set();
   return fields.map((f, idx) => {
-    let key = (f.key || f.label || `field_${idx}`).toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '');
-    if (!key) key = `field_${idx}`;
+    let baseKey = (f.key || f.label || `field_${idx + 1}`).toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    if (!baseKey) baseKey = `field_${idx + 1}`;
+    let key = baseKey;
+    let counter = 2;
+    while (seenKeys.has(key)) {
+      key = `${baseKey}_${counter++}`;
+    }
+    seenKeys.add(key);
+
+    const seenOptionValues = new Set();
+    const options = Array.isArray(f.options) ? f.options.map((o, oIdx) => {
+      let baseVal = String(o.value !== undefined && o.value !== '' ? o.value : (o.label || `option_${oIdx + 1}`)).toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+      if (!baseVal) baseVal = `option_${oIdx + 1}`;
+      let val = baseVal;
+      let optCounter = 2;
+      while (seenOptionValues.has(val)) {
+        val = `${baseVal}_${optCounter++}`;
+      }
+      seenOptionValues.add(val);
+      return {
+        value: val,
+        label: (o.label || '').trim() || val,
+        factor: !isNaN(parseFloat(o.factor)) ? parseFloat(o.factor) : 1,
+        amount: !isNaN(parseFloat(o.amount)) ? parseFloat(o.amount) : 0,
+        requires_photo: Boolean(o.requires_photo)
+      };
+    }) : [];
+
     return {
       key,
       label: (f.label || '').trim() || key,
       type: ['number', 'multiplier', 'surcharge'].includes(f.type) ? f.type : 'number',
       min: f.min !== undefined && f.min !== null && !isNaN(Number(f.min)) ? Number(f.min) : 1,
-      default: f.default !== undefined ? f.default : (f.type === 'number' ? (Number(f.min) || 1) : ''),
+      default: f.default !== undefined ? f.default : (f.type === 'number' ? (Number(f.min) || 1) : (options[0]?.value || '')),
       counts_toward_trips: Boolean(f.counts_toward_trips),
-      options: Array.isArray(f.options) ? f.options.map((o, oIdx) => ({
-        value: String(o.value !== undefined ? o.value : oIdx).trim(),
-        label: (o.label || '').trim() || String(o.value || `Option ${oIdx + 1}`),
-        factor: !isNaN(parseFloat(o.factor)) ? parseFloat(o.factor) : 1,
-        amount: !isNaN(parseFloat(o.amount)) ? parseFloat(o.amount) : 0,
-        requires_photo: Boolean(o.requires_photo)
-      })) : []
+      options
     };
   });
 }
