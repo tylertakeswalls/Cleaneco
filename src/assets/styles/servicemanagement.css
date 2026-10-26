@@ -532,19 +532,21 @@
 /* Small input groups inside factor options */
 .service-modal-body .input-group.input-group-sm {
     border-radius: 6px !important;
+    height: 34px !important;
+    min-height: 34px !important;
 }
 
 .service-modal-body .input-group.input-group-sm .input-group-text {
-    height: 32px !important;
-    min-height: 32px !important;
+    height: 34px !important;
+    min-height: 34px !important;
     padding: 0 10px !important;
     font-size: 0.85rem !important;
 }
 
 .service-modal-body .input-group.input-group-sm .form-control {
-    height: 32px !important;
-    min-height: 32px !important;
-    line-height: 32px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    line-height: 34px !important;
     padding: 0 10px !important;
     font-size: 0.85rem !important;
 }

@@ -788,18 +788,18 @@ function ServiceManagement() {
                                                                             </button>
                                                                         </div>
                                                                         {(field.options || []).map((opt, oIdx) => (
-                                                                            <div key={oIdx} className="d-flex gap-2 align-items-center mb-2 flex-wrap">
+                                                                            <div key={oIdx} className="d-flex gap-2 align-items-center mb-2">
                                                                                 <input
                                                                                     type="text"
                                                                                     className="form-control form-control-sm"
                                                                                     placeholder="Option Label"
-                                                                                    style={{ flex: '3 1 180px' }}
+                                                                                    style={{ flex: '3 1 180px', height: '34px' }}
                                                                                     value={opt.label}
                                                                                     onChange={(e) => updateOption(fIdx, oIdx, { label: e.target.value })}
                                                                                     required
                                                                                 />
                                                                                 {field.type === 'multiplier' ? (
-                                                                                    <div className="input-group input-group-sm" style={{ flex: '2 1 120px' }}>
+                                                                                    <div className="input-group input-group-sm" style={{ flex: '2 1 120px', height: '34px' }}>
                                                                                         <span className="input-group-text">×</span>
                                                                                         <input
                                                                                             type="number"
@@ -812,7 +812,7 @@ function ServiceManagement() {
                                                                                         />
                                                                                     </div>
                                                                                 ) : (
-                                                                                    <div className="input-group input-group-sm" style={{ flex: '2 1 130px' }}>
+                                                                                    <div className="input-group input-group-sm" style={{ flex: '2 1 130px', height: '34px' }}>
                                                                                         <span className="input-group-text">+₱</span>
                                                                                         <input
                                                                                             type="number"
@@ -827,16 +827,24 @@ function ServiceManagement() {
                                                                                 )}
 
                                                                                 {field.type === 'surcharge' && (
-                                                                                    <div className="form-check mb-0 ms-1" title="Prompt client for a photo when this option is selected">
+                                                                                    <div
+                                                                                        className="d-flex align-items-center gap-1 ms-1 text-nowrap"
+                                                                                        style={{ height: '34px' }}
+                                                                                        title="Prompt client for a photo when this option is selected"
+                                                                                    >
                                                                                         <input
-                                                                                            className="form-check-input"
+                                                                                            className="form-check-input m-0"
                                                                                             type="checkbox"
                                                                                             id={`optPhoto_${fIdx}_${oIdx}`}
                                                                                             checked={Boolean(opt.requires_photo)}
                                                                                             onChange={(e) => updateOption(fIdx, oIdx, { requires_photo: e.target.checked })}
-                                                                                            style={{ accentColor: '#0D8D1E' }}
+                                                                                            style={{ accentColor: '#0D8D1E', cursor: 'pointer', width: '16px', height: '16px' }}
                                                                                         />
-                                                                                        <label className="form-check-label small cursor-pointer" htmlFor={`optPhoto_${fIdx}_${oIdx}`}>
+                                                                                        <label
+                                                                                            className="form-check-label small cursor-pointer m-0 ms-1 text-dark"
+                                                                                            htmlFor={`optPhoto_${fIdx}_${oIdx}`}
+                                                                                            style={{ lineHeight: '1', userSelect: 'none', fontSize: '0.85rem' }}
+                                                                                        >
                                                                                             Photo
                                                                                         </label>
                                                                                     </div>
@@ -844,7 +852,8 @@ function ServiceManagement() {
 
                                                                                 <button
                                                                                     type="button"
-                                                                                    className="btn btn-sm btn-outline-danger border-0"
+                                                                                    className="btn btn-sm btn-outline-danger border-0 d-inline-flex align-items-center justify-content-center p-0"
+                                                                                    style={{ width: '34px', height: '34px', borderRadius: '6px' }}
                                                                                     onClick={() => removeOption(fIdx, oIdx)}
                                                                                     disabled={(field.options || []).length <= 1}
                                                                                     title="Delete option"
