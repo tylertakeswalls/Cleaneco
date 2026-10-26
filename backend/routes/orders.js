@@ -336,6 +336,18 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
       }
     }
 
+    // Ensure all field defaults are populated for each selected service
+    services.forEach(srv => {
+      const sId = String(srv._id);
+      const srvDefaults = {};
+      (srv.fields || []).forEach(f => {
+        if (f.default !== undefined) srvDefaults[f.key] = f.default;
+        else if (f.options?.[0]) srvDefaults[f.key] = f.options[0].value;
+        else if (f.type === 'number') srvDefaults[f.key] = f.min || 1;
+      });
+      parsedInputs[sId] = { ...srvDefaults, ...(parsedInputs[sId] || {}) };
+    });
+
     // Build pricing snapshot for each selected service
     const pricingSnapshot = {};
     services.forEach(srv => {

@@ -204,13 +204,33 @@ function OrderForm() {
     const handleServiceToggle = (serviceId) => {
         setFormData(prev => {
             const currentIds = prev.service_ids || [];
-            const nextIds = currentIds.includes(serviceId)
+            const isCurrentlySelected = currentIds.includes(serviceId);
+            const nextIds = isCurrentlySelected
                 ? currentIds.filter(id => id !== serviceId)
                 : [...currentIds, serviceId];
             return {
                 ...prev,
                 service_ids: nextIds
             };
+        });
+
+        setEstimateInputs(prev => {
+            if (!prev[serviceId]) {
+                const srv = services.find(s => s.id === serviceId || s._id === serviceId);
+                if (srv && srv.fields && srv.fields.length > 0) {
+                    const defaults = {};
+                    srv.fields.forEach(f => {
+                        if (f.default !== undefined) defaults[f.key] = f.default;
+                        else if (f.options?.[0]) defaults[f.key] = f.options[0].value;
+                        else if (f.type === 'number') defaults[f.key] = f.min || 1;
+                    });
+                    return {
+                        ...prev,
+                        [serviceId]: defaults
+                    };
+                }
+            }
+            return prev;
         });
     };
 
@@ -287,8 +307,21 @@ function OrderForm() {
             submitData.append('timeSlot', formData.timeSlot);
             submitData.append('notes', formData.notes);
             submitData.append('service_ids', JSON.stringify(formData.service_ids));
+            const completeInputs = {};
+            (formData.service_ids || []).forEach(sId => {
+                const srv = services.find(s => s.id === sId || s._id === sId);
+                if (srv) {
+                    const defaults = {};
+                    (srv.fields || []).forEach(f => {
+                        if (f.default !== undefined) defaults[f.key] = f.default;
+                        else if (f.options?.[0]) defaults[f.key] = f.options[0].value;
+                        else if (f.type === 'number') defaults[f.key] = f.min || 1;
+                    });
+                    completeInputs[sId] = { ...defaults, ...(estimateInputs[sId] || {}) };
+                }
+            });
             submitData.append('base_estimate', baseEstimate);
-            submitData.append('estimate_inputs', JSON.stringify(estimateInputs));
+            submitData.append('estimate_inputs', JSON.stringify(completeInputs));
             submitData.append('clientType', formData.clientType);
             submitData.append('num_households', formData.clientType === 'residential' ? households.length : 1);
             submitData.append('households', JSON.stringify(formData.clientType === 'residential' ? households : []));

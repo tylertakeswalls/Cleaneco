@@ -38,7 +38,7 @@ function ServicePricingFields({
     <div className="service-pricing-fields">
       {fields.map((field, idx) => {
         const isLast = idx === fields.length - 1;
-        const fieldValue = values[field.key] !== undefined && values[field.key] !== '' 
+        const fieldValue = values[field.key] !== undefined && (field.type !== 'number' ? values[field.key] !== '' : true)
           ? values[field.key] 
           : (field.default !== undefined ? String(field.default) : (field.type === 'number' ? '1' : field.options?.[0]?.value || ''));
 

@@ -203,8 +203,28 @@ function OrderDatabase() {
       internal_notes: order.internal_notes || ''
     });
     setServiceReportFile(null);
+    const initialInputs = order.estimate_inputs ? JSON.parse(JSON.stringify(order.estimate_inputs)) : {};
+    const snapshot = order.pricing_snapshot || {};
+    const serviceIds = order.service_ids && order.service_ids.length > 0
+      ? order.service_ids
+      : (order.service_id ? [(typeof order.service_id === 'object' ? (order.service_id._id || order.service_id.id) : order.service_id)] : []);
+
+    serviceIds.forEach(sId => {
+      const srv = snapshot[sId] || services.find(s => s.id === sId || s._id === sId);
+      if (srv && srv.fields) {
+        initialInputs[sId] = initialInputs[sId] || {};
+        srv.fields.forEach(f => {
+          if (initialInputs[sId][f.key] === undefined) {
+            if (f.default !== undefined) initialInputs[sId][f.key] = f.default;
+            else if (f.options?.[0]) initialInputs[sId][f.key] = f.options[0].value;
+            else if (f.type === 'number') initialInputs[sId][f.key] = f.min || 1;
+          }
+        });
+      }
+    });
+
     setQuotationForm({
-      estimate_inputs: order.estimate_inputs ? JSON.parse(JSON.stringify(order.estimate_inputs)) : {},
+      estimate_inputs: initialInputs,
       discount_amount: order.discount_amount || 0,
       justifications: order.justifications || {}
     });
