@@ -54,11 +54,20 @@ const baseEmailTemplate = ({ subject, title, headerSubtitle, contentHtml }) => `
 `;
 
 const sendEmailJS = async (templateId, templateParams) => {
+  const serviceId = process.env.EMAILJS_SERVICE_ID;
+  const userId = process.env.EMAILJS_USER_ID;
+  const accessToken = process.env.EMAILJS_ACCESS_TOKEN;
+
+  if (!serviceId || !userId || !accessToken) {
+    console.error('EmailJS configuration error: Missing EMAILJS_SERVICE_ID, EMAILJS_USER_ID, or EMAILJS_ACCESS_TOKEN environment variables.');
+    throw new Error('Email service configuration missing on server.');
+  }
+
   const payload = {
-    service_id: 'service_6ol570a',
+    service_id: serviceId,
     template_id: templateId,
-    user_id: 'J0YFAj4XiDUXldQ0F',
-    accessToken: '4dsISR2NxP2JjPAwVzAS8',
+    user_id: userId,
+    accessToken: accessToken,
     template_params: templateParams
   };
 

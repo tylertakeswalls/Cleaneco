@@ -112,13 +112,18 @@ router.post('/webhook', async (req, res) => {
 });
 
 const createPayMongoSession = async (amountInCents, description, referenceNumber, lineItems, customerInfo) => {
+    if (!process.env.PAYMONGO_SECRET_KEY) {
+        console.error('CRITICAL: PAYMONGO_SECRET_KEY environment variable is missing.');
+        throw new Error('PayMongo secret key is not configured.');
+    }
+
     const options = {
         method: 'POST',
         url: 'https://api.paymongo.com/v1/checkout_sessions',
         headers: {
             accept: 'application/json',
             'Content-Type': 'application/json',
-            authorization: `Basic ${Buffer.from((process.env.PAYMONGO_SECRET_KEY || 'sk_test_w3hVvJThf4Jv5M1h4qL67jG1') + ':').toString('base64')}`
+            authorization: `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY + ':').toString('base64')}`
         },
         data: {
             data: {
