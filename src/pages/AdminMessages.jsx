@@ -3,12 +3,23 @@ import { Link, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/admin.css';
 import carousel1 from '../assets/styles/images/carousel1.png';
+import ChatImageLightbox, {
+  CHAT_IMAGE_ACCEPT,
+  resolveChatImageUrl,
+  validateChatImageFile,
+  formatImageFileSize,
+  extractPastedImageFile,
+  mergePolledMessages
+} from '../components/ChatImageLightbox';
 
 export default function AdminMessages() {
   const [conversations, setConversations] = useState([]);
   const [selectedConv, setSelectedConv] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [attachError, setAttachError] = useState('');
+  const [lightboxImage, setLightboxImage] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'unread' | 'orders'
   const [loadingList, setLoadingList] = useState(true);
@@ -18,6 +29,7 @@ export default function AdminMessages() {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const activeConvRef = useRef(null);
   activeConvRef.current = selectedConv;
 
@@ -50,6 +62,60 @@ export default function AdminMessages() {
       text: "Our team has confirmed your scheduled service time slot."
     }
   ];
+
+  // Clean up object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (selectedImage?.previewUrl) {
+        URL.revokeObjectURL(selectedImage.previewUrl);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const stageImageFile = (file) => {
+    if (!file) return;
+    const validation = validateChatImageFile(file);
+    if (!validation.valid) {
+      setAttachError(validation.error);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (selectedImage?.previewUrl) {
+      URL.revokeObjectURL(selectedImage.previewUrl);
+    }
+    setAttachError('');
+    setSelectedImage({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      name: file.name || 'attached-image.png',
+      size: file.size
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (textareaRef.current) textareaRef.current.focus();
+  };
+
+  const clearSelectedImage = () => {
+    if (selectedImage?.previewUrl) {
+      URL.revokeObjectURL(selectedImage.previewUrl);
+    }
+    setSelectedImage(null);
+    setAttachError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleImageInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) stageImageFile(file);
+  };
+
+  const handlePaste = (e) => {
+    const pastedFile = extractPastedImageFile(e);
+    if (pastedFile) {
+      e.preventDefault();
+      stageImageFile(pastedFile);
+    }
+  };
 
   // Load or refresh conversation list
   const loadConversations = async (keepSelection = true) => {
@@ -99,13 +165,7 @@ export default function AdminMessages() {
     try {
       const res = await api.get(`/messages/conversations/${convId}/messages`);
       if (res.data && res.data.success) {
-        setMessages(prev => {
-          const newMsgs = res.data.messages || [];
-          if (newMsgs.length !== prev.length || (newMsgs.length > 0 && prev.length > 0 && newMsgs[newMsgs.length - 1]._id !== prev[prev.length - 1]._id)) {
-            return newMsgs;
-          }
-          return prev;
-        });
+        setMessages(prev => mergePolledMessages(prev, res.data.messages || []));
       }
     } catch (err) {
       console.error('Error polling messages:', err);
@@ -114,6 +174,7 @@ export default function AdminMessages() {
 
   // Select a conversation
   const handleSelectConversation = async (conv) => {
+    clearSelectedImage();
     setSelectedConv(conv);
     setLoadingMessages(true);
     try {
@@ -159,13 +220,19 @@ export default function AdminMessages() {
     }
   }, [messages]);
 
-  // Send a message
+  // Send a message (text, image, or both)
   const handleSendMessage = async (e, textOverride = null) => {
     if (e) e.preventDefault();
-    const textToSend = (textOverride || messageText).trim();
-    if (!textToSend || !selectedConv || sending) return;
+    const textToSend = (textOverride !== null ? textOverride : messageText).trim();
+    const imageToSend = textOverride !== null ? null : selectedImage;
 
-    setMessageText('');
+    if ((!textToSend && !imageToSend) || !selectedConv || sending) return;
+
+    if (textOverride === null) {
+      setMessageText('');
+      setSelectedImage(null);
+    }
+    setAttachError('');
     setSending(true);
 
     // Optimistic UI update
@@ -176,28 +243,53 @@ export default function AdminMessages() {
       sender_id: { _id: adminUserId, role: 'admin' },
       sender_role: 'admin',
       text: textToSend,
+      image_url: imageToSend ? imageToSend.previewUrl : null,
+      image_name: imageToSend ? imageToSend.name : null,
+      _uploading: Boolean(imageToSend),
       created_at: new Date().toISOString()
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
-      const res = await api.post(`/messages/conversations/${selectedConv._id}/messages`, {
-        text: textToSend,
-        sender_id: adminUserId,
-        sender_role: 'admin',
-        order_id: selectedConv.order_id || null
-      });
+      let res;
+      if (imageToSend) {
+        const formData = new FormData();
+        formData.append('image', imageToSend.file);
+        formData.append('text', textToSend);
+        formData.append('sender_id', adminUserId);
+        formData.append('sender_role', 'admin');
+        if (selectedConv.order_id) {
+          formData.append('order_id', selectedConv.order_id);
+        }
+        res = await api.post(`/messages/conversations/${selectedConv._id}/messages`, formData);
+      } else {
+        res = await api.post(`/messages/conversations/${selectedConv._id}/messages`, {
+          text: textToSend,
+          sender_id: adminUserId,
+          sender_role: 'admin',
+          order_id: selectedConv.order_id || null
+        });
+      }
 
       if (res.data && res.data.success) {
         const savedMsg = res.data.message;
-        setMessages(prev => prev.map(m => m._id === tempId ? savedMsg : m));
+        setMessages(prev => {
+          if (prev.some(m => m._id === tempId)) {
+            return prev.map(m => m._id === tempId ? savedMsg : m);
+          }
+          if (prev.some(m => m._id === savedMsg._id)) return prev;
+          return [...prev, savedMsg];
+        });
         loadConversations(true);
       }
     } catch (err) {
       console.error('Error sending message:', err);
       setMessages(prev => prev.filter(m => m._id !== tempId));
-      alert('Failed to send message. Please try again.');
+      setAttachError(err.response?.data?.message || 'Failed to send message. Please try again.');
     } finally {
+      if (imageToSend?.previewUrl) {
+        URL.revokeObjectURL(imageToSend.previewUrl);
+      }
       setSending(false);
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -247,6 +339,7 @@ export default function AdminMessages() {
 
   return (
     <div>
+      <ChatImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
       <img className="img-fluid banner-img" src={carousel1} alt="Banner" />
 
       <div className="container-fluid py-4 px-md-4" style={{ maxWidth: '1600px' }}>
@@ -337,6 +430,29 @@ export default function AdminMessages() {
         .chat-composer-textarea::placeholder {
           color: #94a3b8;
         }
+        .chat-attach-btn {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          border: 1.5px solid #e2e8f0;
+          background: #f8fafc;
+          color: #475569;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.18s ease;
+          cursor: pointer;
+        }
+        .chat-attach-btn:hover:not(:disabled) {
+          background: #F0FDF4;
+          color: #0D8D1E;
+          border-color: #86efac;
+          transform: translateY(-1px);
+        }
+        .chat-attach-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
         .chat-bubble-admin-staff {
           background: linear-gradient(135deg, #0D8D1E 0%, #0A6F17 100%);
           color: #ffffff;
@@ -357,6 +473,19 @@ export default function AdminMessages() {
           line-height: 1.5;
           word-break: break-word;
           white-space: pre-wrap;
+        }
+        .chat-msg-image {
+          display: block;
+          max-width: 260px;
+          max-height: 240px;
+          width: 100%;
+          object-fit: cover;
+          border-radius: 12px;
+          cursor: zoom-in;
+          transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        .chat-msg-image:hover {
+          opacity: 0.95;
         }
         .admin-thread-card {
           padding: 13px 16px;
@@ -801,7 +930,7 @@ export default function AdminMessages() {
                 {selectedConv.order_id && (
                   <div>
                     <Link 
-                      to="/admin/orders" 
+                      to={`/admin/orders?orderId=${encodeURIComponent(selectedConv.order_id)}`} 
                       className="btn-admin-view-order"
                     >
                       <i className="fas fa-external-link-alt"></i> View Order
@@ -840,6 +969,10 @@ export default function AdminMessages() {
 
                     {messages.map((msg, index) => {
                       const isAdmin = msg.sender_role === 'admin';
+                      const hasImg = Boolean(msg.image_url);
+                      const hasTxt = Boolean(msg.text);
+                      const bubblePadding = hasImg ? (hasTxt ? 'p-2 pb-3' : 'p-2') : 'p-3 px-4';
+
                       return (
                         <div
                           key={msg._id || index}
@@ -863,8 +996,30 @@ export default function AdminMessages() {
                                 </div>
                               )
                             )}
-                            <div className={`p-3 px-4 shadow-sm ${isAdmin ? 'chat-bubble-admin-staff' : 'chat-bubble-client-msg'}`}>
-                              {msg.text}
+                            <div className={`${bubblePadding} shadow-sm ${isAdmin ? 'chat-bubble-admin-staff' : 'chat-bubble-client-msg'}`}>
+                              {hasImg && (
+                                <div className="position-relative">
+                                  <img
+                                    src={resolveChatImageUrl(msg.image_url)}
+                                    alt={msg.image_name || 'Chat attachment'}
+                                    className="chat-msg-image"
+                                    onClick={() => setLightboxImage({ url: msg.image_url, name: msg.image_name })}
+                                  />
+                                  {msg._uploading && (
+                                    <span
+                                      className="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-2"
+                                      style={{ fontSize: '0.68rem' }}
+                                    >
+                                      Uploading...
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {hasTxt && (
+                                <div className={hasImg ? 'mt-2 px-2' : ''}>
+                                  {msg.text}
+                                </div>
+                              )}
                             </div>
                             {isAdmin && (
                               <div 
@@ -906,40 +1061,102 @@ export default function AdminMessages() {
                   ))}
                 </div>
 
+                {/* Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={CHAT_IMAGE_ACCEPT}
+                  className="d-none"
+                  onChange={handleImageInputChange}
+                />
+
                 {/* Composer Box */}
                 <form onSubmit={handleSendMessage}>
                   <div className="chat-composer-box">
+                    {attachError && (
+                      <div className="d-flex align-items-center justify-content-between px-3 py-2 mb-2 rounded-3 small" style={{ backgroundColor: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>
+                        <span><i className="fas fa-exclamation-circle me-2"></i>{attachError}</span>
+                        <button type="button" className="btn btn-link btn-sm p-0 text-danger text-decoration-none" onClick={() => setAttachError('')}>
+                          <i className="fas fa-times"></i>
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedImage && (
+                      <div className="d-flex align-items-center justify-content-between p-2 mb-2 rounded-3 border bg-light">
+                        <div className="d-flex align-items-center gap-2 overflow-hidden">
+                          <img
+                            src={selectedImage.previewUrl}
+                            alt={selectedImage.name}
+                            className="rounded-2 object-fit-cover border bg-white flex-shrink-0"
+                            style={{ width: '48px', height: '48px', cursor: 'zoom-in' }}
+                            onClick={() => setLightboxImage({ url: selectedImage.previewUrl, name: selectedImage.name })}
+                          />
+                          <div className="overflow-hidden">
+                            <div className="fw-semibold text-dark small text-truncate" style={{ maxWidth: '280px' }}>
+                              {selectedImage.name}
+                            </div>
+                            <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                              {formatImageFileSize(selectedImage.size)} • Ready to send
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={clearSelectedImage}
+                          className="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 ms-2"
+                          style={{ width: '28px', height: '28px', padding: 0 }}
+                          title="Remove attached image"
+                        >
+                          <i className="fas fa-times" style={{ fontSize: '0.75rem' }}></i>
+                        </button>
+                      </div>
+                    )}
+
                     <textarea
                       ref={textareaRef}
                       className="chat-composer-textarea"
-                      placeholder="Type your response to the client..."
+                      placeholder={selectedImage ? "Add an optional caption to your image..." : "Type your response to the client..."}
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
                       onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
                       disabled={sending}
                       rows={2}
                     />
 
                     <div className="d-flex justify-content-between align-items-center pt-2 border-top border-light mt-1">
-                      <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                      <span className="text-muted small d-none d-sm-inline" style={{ fontSize: '0.75rem' }}>
                         <kbd className="bg-light text-secondary border px-1 rounded">Enter ↵</kbd> to send • <kbd className="bg-light text-secondary border px-1 rounded">Shift + Enter</kbd> for new line
                       </span>
 
-                      <button
-                        type="submit"
-                        className="btn btn-success d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm fw-semibold"
-                        style={{ backgroundColor: '#0D8D1E', border: 'none', transition: 'all 0.18s ease' }}
-                        disabled={!messageText.trim() || sending}
-                      >
-                        {sending ? (
-                          <div className="spinner-border spinner-border-sm text-white" role="status"></div>
-                        ) : (
-                          <>
-                            <span>Send Reply</span>
-                            <i className="fas fa-paper-plane" style={{ fontSize: '0.85rem' }}></i>
-                          </>
-                        )}
-                      </button>
+                      <div className="d-flex align-items-center gap-2 ms-auto">
+                        <button
+                          type="button"
+                          className="chat-attach-btn"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={sending}
+                          title="Attach image (JPG, PNG, WEBP, GIF up to 5 MB)"
+                        >
+                          <i className="fas fa-paperclip" style={{ fontSize: '0.95rem' }}></i>
+                        </button>
+
+                        <button
+                          type="submit"
+                          className="btn btn-success d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm fw-semibold"
+                          style={{ backgroundColor: '#0D8D1E', border: 'none', transition: 'all 0.18s ease' }}
+                          disabled={(!messageText.trim() && !selectedImage) || sending}
+                        >
+                          {sending ? (
+                            <div className="spinner-border spinner-border-sm text-white" role="status"></div>
+                          ) : (
+                            <>
+                              <span>Send Reply</span>
+                              <i className="fas fa-paper-plane" style={{ fontSize: '0.85rem' }}></i>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </form>

@@ -14,7 +14,7 @@ function PaymentCancel() {
                     You can try again whenever you're ready.
                 </p>
                 <Link to="/orders" className="btn btn-success rounded-pill px-4 py-2 fw-bold">
-                    Return to Booking
+                    View My Orders
                 </Link>
             </div>
         </div>

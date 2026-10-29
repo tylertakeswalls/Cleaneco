@@ -51,51 +51,63 @@ router.post('/webhook', async (req, res) => {
                 const orders = await Order.find({ order_id: actualOrderId });
 
                 if (orders.length > 0) {
-                    await Promise.all(orders.map(async (order) => {
-                        if (isFinalPayment && order.status !== 'Cancelled') {
-                            order.final_payment_status = 'Paid';
-                            await order.save();
+                    const primaryOrder = orders[0];
+                    const combinedServices = [...new Set(orders.map(o => o.service_type).filter(Boolean))].join(', ') || primaryOrder.service_type;
 
-                            if (order.user_id) {
+                    if (isFinalPayment && primaryOrder.status !== 'Cancelled') {
+                        const needsFinalUpdate = orders.some(o => o.final_payment_status !== 'Paid');
+                        if (needsFinalUpdate) {
+                            await Order.updateMany(
+                                { order_id: actualOrderId, status: { $ne: 'Cancelled' } },
+                                { $set: { final_payment_status: 'Paid' } }
+                            );
+
+                            if (primaryOrder.user_id) {
                                 await new Notification({
-                                    user_id: order.user_id,
-                                    order_id: order.order_id,
+                                    user_id: primaryOrder.user_id,
+                                    order_id: actualOrderId,
                                     message: `Final Payment Verified`,
-                                    details: `Your final payment for order #${order.order_id} was successful. Thank you for your business!`
+                                    details: `Your final payment for order #${actualOrderId} (${combinedServices}) was successful. Thank you for your business!`
                                 }).save();
                             }
-                        } else if (order.status === 'Pending') {
-                            order.status = 'In Progress';
-                            await order.save();
-
-                            if (order.user_id) {
-                                await new Notification({
-                                    user_id: order.user_id,
-                                    order_id: order.order_id,
-                                    message: `Reservation Payment Verified`,
-                                    details: `Your PayMongo payment for order #${order.order_id} was successful. Your order is now In Progress.`
-                                }).save();
-                            }
-
-                            const clientInfo = {
-                                firstName: order.first_name,
-                                lastName: order.last_name,
-                                email: order.email,
-                                phone: order.phone,
-                                address: order.address,
-                                date: order.date,
-                                timeSlot: order.time_slot,
-                                status: order.status,
-                                notes: order.notes
-                            };
-                            const orderItems = [{
-                                service_name: order.service_type,
-                                base_price: order.price,
-                                price: order.has_final_price ? (order.final_price * 1.1) : ((order.price || 0) + (order.tax_amount || 0))
-                            }];
-                            await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
                         }
-                    }));
+                    } else if (orders.some(o => o.status === 'Pending')) {
+                        await Order.updateMany(
+                            { order_id: actualOrderId, status: 'Pending' },
+                            { $set: { status: 'In Progress' } }
+                        );
+
+                        if (primaryOrder.user_id) {
+                            await new Notification({
+                                user_id: primaryOrder.user_id,
+                                order_id: actualOrderId,
+                                message: `Reservation Payment Verified`,
+                                details: `Your PayMongo payment for order #${actualOrderId} (${combinedServices}) was successful. Your order is now In Progress.`
+                            }).save();
+                        }
+
+                        const clientInfo = {
+                            firstName: primaryOrder.first_name,
+                            lastName: primaryOrder.last_name,
+                            email: primaryOrder.email,
+                            phone: primaryOrder.phone,
+                            address: primaryOrder.address,
+                            date: primaryOrder.confirmed_date || primaryOrder.date,
+                            timeSlot: primaryOrder.confirmed_time_slot || primaryOrder.time_slot,
+                            status: 'In Progress',
+                            notes: primaryOrder.notes
+                        };
+                        const orderItems = [{
+                            service_name: combinedServices,
+                            base_price: primaryOrder.price,
+                            price: primaryOrder.has_final_price ? (primaryOrder.final_price * 1.1) : ((primaryOrder.price || 0) + (primaryOrder.tax_amount || 0))
+                        }];
+                        try {
+                            await sendConfirmationEmail(actualOrderId, clientInfo, orderItems, true);
+                        } catch (emailErr) {
+                            console.error('Error sending webhook confirmation email:', emailErr.message || emailErr);
+                        }
+                    }
 
                     console.log(`Successfully updated order ${actualOrderId}`);
                 } else {

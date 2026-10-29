@@ -5,7 +5,7 @@ import api from '../api/api';
 import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
 import AlertModal from '../components/AlertModal';
-import { formatDate, getStatusClass } from '../utils/helpers';
+import { formatDate, getStatusClass, toISODateKey, resolveOrderSchedule } from '../utils/helpers';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
 import jsPDF from 'jspdf';
@@ -13,33 +13,9 @@ import autoTable from 'jspdf-autotable';
 import reportHeaderImg from '../assets/styles/images/report_header.png';
 import { formatName } from '../utils/formatName';
 import ServicePricingFields from '../components/ServicePricingFields';
-import { calculateOrderTotals } from '../utils/pricing';
+import { calculateOrderTotals, groupOrdersByOrderId, calculateOrderCollectedRevenue, parseNumericAmount } from '../utils/pricing';
 
-const processGroupedOrders = (rawOrders) => {
-  const grouped = rawOrders.reduce((acc, order) => {
-    if (!acc[order.order_id]) {
-      acc[order.order_id] = {
-        ...order,
-        service_names: [],
-        service_ids: [],
-        first_id: order.id || order._id
-      };
-    }
-    acc[order.order_id].service_names.push(order.service_name || order.service_type);
-    const sId = (order.service_id && typeof order.service_id === 'object') ? (order.service_id._id || order.service_id.id) : order.service_id;
-    if (sId && !acc[order.order_id].service_ids.includes(sId)) {
-      acc[order.order_id].service_ids.push(sId);
-    }
-    return acc;
-  }, {});
-
-  return Object.values(grouped).map(o => ({
-    ...o,
-    id: o.first_id,
-    service_name: o.service_names.join(', '),
-    price: o.price
-  }));
-};
+const processGroupedOrders = (rawOrders) => groupOrdersByOrderId(rawOrders);
 
 function OrderDatabase() {
   const confirm = useConfirm();
@@ -83,10 +59,7 @@ function OrderDatabase() {
   };
 
   const calculateRevenue = (ordersData) => {
-    const total = ordersData.reduce((sum, order) => {
-      const price = parseFloat(order.has_final_price ? order.final_price : order.price) || 0;
-      return order.status === 'Completed' ? sum + price : sum;
-    }, 0);
+    const total = ordersData.reduce((sum, order) => sum + calculateOrderCollectedRevenue(order), 0);
     setTotalRevenue(total);
   };
   
@@ -196,8 +169,8 @@ function OrderDatabase() {
       price: order.price || '',
       request_type: order.request_type || '',
       approval_fee: order.approval_fee || '',
-      confirmed_date: order.confirmed_date ? new Date(order.confirmed_date).toISOString().split('T')[0] : '',
-      confirmed_time_slot: order.confirmed_time_slot || '',
+      confirmed_date: toISODateKey(order.confirmed_date || order.date),
+      confirmed_time_slot: order.confirmed_time_slot || order.time_slot || '',
       truck_team: initialTruckTeam,
       misc_fee: order.misc_fee || '',
       internal_notes: order.internal_notes || ''
@@ -289,6 +262,20 @@ function OrderDatabase() {
   const estimatedTrips = quotationForm.total_trips ? parseInt(quotationForm.total_trips, 10) : calculatedTrips;
 
   const isHighCapacityOrder = ((Number(editModal.order?.total_trips) || 0) >= 5) || (estimatedTrips >= 5);
+  const isInspectionComplete = Boolean(
+    editModal.order && (
+      editModal.order.has_final_price ||
+      ['Pending Client Approval', 'Clarification Requested', 'Approved'].includes(editModal.order.quotation_status) ||
+      editModal.order.service_execution_date ||
+      editModal.order.status === 'Completed'
+    )
+  );
+  const showExecutionScheduleCard = Boolean(
+    editModal.order && (
+      editModal.order.quotation_status === 'Approved' ||
+      editModal.order.service_execution_date
+    )
+  );
   const operationalTrucks = truckTeams.filter(t => (typeof t === 'string' ? true : t.status !== 'unavailable'));
   const selectedHighCapTrucks = editForm.truck_team
     ? editForm.truck_team.split(/[,&]/).map(s => s.trim()).filter(Boolean)
@@ -495,10 +482,11 @@ function OrderDatabase() {
                     <th>Order ID</th>
                     <th>Customer</th>
                     <th>Service</th>
-                    <th>Date</th>
-                    <th>Time</th>
+                    <th>Schedule</th>
+
                     <th>Status</th>
-                    <th>Price (₱)</th>
+                    <th>Truck Team</th>
+                    <th>Final Price (₱)</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -513,12 +501,12 @@ function OrderDatabase() {
     );
   }
 
-  const uniqueServices = [...new Set(orders.map(o => o.service_name || o.service_type).filter(Boolean))].sort();
+  const uniqueServices = [...new Set(orders.flatMap(o => (Array.isArray(o.service_names) && o.service_names.length > 0) ? o.service_names : [o.service_name || o.service_type]).filter(Boolean))].sort();
 
   const filteredOrders = orders.filter(order => {
-    const matchType = filterType === '' || (order.service_name && order.service_name === filterType);
+    const matchType = filterType === '' || (Array.isArray(order.service_names) && order.service_names.includes(filterType)) || order.service_name === filterType;
     const matchStatus = filterStatus === '' || order.status === filterStatus;
-    const matchDate = filterDate === '' || order.date === filterDate;
+    const matchDate = filterDate === '' || resolveOrderSchedule(order).filterDateKey === filterDate;
     return matchType && matchStatus && matchDate;
   });
 
@@ -533,24 +521,30 @@ function OrderDatabase() {
     
     doc.addImage(img, 'PNG', 0, 0, 210, 65);
 
+    const reportRevenue = filteredOrders.reduce((sum, order) => sum + calculateOrderCollectedRevenue(order), 0);
+
     doc.setFont("times", "bold");
     doc.setFontSize(12);
     doc.text("Order Database Report", 14, 75);
     doc.setFont("times", "normal");
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 82);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 81);
+    doc.setFont("times", "bold");
+    doc.text(`Total Collected Revenue (incl. 10% Tax): PHP ${reportRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, 87);
 
-    const tableColumn = ["Order ID", "Customer", "Service", "Pref. Date", "Status", "Team", "Price"];
+    const tableColumn = ["Order ID", "Customer", "Service", "Schedule", "Status", "Team", "Collected (PHP)"];
     const tableRows = [];
 
     filteredOrders.forEach(order => {
+      const collected = calculateOrderCollectedRevenue(order);
       const orderData = [
         order.order_id || '-',
         formatName(order),
         order.service_name || order.service_type || '-',
-        formatDate(order.date),
+        resolveOrderSchedule(order).pdfText,
         order.status || '-',
         order.truck_team || 'Unassigned',
-        order.price ? order.price.toString() : "-"
+        collected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       ];
       tableRows.push(orderData);
     });
@@ -558,7 +552,7 @@ function OrderDatabase() {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 90,
+      startY: 93,
       styles: { fontSize: 8 },
       headStyles: { fillColor: '#0D8D1E' }
     });
@@ -611,6 +605,7 @@ function OrderDatabase() {
               style={{ width: '200px', height: '52px' }}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
+              title="Filter by active schedule date (Inspection or Service Execution)"
             />
             <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }} onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
             <button className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} onClick={handleDownloadReport}>
@@ -625,7 +620,7 @@ function OrderDatabase() {
                   <th>Order ID</th>
                   <th>Customer</th>
                   <th>Service</th>
-                  <th>Pref. Date</th>
+                  <th>Schedule</th>
                   <th>Status</th>
                   <th>Truck Team</th>
                   <th>Final Price (₱)</th>
@@ -652,11 +647,48 @@ function OrderDatabase() {
                       <td>{formatName(order)}</td>
                       <td>
                         {order.service_name || order.service_type}
-                        {order.estimate_inputs && order.estimate_inputs.accessibility === 'difficult' && (
+                        {order.estimate_inputs && (order.estimate_inputs.accessibility === 'difficult' || Object.values(order.estimate_inputs).some(v => v && typeof v === 'object' && v.accessibility === 'difficult')) && (
                           <div className="badge bg-danger mt-1 d-block"><i className="fas fa-exclamation-triangle me-1"></i>Requires Extension Hoses</div>
                         )}
                       </td>
-                      <td>{formatDate(order.date)}</td>
+                      <td>
+                        {(() => {
+                          const sched = resolveOrderSchedule(order);
+                          return (
+                            <div className="d-flex flex-column align-items-center justify-content-center gap-1">
+                              <div className="fw-semibold" style={{ fontSize: '0.9rem', color: sched.phase === 'awaiting_execution' ? '#475569' : '#1e293b' }}>
+                                {sched.formattedDate}
+                                {sched.activeSlot && (
+                                  <span className="text-muted fw-normal ms-1" style={{ fontSize: '0.8rem' }}>
+                                    ({sched.activeSlot})
+                                  </span>
+                                )}
+                              </div>
+                              <span
+                                style={{
+                                  backgroundColor: sched.badgeBg,
+                                  color: sched.badgeColor,
+                                  border: `1px solid ${sched.badgeBorder}`,
+                                  borderRadius: '999px',
+                                  padding: '2px 9px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600,
+                                  lineHeight: 1.35,
+                                  display: 'inline-block',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {sched.label}
+                              </span>
+                              {sched.phase === 'awaiting_execution' && sched.inspectedDateFormatted !== 'N/A' && (
+                                <small className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                  Inspected: {sched.inspectedDateFormatted}
+                                </small>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className={`status-cell ${getStatusClass(order.status)}`}>
                         {order.status}
                         {order.request_type && (
@@ -664,7 +696,13 @@ function OrderDatabase() {
                         )}
                       </td>
                       <td>{order.truck_team || 'Unassigned'}</td>
-                      <td>{order.has_final_price ? '₱' + order.final_price : "-"}</td>
+                      <td>
+                        {order.has_final_price
+                          ? `₱${parseNumericAmount(order.final_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : (order.status === 'Completed' && parseNumericAmount(order.price) > 0
+                              ? `₱${parseNumericAmount(order.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : "-")}
+                      </td>
                       <td>
                       <button 
                         className="btn-edit" 
@@ -692,7 +730,7 @@ function OrderDatabase() {
 
         <div className="revenue-box">
           <h4>Total Revenue</h4>
-          <div className="revenue-amount">₱{totalRevenue.toFixed(2)}</div>
+          <div className="revenue-amount">₱{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         </div>
         
         {editModal.show && createPortal(
@@ -722,7 +760,7 @@ function OrderDatabase() {
               <div className="tab-content p-4">
                 {activeTab === 'details' && (
                   <div className="row">
-                    <div className="col-md-12">
+                    <div className="col-md-12 d-flex flex-column">
                       <div className="form-group mb-3">
                         <label className="form-label fw-bold small text-muted">Order Status</label>
                         <select 
@@ -935,7 +973,7 @@ function OrderDatabase() {
 
                 {activeTab === 'quotation' && (
                   <div className="row">
-                    <div className="col-md-12">
+                    <div className="col-md-12 d-flex flex-column">
                       <div className="alert alert-info border-0 shadow-sm p-3 mb-4 small">
                         <i className="fas fa-info-circle me-2"></i>
                         Build the hierarchical quotation based on inspection findings. This will be sent to the client for approval.
@@ -1004,8 +1042,37 @@ function OrderDatabase() {
 
                 {activeTab === 'scheduling' && (
                   <div className="row">
-                    <div className="col-md-12">
-                      <h6 className="fw-bold text-primary mb-3"><i className="fas fa-search me-2"></i>Inspection Scheduling</h6>
+                    <div className="col-md-12 d-flex flex-column">
+                      {isInspectionComplete && !showExecutionScheduleCard && editModal.order.status !== 'Cancelled' && editModal.order.status !== 'Completed' && (
+                        <div className="order-1">
+                          <h6 className="fw-bold text-success mb-3"><i className="fas fa-truck-loading me-2"></i>Service Execution Scheduling</h6>
+                          <div className="card shadow-sm border-info border-opacity-25 mb-4" style={{ backgroundColor: '#f0f9ff' }}>
+                            <div className="card-body">
+                              <div className="d-flex align-items-start gap-2">
+                                <i className="fas fa-hourglass-half text-primary mt-1"></i>
+                                <div>
+                                  <div className="fw-bold text-dark small mb-1">Awaiting Client Quotation Approval &amp; Execution Date</div>
+                                  <div className="small text-muted">
+                                    Current quotation status: <strong>{editModal.order.quotation_status || 'Pending Client Approval'}</strong>. Once the client approves the quotation and selects their execution date and time slot, truck team deployment will unlock here.
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className={isInspectionComplete ? 'order-2' : 'order-1'}>
+                        <div className="d-flex align-items-center justify-content-between mb-3">
+                          <h6 className={`fw-bold mb-0 ${isInspectionComplete ? 'text-secondary' : 'text-primary'}`}>
+                            <i className="fas fa-search me-2"></i>Inspection Scheduling
+                          </h6>
+                          {isInspectionComplete && (
+                            <span className="badge rounded-pill" style={{ backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>
+                              <i className="fas fa-check-circle me-1"></i>Inspection Completed
+                            </span>
+                          )}
+                        </div>
                       <div className="card shadow-sm border-0 mb-4 bg-light">
                         <div className="card-body">
                           <div className="form-group mb-3">
@@ -1022,6 +1089,8 @@ function OrderDatabase() {
                             <input 
                               type="date" 
                               name="confirmed_date"
+                              readOnly={isInspectionComplete}
+                              style={isInspectionComplete ? { opacity: 0.8, cursor: 'not-allowed' } : undefined}
                               className="form-control bg-white border-0 shadow-sm" 
                               value={editForm.confirmed_date}
                               onChange={handleEditChange}
@@ -1029,20 +1098,35 @@ function OrderDatabase() {
                           </div>
                           <div className="form-group mb-0">
                             <label className="form-label fw-bold small text-muted">Confirmed Inspection Time Slot</label>
-                            <input 
-                              type="text" 
+                            <select
                               name="confirmed_time_slot"
-                              className="form-control bg-white border-0 shadow-sm" 
-                              placeholder="e.g. 08:00 AM - 10:00 AM"
-                              value={editForm.confirmed_time_slot}
+                              disabled={isInspectionComplete}
+                              style={isInspectionComplete ? { opacity: 0.8, cursor: 'not-allowed' } : undefined}
+                              className="form-select bg-white border-0 shadow-sm"
+                              value={editForm.confirmed_time_slot || ''}
                               onChange={handleEditChange}
-                            />
+                            >
+                              <option value="">Select Time Slot</option>
+                              <option value="Morning">Morning (8AM - 12PM)</option>
+                              <option value="Afternoon">Afternoon (12PM - 5PM)</option>
+                              <option value="Evening">Evening (5PM - 9PM)</option>
+                              {editForm.confirmed_time_slot && !['Morning', 'Afternoon', 'Evening'].includes(editForm.confirmed_time_slot) && (
+                                <option value={editForm.confirmed_time_slot}>{editForm.confirmed_time_slot}</option>
+                              )}
+                            </select>
                           </div>
                         </div>
                       </div>
 
-                      {editModal.order.quotation_status === 'Approved' && (
-                        <>
+                        {isInspectionComplete && (
+                          <small className="text-muted d-block mb-3" style={{ marginTop: '-10px' }}>
+                            <i className="fas fa-lock me-1"></i>Inspection record is locked because this order has already progressed past site inspection.
+                          </small>
+                        )}
+                      </div>
+
+                      {showExecutionScheduleCard && (
+                        <div className={isInspectionComplete ? 'order-1' : 'order-2'}>
                           <h6 className="fw-bold text-success mb-3"><i className="fas fa-truck-loading me-2"></i>Service Execution Scheduling</h6>
                           <div className="card shadow-sm border-success border-opacity-25 mb-4" style={{ backgroundColor: '#f0fdf4' }}>
                             <div className="card-body">
@@ -1175,7 +1259,7 @@ function OrderDatabase() {
                               )}
                             </div>
                           </div>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1183,7 +1267,7 @@ function OrderDatabase() {
 
                 {activeTab === 'documents' && (
                   <div className="row">
-                    <div className="col-md-12">
+                    <div className="col-md-12 d-flex flex-column">
                       <div className="form-group mb-4">
                         <label className="form-label fw-bold small text-muted">Upload Service Report / Invoice</label>
                         <input 

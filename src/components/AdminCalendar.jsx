@@ -1,5 +1,7 @@
 import { useState } from "react";
 import "../assets/styles/adminCalendar.css";
+import { resolveOrderSchedule } from "../utils/helpers";
+import { formatName } from "../utils/formatName";
 
 // ponytail: Custom calendar grid is a known ceiling. Avoid adding complex date-math or timezone logic here.
 // Upgrade path: Swap with 'react-big-calendar' or 'react-calendar' if complex features (like week view or drag-drop) are needed later.
@@ -10,27 +12,14 @@ export default function AdminCalendar({ orders = [] }) {
     const [popupVisible, setPopupVisible] = useState(false);
     const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
 
-    // Convert orders into date map
+    // Convert orders into phase-aware date map (Execution Date when scheduled, Confirmed/Preferred Inspection Date otherwise)
     const ordersByDate = orders.reduce((acc, order) => {
-        if (!order.date) return acc;
-        
-        let d = String(order.date);
-        // Clean up time if it's an ISO string
-        if (d.includes("T")) {
-            d = d.split("T")[0];
-        } else if (d.includes("/")) {
-            // Convert MM/DD/YYYY or M/D/YYYY to YYYY-MM-DD
-            const parts = d.split("/");
-            if (parts.length === 3) {
-                const mm = parts[0].padStart(2, "0");
-                const dd = parts[1].padStart(2, "0");
-                const yyyy = parts[2];
-                d = `${yyyy}-${mm}-${dd}`;
-            }
-        }
-        
+        const sched = resolveOrderSchedule(order);
+        const d = sched.calendarDateKey;
+        if (!d) return acc;
+
         if (!acc[d]) acc[d] = [];
-        acc[d].push(order);
+        acc[d].push({ ...order, _schedule: sched });
         return acc;
     }, {});
 
@@ -80,6 +69,8 @@ export default function AdminCalendar({ orders = [] }) {
         }
     };
 
+    const selectedDayOrders = selectedDate ? (ordersByDate[selectedDate] || []) : [];
+
     return (
         <div className="admin-calendar-container">
             <div className="calendar-header">
@@ -111,8 +102,12 @@ export default function AdminCalendar({ orders = [] }) {
                             {dayOrders?.length > 0 && (
                                 <div className="order-status-badges">
                                     {dayOrders.map((o, i) => (
-                                        <span key={i} className={`status-badge status-${o.status.replace(" ", "").toLowerCase()}`}>
-                                            {o.status}
+                                        <span
+                                            key={i}
+                                            className={`status-badge status-${(o.status || "Pending").replace(" ", "").toLowerCase()}`}
+                                            title={`${o.order_id || ""} • ${o.service_name || o.service_type || "Service"} • ${o._schedule.label}${o._schedule.activeSlot ? ` (${o._schedule.activeSlot})` : ""}`}
+                                        >
+                                            {o._schedule.shortPhaseTag}: {o.status}
                                         </span>
                                     ))}
                                 </div>
@@ -124,9 +119,51 @@ export default function AdminCalendar({ orders = [] }) {
 
             {/* Date popup */}
             {popupVisible && (
-                <div className="calendar-popup" style={{ top: popupPosition.top, left: popupPosition.left }}>
-                    <div className="popup-title">{selectedDate}</div>
-                    <button className="calendar-close-btn" onClick={handleClosePopup}>Close</button>
+                <div className="calendar-popup" style={{ top: popupPosition.top, left: popupPosition.left, minWidth: "260px", maxWidth: "340px" }}>
+                    <div className="popup-title fw-bold mb-2 pb-1 border-bottom d-flex justify-content-between align-items-center">
+                        <span>{selectedDate}</span>
+                        <span className="badge bg-secondary" style={{ fontSize: "0.7rem" }}>
+                            {selectedDayOrders.length} {selectedDayOrders.length === 1 ? "Order" : "Orders"}
+                        </span>
+                    </div>
+                    {selectedDayOrders.length === 0 ? (
+                        <div className="text-muted small mb-2">No scheduled orders on this date.</div>
+                    ) : (
+                        <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: "220px", overflowY: "auto" }}>
+                            {selectedDayOrders.map((o, idx) => (
+                                <div key={o.order_id || o.id || idx} className="p-2 rounded border bg-light" style={{ fontSize: "0.78rem" }}>
+                                    <div className="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                        <span className="fw-bold text-dark text-truncate">{o.service_name || o.service_type || "Service"}</span>
+                                        <span
+                                            style={{
+                                                backgroundColor: o._schedule.badgeBg,
+                                                color: o._schedule.badgeColor,
+                                                border: `1px solid ${o._schedule.badgeBorder}`,
+                                                borderRadius: "999px",
+                                                padding: "1px 7px",
+                                                fontSize: "0.68rem",
+                                                fontWeight: 600,
+                                                whiteSpace: "nowrap"
+                                            }}
+                                        >
+                                            {o._schedule.label}
+                                        </span>
+                                    </div>
+                                    <div className="text-muted text-truncate">
+                                        {formatName(o)}{o.order_id ? ` • ${o.order_id}` : ""}
+                                    </div>
+                                    {(o._schedule.activeSlot || o.truck_team) && (
+                                        <div className="text-secondary mt-1">
+                                            {o._schedule.activeSlot && <>Slot: <strong>{o._schedule.activeSlot}</strong></>}
+                                            {o._schedule.activeSlot && o.truck_team ? " • " : ""}
+                                            {o.truck_team && <span>{o.truck_team}</span>}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <button className="calendar-close-btn w-100" onClick={handleClosePopup}>Close</button>
                 </div>
             )}
         </div>

@@ -299,6 +299,22 @@ This document summarizes the recent features and structural updates implemented 
 - **Service Deletion Guard**:
   - Implemented backend protection in `backend/routes/services.js` that blocks deletion of any service referenced by existing orders, prompting administrators to mark it as "Unavailable" instead to preserve order history integrity.
 
+## 41. Revenue Parity, Itemized Billing, Phase-Aware Scheduling, Chat Image Attachments & Workflow Hardening
+- **Recent Orders & Unified Collected Revenue Parity**:
+  - Updated `AdminLanding.jsx` and `/api/orders` sorting so the **Recent Orders** feed deduplicates multi-service `order_id` groups and strictly displays the latest orders (`created_at` descending).
+  - Centralized `groupOrdersByOrderId` and `calculateOrderCollectedRevenue` across `src/utils/pricing.js`, `backend/utils/pricing.js`, `AdminLanding.jsx`, `OrderDatabase.jsx`, and `backend/routes/reports.js` so Total Revenue (`₱1,100` reservation cash collected + settled final balances incl. 10% tax) matches across `/admin`, `/admin/orders`, and Monthly/Quarterly/Yearly PDF reports.
+- **Per-Field Itemized PHP Price Breakdowns**:
+  - Added `buildServiceFieldBreakdown` and `buildOrderServiceBreakdowns` to compute exact Peso line-item amounts and formula notes for every dynamic service factor across `OngoingOrders.jsx`, printable `BillingTemplate.jsx`, and `ReceiptTemplate.jsx`.
+- **Phase-Aware `SCHEDULE` Column & Calendar Sync**:
+  - Replaced the static `PREF. DATE` column in `OrderDatabase.jsx` with a lifecycle-aware **`SCHEDULE`** column (`resolveOrderSchedule` in `src/utils/helpers.js`) displaying color-coded phase pills (`Pref. Inspection`, `Inspection Confirmed`, `Awaiting Exec. Date`, `Service Execution`, `Executed`), synced date filtering, phase-ordered/read-only inspection history in the Manage drawer, and `AdminCalendar.jsx` alignment.
+- **MongoDB GridFS Chat Image Attachments & Lightbox**:
+  - Enabled image attachments (up to 5 MB, JPEG/PNG/WEBP/GIF) in `AdminMessages.jsx`, `ClientMessages.jsx`, and `ClientChatWidget.jsx` via a paperclip button and `Ctrl+V` clipboard paste, backed by MongoDB GridFS (`chat_files`) and a full-screen `ChatImageLightbox.jsx` preview.
+- **Multi-Service, Cheque & Scheduling Workflow Fixes (Audit Bundle A)**:
+  - Aligned initial Corporate Cheque fields (`cheque_issuing_bank`, `cheque_payer_name`, `cheque_date`) between `OrderForm.jsx` and `backend/routes/orders.js`.
+  - Preserved multi-service `order_id` card grouping across all client post-action refreshes and activated the Step 2 (`For Inspection`) progress indicator upon confirmed inspection scheduling in `OngoingOrders.jsx`.
+  - Standardized Admin `Confirmed Inspection Time Slot` to a `Morning` / `Afternoon` / `Evening` selector and enforced effective `confirmed_date` / `confirmed_time_slot` conflict checks.
+  - Deduplicated multi-service PayMongo webhook emails/notifications, restricted status-change emails to actual status transitions, guarded notification cleanup on legacy order deletions, and fixed `/resources` search redirects and Admin chat `?orderId=` deep-links.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

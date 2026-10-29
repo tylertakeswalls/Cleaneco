@@ -25,15 +25,15 @@ function Resources() {
 
     // route to appropriate pages based on search terms
     if (query.includes('declog') || query.includes('clog') || query.includes('blocked') || query.includes('drain')) {
-      navigate('/services/declogging');
+      navigate('/services/deep-cleaning-declogging');
     } else if (query.includes('siphon') || query.includes('desludg') || query.includes('septic') || query.includes('tank') || query.includes('pump') || query.includes('waste')) {
       navigate('/services/siphoning-desludging');
     } else if (query.includes('deep') || query.includes('clean') || query.includes('grease') || query.includes('wash') || query.includes('trap')) {
-      navigate('/services/deep-cleaning');
+      navigate('/services/deep-cleaning-declogging');
     } else if (query.includes('history') || query.includes('about') || query.includes('who') || query.includes('company')) {
       navigate('/about');
     } else if (query.includes('location') || query.includes('map') || query.includes('where') || query.includes('address') || query.includes('contact')) {
-      navigate('/map-location');
+      navigate('/contact');
     } else {
       setModalConfig({
         isOpen: true,

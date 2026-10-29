@@ -3,40 +3,47 @@ const router = express.Router();
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const Order = require('../models/Order');
+const { groupOrdersByOrderId, calculateOrderCollectedRevenue } = require('../utils/pricing');
 
 // GET /api/reports/generate?period=monthly|quarterly|yearly
 router.get('/generate', async (req, res) => {
   try {
     const period = req.query.period || 'monthly';
     const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
     let startDate, endDate;
 
     if (period === 'monthly') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      startDate = new Date(Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59, 999));
     } else if (period === 'quarterly') {
-      const quarter = Math.floor(now.getMonth() / 3);
-      startDate = new Date(now.getFullYear(), quarter * 3, 1);
-      endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59, 999);
+      const quarter = Math.floor(currentMonth / 3);
+      startDate = new Date(Date.UTC(currentYear, quarter * 3, 1, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(currentYear, quarter * 3 + 3, 0, 23, 59, 59, 999));
     } else if (period === 'yearly') {
-      startDate = new Date(now.getFullYear(), 0, 1);
-      endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      startDate = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999));
     } else {
       return res.status(400).json({ message: 'Invalid period selected.' });
     }
 
-    const orders = await Order.find({ date: { $gte: startDate, $lte: endDate } });
+    const rawOrders = await Order.find({ date: { $gte: startDate, $lte: endDate } }).sort({ created_at: -1, _id: -1 }).lean();
+    const orders = groupOrdersByOrderId(rawOrders);
 
     let totalRevenue = 0;
     let completed = 0;
+    let inProgress = 0;
     let pending = 0;
     let cancelled = 0;
 
     orders.forEach(order => {
-      const price = parseFloat(String(order.price || '').replace(/[₱,]/g, '').trim()) || 0;
+      totalRevenue += calculateOrderCollectedRevenue(order);
+
       if (order.status === 'Completed') {
-        totalRevenue += price;
         completed++;
+      } else if (order.status === 'In Progress') {
+        inProgress++;
       } else if (order.status === 'Pending') {
         pending++;
       } else if (order.status === 'Cancelled') {
@@ -89,19 +96,22 @@ router.get('/generate', async (req, res) => {
     doc.font('Times-Bold').fontSize(12).text(`${periodTitle} Operations and Sales Report`, { align: 'center', underline: true });
     
     doc.moveDown(1.5);
-    doc.font('Times-Roman').fontSize(11).text(`This report summarizes the operational and sales performance for the ${period} period starting from ${startDate.toLocaleDateString('en-US')} to ${endDate.toLocaleDateString('en-US')}.`, { align: 'justify' });
+    const startDateLabel = startDate.toLocaleDateString('en-US', { timeZone: 'UTC' });
+    const endDateLabel = endDate.toLocaleDateString('en-US', { timeZone: 'UTC' });
+    doc.font('Times-Roman').fontSize(11).text(`This report summarizes the operational and sales performance for the ${period} period starting from ${startDateLabel} to ${endDateLabel}.`, { align: 'justify' });
     
     doc.moveDown(2);
     
     // -- DATA SUMMARY --
     doc.font('Times-Bold').text('Revenue Summary:');
-    doc.font('Times-Roman').text(`Total Completed Revenue: PHP ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+    doc.font('Times-Roman').text(`Total Collected Revenue (incl. 10% Tax): PHP ${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     
     doc.moveDown(1);
     doc.font('Times-Bold').text('Order Statistics:');
     doc.font('Times-Roman')
        .text(`Total Orders: ${orders.length}`)
        .text(`Completed Orders: ${completed}`)
+       .text(`In Progress Orders: ${inProgress}`)
        .text(`Pending Orders: ${pending}`)
        .text(`Cancelled Orders: ${cancelled}`);
     

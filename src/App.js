@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -88,6 +88,7 @@ function App() {
             <Route path="settings" element={<AdminSettings />} />
           </Route>
 
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Footer />
         <ClientChatWidget />

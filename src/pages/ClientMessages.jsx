@@ -1,17 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../api/api';
+import ChatImageLightbox, {
+  CHAT_IMAGE_ACCEPT,
+  resolveChatImageUrl,
+  validateChatImageFile,
+  formatImageFileSize,
+  extractPastedImageFile,
+  mergePolledMessages
+} from '../components/ChatImageLightbox';
 
 export default function ClientMessages() {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [attachError, setAttachError] = useState('');
+  const [lightboxImage, setLightboxImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,6 +38,60 @@ export default function ClientMessages() {
       return;
     }
   }, [loggedInUser, userRole, navigate]);
+
+  // Clean up object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (selectedImage?.previewUrl) {
+        URL.revokeObjectURL(selectedImage.previewUrl);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const stageImageFile = (file) => {
+    if (!file) return;
+    const validation = validateChatImageFile(file);
+    if (!validation.valid) {
+      setAttachError(validation.error);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (selectedImage?.previewUrl) {
+      URL.revokeObjectURL(selectedImage.previewUrl);
+    }
+    setAttachError('');
+    setSelectedImage({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      name: file.name || 'attached-image.png',
+      size: file.size
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (textareaRef.current) textareaRef.current.focus();
+  };
+
+  const clearSelectedImage = () => {
+    if (selectedImage?.previewUrl) {
+      URL.revokeObjectURL(selectedImage.previewUrl);
+    }
+    setSelectedImage(null);
+    setAttachError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleImageInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) stageImageFile(file);
+  };
+
+  const handlePaste = (e) => {
+    const pastedFile = extractPastedImageFile(e);
+    if (pastedFile) {
+      e.preventDefault();
+      stageImageFile(pastedFile);
+    }
+  };
 
   // Load conversation
   const loadConversation = async () => {
@@ -63,18 +129,12 @@ export default function ClientMessages() {
   };
 
   // Load messages
-  const loadMessages = async (convId, isInitial = false) => {
+  const loadMessages = async (convId) => {
     if (!convId) return;
     try {
       const res = await api.get(`/messages/conversations/${convId}/messages`);
       if (res.data && res.data.success) {
-        setMessages(prev => {
-          const newMsgs = res.data.messages || [];
-          if (newMsgs.length !== prev.length || (newMsgs.length > 0 && prev.length > 0 && newMsgs[newMsgs.length - 1]._id !== prev[prev.length - 1]._id)) {
-            return newMsgs;
-          }
-          return prev;
-        });
+        setMessages(prev => mergePolledMessages(prev, res.data.messages || []));
       }
     } catch (err) {
       console.error('Error fetching messages:', err);
@@ -92,7 +152,7 @@ export default function ClientMessages() {
   useEffect(() => {
     if (!conversation?._id) return;
     const interval = setInterval(() => {
-      loadMessages(conversation._id, false);
+      loadMessages(conversation._id);
     }, 3500);
     return () => clearInterval(interval);
   }, [conversation?._id]);
@@ -116,13 +176,19 @@ export default function ClientMessages() {
     }
   }, [messages]);
 
-  // Send message
+  // Send message (text, image, or both)
   const handleSendMessage = async (e, textOverride = null) => {
     if (e) e.preventDefault();
-    const textToSend = (textOverride || messageText).trim();
-    if (!textToSend || sending || !conversation?._id) return;
+    const textToSend = (textOverride !== null ? textOverride : messageText).trim();
+    const imageToSend = textOverride !== null ? null : selectedImage;
 
-    setMessageText('');
+    if ((!textToSend && !imageToSend) || sending || !conversation?._id) return;
+
+    if (textOverride === null) {
+      setMessageText('');
+      setSelectedImage(null);
+    }
+    setAttachError('');
     setSending(true);
 
     const tempId = 'temp-' + Date.now();
@@ -132,27 +198,52 @@ export default function ClientMessages() {
       sender_id: { _id: userId, role: 'client' },
       sender_role: 'client',
       text: textToSend,
+      image_url: imageToSend ? imageToSend.previewUrl : null,
+      image_name: imageToSend ? imageToSend.name : null,
+      _uploading: Boolean(imageToSend),
       created_at: new Date().toISOString()
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
-      const res = await api.post(`/messages/conversations/${conversation._id}/messages`, {
-        text: textToSend,
-        sender_id: userId,
-        sender_role: 'client',
-        order_id: conversation.order_id || null
-      });
+      let res;
+      if (imageToSend) {
+        const formData = new FormData();
+        formData.append('image', imageToSend.file);
+        formData.append('text', textToSend);
+        formData.append('sender_id', userId);
+        formData.append('sender_role', 'client');
+        if (conversation.order_id) {
+          formData.append('order_id', conversation.order_id);
+        }
+        res = await api.post(`/messages/conversations/${conversation._id}/messages`, formData);
+      } else {
+        res = await api.post(`/messages/conversations/${conversation._id}/messages`, {
+          text: textToSend,
+          sender_id: userId,
+          sender_role: 'client',
+          order_id: conversation.order_id || null
+        });
+      }
 
       if (res.data && res.data.success) {
         const savedMsg = res.data.message;
-        setMessages(prev => prev.map(m => m._id === tempId ? savedMsg : m));
+        setMessages(prev => {
+          if (prev.some(m => m._id === tempId)) {
+            return prev.map(m => m._id === tempId ? savedMsg : m);
+          }
+          if (prev.some(m => m._id === savedMsg._id)) return prev;
+          return [...prev, savedMsg];
+        });
       }
     } catch (err) {
       console.error('Error sending message:', err);
       setMessages(prev => prev.filter(m => m._id !== tempId));
-      alert('Failed to send message. Please try again.');
+      setAttachError(err.response?.data?.message || 'Failed to send message. Please try again.');
     } finally {
+      if (imageToSend?.previewUrl) {
+        URL.revokeObjectURL(imageToSend.previewUrl);
+      }
       setSending(false);
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -194,6 +285,7 @@ export default function ClientMessages() {
 
   return (
     <div className="container-fluid py-4 px-md-5" style={{ maxWidth: '1400px' }}>
+      <ChatImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
       
       {/* Embedded Modern Styling for Client Messages */}
       <style>{`
@@ -238,6 +330,42 @@ export default function ClientMessages() {
         }
         .chat-composer-textarea::placeholder {
           color: #94a3b8;
+        }
+        .chat-attach-btn {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          border: 1.5px solid #e2e8f0;
+          background: #f8fafc;
+          color: #475569;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.18s ease;
+          cursor: pointer;
+        }
+        .chat-attach-btn:hover:not(:disabled) {
+          background: #F0FDF4;
+          color: #0D8D1E;
+          border-color: #86efac;
+          transform: translateY(-1px);
+        }
+        .chat-attach-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .chat-msg-image {
+          display: block;
+          max-width: 260px;
+          max-height: 240px;
+          width: 100%;
+          object-fit: cover;
+          border-radius: 12px;
+          cursor: zoom-in;
+          transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        .chat-msg-image:hover {
+          opacity: 0.95;
         }
         .quick-prompt-chip {
           background: #ffffff;
@@ -526,7 +654,7 @@ export default function ClientMessages() {
                 </div>
                 <h4 className="fw-bold text-dark mb-2">Welcome to Cleaneco Support</h4>
                 <p className="text-muted mx-auto mb-4" style={{ maxWidth: '460px', fontSize: '0.92rem' }}>
-                  Have questions about your scheduled date, quotation, site assessment, or invoice? Type below or pick a topic to get started immediately.
+                  Have questions about your scheduled date, quotation, site assessment, or invoice? Type below, attach a site photo, or pick a topic to get started immediately.
                 </p>
 
                 {/* Quick action buttons */}
@@ -554,6 +682,10 @@ export default function ClientMessages() {
 
                 {messages.map((msg, index) => {
                   const isMe = msg.sender_role === 'client';
+                  const hasImg = Boolean(msg.image_url);
+                  const hasTxt = Boolean(msg.text);
+                  const bubblePadding = hasImg ? (hasTxt ? 'p-2 pb-3' : 'p-2') : 'p-3 px-4';
+
                   return (
                     <div
                       key={msg._id || index}
@@ -568,8 +700,30 @@ export default function ClientMessages() {
                             <i className="fas fa-headset"></i>
                           </div>
                         )}
-                        <div className={`p-3 px-4 shadow-sm ${isMe ? 'chat-bubble-client' : 'chat-bubble-admin'}`}>
-                          {msg.text}
+                        <div className={`${bubblePadding} shadow-sm ${isMe ? 'chat-bubble-client' : 'chat-bubble-admin'}`}>
+                          {hasImg && (
+                            <div className="position-relative">
+                              <img
+                                src={resolveChatImageUrl(msg.image_url)}
+                                alt={msg.image_name || 'Chat attachment'}
+                                className="chat-msg-image"
+                                onClick={() => setLightboxImage({ url: msg.image_url, name: msg.image_name })}
+                              />
+                              {msg._uploading && (
+                                <span
+                                  className="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-2"
+                                  style={{ fontSize: '0.68rem' }}
+                                >
+                                  Uploading...
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {hasTxt && (
+                            <div className={hasImg ? 'mt-2 px-2' : ''}>
+                              {msg.text}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <small className="text-muted mt-1 px-1" style={{ fontSize: '0.7rem' }}>
@@ -603,40 +757,102 @@ export default function ClientMessages() {
               </div>
             )}
 
+            {/* Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={CHAT_IMAGE_ACCEPT}
+              className="d-none"
+              onChange={handleImageInputChange}
+            />
+
             {/* Composer Box */}
             <form onSubmit={handleSendMessage}>
               <div className="chat-composer-box">
+                {attachError && (
+                  <div className="d-flex align-items-center justify-content-between px-3 py-2 mb-2 rounded-3 small" style={{ backgroundColor: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>
+                    <span><i className="fas fa-exclamation-circle me-2"></i>{attachError}</span>
+                    <button type="button" className="btn btn-link btn-sm p-0 text-danger text-decoration-none" onClick={() => setAttachError('')}>
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                )}
+
+                {selectedImage && (
+                  <div className="d-flex align-items-center justify-content-between p-2 mb-2 rounded-3 border bg-light">
+                    <div className="d-flex align-items-center gap-2 overflow-hidden">
+                      <img
+                        src={selectedImage.previewUrl}
+                        alt={selectedImage.name}
+                        className="rounded-2 object-fit-cover border bg-white flex-shrink-0"
+                        style={{ width: '48px', height: '48px', cursor: 'zoom-in' }}
+                        onClick={() => setLightboxImage({ url: selectedImage.previewUrl, name: selectedImage.name })}
+                      />
+                      <div className="overflow-hidden">
+                        <div className="fw-semibold text-dark small text-truncate" style={{ maxWidth: '280px' }}>
+                          {selectedImage.name}
+                        </div>
+                        <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                          {formatImageFileSize(selectedImage.size)} • Ready to send
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearSelectedImage}
+                      className="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 ms-2"
+                      style={{ width: '28px', height: '28px', padding: 0 }}
+                      title="Remove attached image"
+                    >
+                      <i className="fas fa-times" style={{ fontSize: '0.75rem' }}></i>
+                    </button>
+                  </div>
+                )}
+
                 <textarea
                   ref={textareaRef}
                   className="chat-composer-textarea"
-                  placeholder="Type your message or inquiry here..."
+                  placeholder={selectedImage ? "Add an optional caption to your image..." : "Type your message or inquiry here..."}
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   disabled={sending}
                   rows={2}
                 />
                 
                 <div className="d-flex justify-content-between align-items-center pt-2 border-top border-light mt-1">
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-none d-sm-inline" style={{ fontSize: '0.75rem' }}>
                     <kbd className="bg-light text-secondary border px-1 rounded">Enter ↵</kbd> to send • <kbd className="bg-light text-secondary border px-1 rounded">Shift + Enter</kbd> for new line
                   </span>
 
-                  <button
-                    type="submit"
-                    className="btn btn-success d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm fw-semibold"
-                    style={{ backgroundColor: '#0D8D1E', border: 'none', transition: 'all 0.18s ease' }}
-                    disabled={!messageText.trim() || sending}
-                  >
-                    {sending ? (
-                      <div className="spinner-border spinner-border-sm text-white" role="status"></div>
-                    ) : (
-                      <>
-                        <span>Send</span>
-                        <i className="fas fa-paper-plane" style={{ fontSize: '0.85rem' }}></i>
-                      </>
-                    )}
-                  </button>
+                  <div className="d-flex align-items-center gap-2 ms-auto">
+                    <button
+                      type="button"
+                      className="chat-attach-btn"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={sending}
+                      title="Attach image (JPG, PNG, WEBP, GIF up to 5 MB)"
+                    >
+                      <i className="fas fa-paperclip" style={{ fontSize: '0.95rem' }}></i>
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="btn btn-success d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm fw-semibold"
+                      style={{ backgroundColor: '#0D8D1E', border: 'none', transition: 'all 0.18s ease' }}
+                      disabled={(!messageText.trim() && !selectedImage) || sending}
+                    >
+                      {sending ? (
+                        <div className="spinner-border spinner-border-sm text-white" role="status"></div>
+                      ) : (
+                        <>
+                          <span>Send</span>
+                          <i className="fas fa-paper-plane" style={{ fontSize: '0.85rem' }}></i>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </form>

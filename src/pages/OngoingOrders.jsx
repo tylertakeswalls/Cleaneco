@@ -8,10 +8,12 @@ import paymongoLogo from '../assets/styles/images/paymongo.png';
 import ReceiptTemplate from '../components/ReceiptTemplate';
 import ClientCalendar from '../components/ClientCalendar';
 import BillingTemplate from '../components/BillingTemplate';
+import { buildOrderServiceBreakdowns, groupOrdersByOrderId } from '../utils/pricing';
 
 function OngoingOrders() {
   const location = useLocation();
   const [orders, setOrders] = useState([]);
+  const [servicesCatalog, setServicesCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [highlightedOrderId, setHighlightedOrderId] = useState(null);
   const [selectedBillingOrder, setSelectedBillingOrder] = useState(null);
@@ -78,7 +80,7 @@ function OngoingOrders() {
         setResultMessage("Reschedule request submitted successfully. Our team will review and confirm your new schedule.");
         setShowResultModal(true);
         const ordersRes = await api.get(`/orders/user/${userId}`);
-        setOrders(ordersRes.data);
+        setOrders(groupOrdersByOrderId(ordersRes.data).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
       } else {
         setResultMessage(response.data.message || "Failed to submit request.");
         setShowResultModal(true);
@@ -136,7 +138,7 @@ function OngoingOrders() {
           setShowResultModal(true);
           setShowPaymentModal(false);
           const ordersRes = await api.get(`/orders/user/${userId}`);
-          setOrders(ordersRes.data);
+          setOrders(groupOrdersByOrderId(ordersRes.data).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
         } else {
           setResultMessage(response.data.message || 'Failed to submit final cheque.');
           setResultType('error');
@@ -200,7 +202,7 @@ function OngoingOrders() {
           setShowResultModal(true);
           setShowReservationPaymentModal(false);
           const ordersRes = await api.get(`/orders/user/${userId}`);
-          setOrders(ordersRes.data);
+          setOrders(groupOrdersByOrderId(ordersRes.data).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
         } else {
           setResultMessage(response.data.message || 'Failed to submit cheque.');
           setResultType('error');
@@ -226,7 +228,7 @@ function OngoingOrders() {
         setResultType('success');
         setShowResultModal(true);
         const ordersRes = await api.get(`/orders/user/${userId}`);
-        setOrders(ordersRes.data);
+        setOrders(groupOrdersByOrderId(ordersRes.data).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
       } else {
         setResultMessage(response.data.message || 'Failed to submit response.');
         setResultType('error');
@@ -259,7 +261,7 @@ function OngoingOrders() {
         setResultType('success');
         setShowResultModal(true);
         const ordersRes = await api.get(`/orders/user/${userId}`);
-        setOrders(ordersRes.data);
+        setOrders(groupOrdersByOrderId(ordersRes.data).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
         setServiceDate('');
         setServiceTimeSlot('');
       } else {
@@ -286,10 +288,15 @@ function OngoingOrders() {
 
     const loadOrders = async () => {
       try {
-        const [ordersRes, userRes] = await Promise.all([
+        const [ordersRes, userRes, servicesRes] = await Promise.all([
           api.get(`/orders/user/${userId}`),
-          api.get(`/users/${userId}`)
+          api.get(`/users/${userId}`),
+          api.get('/services').catch(() => ({ data: [] }))
         ]);
+
+        if (Array.isArray(servicesRes.data)) {
+          setServicesCatalog(servicesRes.data);
+        }
 
         const grouped = {};
         ordersRes.data.forEach(order => {
@@ -305,9 +312,9 @@ function OngoingOrders() {
           grouped[order.order_id].service_names.push(order.service_name || order.service_type);
         });
 
-        const groupedOrdersArray = Object.values(grouped).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        void grouped;
 
-        setOrders(groupedOrdersArray);
+        setOrders(groupOrdersByOrderId(ordersRes.data).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 
         if (userRes.data && userRes.data.clientType) {
           setClientType(userRes.data.clientType);
@@ -488,7 +495,7 @@ function OngoingOrders() {
                       const isCompleted = order.status === 'Completed';
                       const isServiceExecution = Boolean(order.service_execution_date || isCompleted);
                       const isQuoted = Boolean(order.has_final_price || isServiceExecution);
-                      const isInspection = Boolean((order.confirmed_date && order.truck_team) || isQuoted);
+                      const isInspection = Boolean(order.confirmed_date || isQuoted);
 
                       const progressWidth = isCompleted 
                         ? '100%' 
@@ -741,64 +748,60 @@ function OngoingOrders() {
                           <i className="fas fa-file-invoice-dollar me-2"></i>Inspection Findings & Quotation
                         </h6>
                         <div className="mb-4">
-                          {(order.services || [order]).map((srv) => (
-                            <div key={srv.id} className="mb-3 p-3 bg-light rounded border">
-                              <h6 className="fw-bold text-dark">Service Configuration: {srv.service_name || srv.service_type}</h6>
-                              <ul className="list-unstyled mb-0 ms-3 mt-2">
-                                {(() => {
-                                  const sId = srv.service_id ? String(srv.service_id) : (srv.id ? String(srv.id) : '');
-                                  const snapshot = (order.pricing_snapshot && (order.pricing_snapshot[sId] || Object.values(order.pricing_snapshot)[0])) || null;
-                                  const inputs = (order.estimate_inputs && (order.estimate_inputs[sId] || order.estimate_inputs[srv.service_id])) || {};
-                                  const items = [];
-
-                                  if (snapshot && Array.isArray(snapshot.fields) && snapshot.fields.length > 0) {
-                                    snapshot.fields.forEach(field => {
-                                      const rawVal = inputs[field.key];
-                                      let displayVal = rawVal !== undefined && rawVal !== '' ? rawVal : (field.default ?? '');
-                                      if (field.type === 'multiplier' || field.type === 'surcharge') {
-                                        const opt = (field.options || []).find(o => String(o.value) === String(displayVal));
-                                        if (opt) displayVal = opt.label;
-                                      }
-                                      items.push({ key: field.key, label: field.label, value: displayVal });
-                                    });
-                                  } else {
-                                    const serviceName = (srv.service_name || srv.service_type || '').toLowerCase();
-                                    if (serviceName.includes('siphon') || serviceName.includes('desludg')) {
-                                      items.push({ key: 'numTanks', label: 'Number of Septic Tanks', value: inputs.numTanks || 1 });
-                                      items.push({ key: 'capacityType', label: 'Capacity / Type', value: String(inputs.capacityType || 1) === '1' ? 'Standard (1 Trip)' : 'Large (2+ Trips)' });
-                                      const accVal = inputs.accessibility || 'easy';
-                                      items.push({ key: 'accessibility', label: 'Site Accessibility', value: accVal.charAt(0).toUpperCase() + accVal.slice(1) });
-                                    } else if (serviceName.includes('deep clean') || serviceName.includes('declog')) {
-                                      items.push({ key: 'numTanks', label: 'Number of Septic Tanks', value: inputs.numTanks || 1 });
-                                    } else if (Object.keys(inputs).length > 0) {
-                                      Object.entries(inputs).forEach(([k, v]) => {
-                                        items.push({ key: k, label: k, value: v });
-                                      });
-                                    } else {
-                                      items.push({ key: 'service', label: 'Service Request', value: 'Standard Assessment' });
-                                    }
-                                  }
-
-                                  return items.map((item, iIdx) => {
-                                    const justification = order.justifications?.[srv.service_id]?.[item.key];
+                          {(() => {
+                            const sections = buildOrderServiceBreakdowns(order, servicesCatalog);
+                            return sections.map((section, sIdx) => (
+                              <div key={section.serviceId || sIdx} className="mb-3 p-3 bg-light rounded border">
+                                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2 pb-2 border-bottom">
+                                  <div>
+                                    <h6 className="fw-bold text-dark mb-0">
+                                      Service Configuration: {section.serviceName}
+                                    </h6>
+                                    {section.baseRate > 0 && (
+                                      <small className="text-muted" style={{ fontSize: '0.78rem' }}>
+                                        Base Unit Rate: {formatCurrency(section.baseRate)}
+                                      </small>
+                                    )}
+                                  </div>
+                                  {sections.length > 1 && (
+                                    <span className="badge bg-white text-dark border px-2 py-1">
+                                      Service Subtotal: {formatCurrency(section.subtotal)}
+                                    </span>
+                                  )}
+                                </div>
+                                <ul className="list-unstyled mb-0 ms-2 mt-2">
+                                  {section.items.map((item, iIdx) => {
+                                    const isLastItem = iIdx === section.items.length - 1;
                                     return (
-                                      <li key={iIdx} className="mb-2 small border-bottom pb-2 border-light">
-                                        <div className="d-flex justify-content-between align-items-center">
-                                          <span className="fw-bold text-muted">{item.label}:</span>
-                                          <span className="fw-bold">{item.value}</span>
-                                        </div>
-                                        {justification && (
-                                          <div className="text-secondary mt-1 text-end" style={{ fontStyle: 'italic', fontSize: '0.8rem' }}>
-                                            Note: {justification}
+                                      <li key={item.key || iIdx} className={`small ${isLastItem ? 'mb-0' : 'mb-2 border-bottom pb-2 border-secondary border-opacity-10'}`}>
+                                        <div className="d-flex justify-content-between align-items-start gap-3">
+                                          <div>
+                                            <div>
+                                              <span className="fw-bold text-muted">{item.label}:</span>{' '}
+                                              <span className="fw-semibold text-dark">{item.displayValue}</span>
+                                            </div>
+                                            {item.formulaNote && (
+                                              <div className="text-muted" style={{ fontSize: '0.76rem' }}>
+                                                {item.formulaNote.replace(/PHP /g, '₱')}
+                                              </div>
+                                            )}
+                                            {item.justification && (
+                                              <div className="text-secondary mt-1" style={{ fontStyle: 'italic', fontSize: '0.8rem' }}>
+                                                Note: {item.justification}
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
+                                          <span className={`fw-bold text-nowrap ${item.amount === 0 ? 'text-muted' : 'text-dark'}`}>
+                                            {formatCurrency(item.amount)}
+                                          </span>
+                                        </div>
                                       </li>
                                     );
-                                  });
-                                })()}
-                              </ul>
-                            </div>
-                          ))}
+                                  })}
+                                </ul>
+                              </div>
+                            ));
+                          })()}
 
                           {(() => {
                             const basePrice = parseFloat(order.final_price) || 0;
@@ -1323,9 +1326,9 @@ function OngoingOrders() {
       )}
       </div>
 
-      <ReceiptTemplate receiptOrder={receiptOrder} />
+      <ReceiptTemplate receiptOrder={receiptOrder} services={servicesCatalog} />
 
-      <BillingTemplate billingOrder={selectedBillingOrder} />
+      <BillingTemplate billingOrder={selectedBillingOrder} services={servicesCatalog} />
 
     </div>
   );

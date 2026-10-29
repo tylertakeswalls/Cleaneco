@@ -13,9 +13,14 @@ function PaymentSuccess() {
                     Thank you for your payment. Your transaction was completed successfully. 
                     Your order is now being processed.
                 </p>
-                <Link to="/order" className="btn btn-success rounded-pill px-4 py-2 fw-bold" style={{ backgroundColor: '#0D8D1E' }}>
-                    Book Another Service
-                </Link>
+                <div className="d-flex flex-column flex-sm-row gap-2 justify-content-center">
+                    <Link to="/orders" className="btn btn-success rounded-pill px-4 py-2 fw-bold" style={{ backgroundColor: '#0D8D1E' }}>
+                        View My Orders
+                    </Link>
+                    <Link to="/order" className="btn btn-outline-success rounded-pill px-4 py-2 fw-bold">
+                        Book Another Service
+                    </Link>
+                </div>
             </div>
         </div>
     );

@@ -1,9 +1,32 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Chart from 'chart.js/auto';
 import api from '../api/api';
 import '../assets/styles/admin.css';
 import AdminCalendar from '../components/AdminCalendar';
+import { formatName } from '../utils/formatName';
+import { groupOrdersByOrderId, calculateOrderCollectedRevenue } from '../utils/pricing';
+
+const getOrderTimestamp = (order) => {
+  const rawCreated = order.created_at || order.createdAt;
+  if (rawCreated) {
+    const parsed = new Date(rawCreated).getTime();
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  if (typeof order.order_id === 'string' && /^ORD\d{10,}$/.test(order.order_id)) {
+    const ordTs = Number(order.order_id.slice(3));
+    if (!Number.isNaN(ordTs)) return ordTs;
+  }
+  const rawId = String(order.id || order._id || '');
+  if (/^[a-fA-F0-9]{24}$/.test(rawId)) {
+    return parseInt(rawId.slice(0, 8), 16) * 1000;
+  }
+  if (order.date) {
+    const parsedDate = new Date(order.date).getTime();
+    if (!Number.isNaN(parsedDate)) return parsedDate;
+  }
+  return 0;
+};
 
 // Removing gradient styles as we move to clean white cards
 
@@ -20,6 +43,7 @@ function AdminLanding() {
   });
 
   const [allOrders, setAllOrders] = useState([]);
+  const groupedOrders = useMemo(() => groupOrdersByOrderId(allOrders), [allOrders]);
   const navigate = useNavigate();
 
   const statusChartRef = useRef(null);
@@ -37,16 +61,19 @@ function AdminLanding() {
 
   useEffect(() => {
     const renderCharts = () => {
-      const statusCounts = allOrders.reduce((acc, order) => {
+      const statusCounts = groupedOrders.reduce((acc, order) => {
         acc[order.status] = (acc[order.status] || 0) + 1;
         return acc;
       }, {});
 
-      const dailyRevenue = allOrders.reduce((acc, order) => {
-        if (order.status === "Completed") {
-          const d = order.date;
-          const price = parseFloat(order.has_final_price ? order.final_price : order.price) || 0;
-          acc[d] = (acc[d] || 0) + price;
+      const dailyRevenue = groupedOrders.reduce((acc, order) => {
+        const rev = calculateOrderCollectedRevenue(order);
+        if (rev > 0 && order.date) {
+          const parsed = new Date(order.date);
+          if (!Number.isNaN(parsed.getTime())) {
+            const d = parsed.toISOString().split('T')[0];
+            acc[d] = (acc[d] || 0) + rev;
+          }
         }
         return acc;
       }, {});
@@ -98,7 +125,7 @@ function AdminLanding() {
         lineChartInstance.current = new Chart(lineCtx, {
           type: 'bar', // Like the visit and sales statistics bar chart in reference
           data: {
-            labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+            labels: sortedDates.map(d => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
             datasets: [{
               label: 'Revenue',
               data: revenueValues,
@@ -129,36 +156,37 @@ function AdminLanding() {
       }
     };
 
-    if (allOrders.length > 0) renderCharts();
+    if (groupedOrders.length > 0) renderCharts();
 
     return () => {
       if (statusChartInstance.current) statusChartInstance.current.destroy();
       if (lineChartInstance.current) lineChartInstance.current.destroy();
     };
-  }, [allOrders]);
+  }, [groupedOrders]);
 
   useEffect(() => {
-    if (allOrders.length === 0) return;
+    if (groupedOrders.length === 0) return;
 
-    // Use stats endpoint if possible, but since we already have allOrders, 
-    // let's simplify the growth chart parsing using parseFloat without regex.
+    // Use unified grouped orders & collected cash revenue across Monthly, Quarterly, and Yearly buckets.
     const getBucket = (dateObj) => {
-      const year = dateObj.getFullYear();
+      const year = dateObj.getUTCFullYear();
       if (growthPeriod === 'yearly') return `${year}`;
       if (growthPeriod === 'quarterly') {
-        const q = Math.floor(dateObj.getMonth() / 3) + 1;
+        const q = Math.floor(dateObj.getUTCMonth() / 3) + 1;
         return `${year}-Q${q}`;
       }
-      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
       return `${year}-${month}`;
     };
 
-    const aggregated = allOrders.reduce((acc, order) => {
-      if (order.status === "Completed" && order.date) {
+    const aggregated = groupedOrders.reduce((acc, order) => {
+      const rev = calculateOrderCollectedRevenue(order);
+      if (rev > 0 && order.date) {
         const d = new Date(order.date);
-        const bucket = getBucket(d);
-        const price = parseFloat(order.has_final_price ? order.final_price : order.price) || 0;
-        acc[bucket] = (acc[bucket] || 0) + price;
+        if (!Number.isNaN(d.getTime())) {
+          const bucket = getBucket(d);
+          acc[bucket] = (acc[bucket] || 0) + rev;
+        }
       }
       return acc;
     }, {});
@@ -241,7 +269,7 @@ function AdminLanding() {
     return () => {
       if (growthChartInstance.current) growthChartInstance.current.destroy();
     };
-  }, [allOrders, growthPeriod]);
+  }, [groupedOrders, growthPeriod]);
 
   const handleGenerateReport = async (period) => {
     try {
@@ -261,37 +289,45 @@ function AdminLanding() {
 
   const loadDashboardData = async () => {
     try {
-      const [ordersRes, statsRes, servicesRes] = await Promise.all([
+      const [ordersRes, servicesRes] = await Promise.all([
         api.get('/orders'),
-        api.get('/orders/stats'),
         api.get('/services')
       ]);
       
       const ordersData = ordersRes.data;
       setAllOrders(ordersData);
 
-      const stats = statsRes.data;
+      const grouped = groupOrdersByOrderId(ordersData);
       const servicesData = servicesRes.data;
 
-      const getCount = (status) => {
-        const found = stats.statusCounts.find(s => s._id === status);
-        return found ? found.count : 0;
-      };
+      const statusMap = {};
+      let computedRevenue = 0;
+      grouped.forEach(order => {
+        const st = order.status || 'Pending';
+        statusMap[st] = (statusMap[st] || 0) + 1;
+        computedRevenue += calculateOrderCollectedRevenue(order);
+      });
 
       setDashboardData({
-        totalRevenue: stats.totalRevenue || 0,
-        completedOrders: getCount("Completed"),
-        inProgressOrders: getCount("In Progress"),
-        pendingOrders: getCount("Pending"),
-        cancelledOrders: getCount("Cancelled"),
+        totalRevenue: computedRevenue,
+        completedOrders: statusMap["Completed"] || 0,
+        inProgressOrders: statusMap["In Progress"] || 0,
+        pendingOrders: statusMap["Pending"] || 0,
+        cancelledOrders: statusMap["Cancelled"] || 0,
         totalServices: servicesData.length,
         availableServices: servicesData.filter(s => s.status === 'available').length,
-        totalOrders: stats.totalOrders || 0
+        totalOrders: grouped.length
       });
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     }
   };
+
+  const recentOrders = useMemo(() => {
+    return [...groupedOrders]
+      .sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a))
+      .slice(0, 5);
+  }, [groupedOrders]);
 
   return (
     <>
@@ -446,7 +482,7 @@ function AdminLanding() {
             <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4">
                 <h5 className="fw-bold text-dark mb-4" style={{ fontSize: '1.1rem' }}>Calendar</h5>
-                <AdminCalendar orders={allOrders} />
+                <AdminCalendar orders={groupedOrders} />
               </div>
             </div>
           </div>
@@ -459,7 +495,7 @@ function AdminLanding() {
                   <Link to="/admin/orders" className="text-brand text-decoration-none small fw-bold">View All</Link>
                 </div>
                 <div className="flex-grow-1 d-flex flex-column gap-3 overflow-auto" style={{ maxHeight: '400px' }}>
-                  {allOrders.length === 0 ? (
+                  {recentOrders.length === 0 ? (
                     <div className="text-center text-muted my-auto py-5">
                       <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height:'60px'}}>
                          <i className="fas fa-inbox fs-3 text-secondary"></i>
@@ -468,16 +504,29 @@ function AdminLanding() {
                       <small>Your recent orders will appear here.</small>
                     </div>
                   ) : (
-                    [...allOrders].reverse().slice(0, 5).map((order, idx) => (
-                      <div key={idx} className="d-flex align-items-center p-3 rounded" style={{ backgroundColor: '#f8f9fa', border: '1px solid rgba(0,0,0,0.05)' }}>
+                    recentOrders.map((order, idx) => (
+                      <div
+                        key={order.order_id || order.id || idx}
+                        className="d-flex align-items-center p-3 rounded"
+                        style={{
+                          backgroundColor: '#f8f9fa',
+                          border: '1px solid rgba(0,0,0,0.05)',
+                          cursor: order.order_id ? 'pointer' : 'default'
+                        }}
+                        onClick={() => {
+                          if (order.order_id) {
+                            navigate(`/admin/orders?orderId=${encodeURIComponent(order.order_id)}`);
+                          }
+                        }}
+                      >
                         <div className="rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0 bg-brand-soft icon-container-md text-brand">
                           <i className="fas fa-shopping-bag"></i>
                         </div>
                         <div className="flex-grow-1 min-w-0">
                           <h6 className="mb-1 fw-bold text-truncate" style={{ fontSize: '0.9rem' }}>{order.service_name || order.service_type || 'Service'}</h6>
                           <div className="d-flex justify-content-between align-items-center">
-                            <small className="text-muted">{order.first_name} {order.last_name}</small>
-                            <span className="badge" style={{
+                            <small className="text-muted text-truncate me-2">{formatName(order)}</small>
+                            <span className="badge flex-shrink-0" style={{
                               backgroundColor: order.status === 'Completed' ? '#198754' :
                                 order.status === 'Pending' ? '#ffc107' :
                                   order.status === 'Cancelled' ? '#dc3545' : '#0dcaf0',

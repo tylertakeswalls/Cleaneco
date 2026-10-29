@@ -80,12 +80,12 @@ Before clients book, administrators configure the service catalog and pricing fo
 - **Fee Structure**: **`₱1,000.00`** Reservation & Inspection Fee + **`₱100.00`** (10% Service Tax) = **`₱1,100.00`** non-refundable deposit, credited in full toward the final bill.
 - **Payment Pathways**:
   1. **PayMongo Online Checkout**: Supports Credit/Debit Cards, GCash, Maya, and GrabPay. Verified via HMAC-SHA256 webhook (`/api/payments/webhook`), automatically transitioning `status` from `Pending` → **`In Progress`**, updating revenue KPIs, and dispatching an EmailJS confirmation receipt. If a client exits checkout early, the order stays `Pending` on `/orders` with a 1-click **`Pay ₱1100.00 Reservation`** recovery card (hiding the progress bar until paid).
-  2. **Corporate Cheque (Commercial & Industrial Only)**: Captures Bank Name, Cheque Number, and Account Name alongside a cheque photo streamed directly to **MongoDB GridFS** (`order_files`). Sets `cheque_status: 'pending_verification'` while `status` remains `Pending` until reviewed by staff.
+  2. **Corporate Cheque (Commercial & Industrial Only)**: Captures Bank Name, Cheque Number, Account Name, and Cheque Date alongside a cheque photo streamed directly to **MongoDB GridFS** (`order_files`). Sets `cheque_status: 'pending_verification'` while `status` remains `Pending` until reviewed by staff.
 
 #### 4. Cheque Verification & Inspection Confirmation (Admin — `/admin/orders`)
 - **Action**: Opening the **Manage Order** side drawer in `OrderDatabase.jsx`:
   - **Details Tab**: Reviews client notes, participating households, and—for cheque bookings—inspects the GridFS cheque image and clicks **Approve** (transitions `status` to **`In Progress`** and notifies client) or **Reject** (notifies client and unlocks a **`Retry Payment`** button on `/orders`).
-  - **Scheduling Tab**: Confirms or adjusts the **Confirmed Inspection Date** and **Confirmed Inspection Time Slot**, and assigns the initial reconnaissance **Truck Team**, advancing the client's visual tracker to **`For Inspection` (25%)**.
+  - **Scheduling Tab & Phase-Aware `SCHEDULE` Column**: Confirms or adjusts the **Confirmed Inspection Date** and **Confirmed Inspection Time Slot** (`Morning`, `Afternoon`, or `Evening`), advancing the client's visual tracker to **`For Inspection` (25%)**. The Order Database **`SCHEDULE`** column and `AdminCalendar` dynamically transition from Inspection dates to Service Execution dates as the order progresses, locking the historical inspection record once inspection is complete.
 
 ---
 
@@ -163,7 +163,7 @@ Before clients book, administrators configure the service catalog and pricing fo
 #### 12. Printable Final Billing Report & Final Balance Settlement (Client — `/orders`)
 - **Browser-Native Printable Final Billing Report (`BillingTemplate.jsx`)**:
   - Unlocked as soon as `quotation_status === 'Approved'` or `status === 'Completed'`.
-  - Uses zero-dependency CSS `@media print` (`window.print()`) with official company letterhead to render all snapshot factor values, admin justification notes, discounts, 10% Service Tax, and reservation fee deduction.
+  - Uses zero-dependency CSS `@media print` (`window.print()`) with official company letterhead to render per-field itemized PHP factor amounts, formula notes, admin justification notes, discounts, 10% Service Tax, and reservation fee deduction.
 - **Final Balance Formula**:
 
   $$\text{Service Tax } (10\%) = \text{Final Quotation Total} \times 0.10$$
@@ -199,7 +199,7 @@ Before clients book, administrators configure the service catalog and pricing fo
 - Dispatches a 256-bit verification token via **EmailJS** over HTTPS (`/verify?token=...`), with an inline **Resend Verification Email** action on `/login` for unverified accounts.
 
 #### 15. API Hardening, Brute-Force Lockout & Cross-Domain Sessions
-- **API Protection**: Secured with `helmet` HTTP headers, a strict CORS origin whitelist, global IP rate limiting (100 requests / 15 minutes), and route-isolated raw-body HMAC verification on `/api/payments/webhook`.
+- **API Protection**: Secured with `helmet` HTTP headers, a strict CORS origin whitelist, global IP rate limiting (3,000 requests / 15 minutes in production), and route-isolated raw-body HMAC verification on `/api/payments/webhook`.
 - **Login Cooldown**: 5 consecutive failed login attempts trigger a 60-second IP lockout (`HTTP 429`) rendered as a live countdown timer on `Login.jsx`.
 - **Dual-Storage Session Resilience**: Synchronizes auth state across `sessionStorage` and `localStorage` so cross-domain redirects to and from PayMongo never drop active user sessions.
 
@@ -217,7 +217,7 @@ Before clients book, administrators configure the service catalog and pricing fo
 ### Phase 8: Real-Time Communications, Public Support & Accreditations
 
 #### 18. Real-Time Messaging Hub & Deep-Linked Notifications
-- **Omnichannel Chat**: Authenticated clients can message support from any page via the floating **`ClientChatWidget`** (3.5s active polling / 15s background badge polling) or the full-page hub (`/messages`, `/client/messages`). Administrators manage all threads at `/admin/messages` with search by name, email, username, company, or `order_id`.
+- **Omnichannel Chat & GridFS Image Attachments**: Authenticated clients can message support from any page via the floating **`ClientChatWidget`** (3.5s active polling / 15s background badge polling) or the full-page hub (`/messages`, `/client/messages`). Both clients and administrators can attach images up to **5 MB** (via paperclip upload or `Ctrl+V` clipboard paste, persisted in MongoDB GridFS `chat_files` with click-to-zoom lightbox preview). Administrators manage all threads at `/admin/messages` with search by name, email, username, company, or `order_id` and a 1-click **View Order** deep-link (`/admin/orders?orderId=...`).
 - **Smart Notification Routing (`notificationRoutes.js`)**: Clicking any notification in the client or admin bell tray marks it read and deep-links straight to the target view—auto-scrolling and highlighting the specific order card on `/orders?orderId=...`, auto-opening the Manage Order drawer on `/admin/orders?orderId=...`, or opening the linked chat thread.
 
 #### 19. Public Contact & Complaints System (`/contact`)

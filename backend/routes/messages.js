@@ -1,9 +1,107 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
+const multer = require('multer');
+const path = require('path');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+
+const ALLOWED_IMAGE_MIMES = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif'
+};
+
+const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_CHAT_IMAGE_BYTES },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_IMAGE_MIMES[file.mimetype]) {
+      return cb(null, true);
+    }
+    return cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed.'));
+  }
+});
+
+const handleChatImageUpload = (req, res, next) => {
+  if (req.is('application/json')) {
+    return next();
+  }
+  upload.single('image')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: 'Image size must be 5 MB or smaller.' });
+      }
+      return res.status(400).json({ success: false, message: err.message || 'Image upload failed.' });
+    }
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message || 'Invalid image attachment.' });
+    }
+    next();
+  });
+};
+
+const uploadChatImageToGridFS = (file) => {
+  return new Promise((resolve, reject) => {
+    const db = mongoose.connection.db;
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'chat_files' });
+    const rawExt = path.extname(file.originalname || '').toLowerCase();
+    const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(rawExt)
+      ? rawExt
+      : (ALLOWED_IMAGE_MIMES[file.mimetype] || '.png');
+    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExt}`;
+    const uploadStream = bucket.openUploadStream(filename, { contentType: file.mimetype });
+
+    uploadStream.end(file.buffer);
+
+    uploadStream.on('finish', () => {
+      resolve(`/api/messages/files/${filename}`);
+    });
+
+    uploadStream.on('error', (err) => {
+      reject(err);
+    });
+  });
+};
+
+// GET /api/messages/files/:filename
+// Stream uploaded chat image from MongoDB GridFS
+router.get('/files/:filename', async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'chat_files' });
+    const files = await db.collection('chat_files.files').find({ filename: req.params.filename }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ success: false, message: 'Image not found' });
+    }
+
+    const ext = req.params.filename.split('.').pop().toLowerCase();
+    let contentType = files[0].contentType || 'image/jpeg';
+    if (ext === 'png') contentType = 'image/png';
+    else if (ext === 'jpg' || ext === 'jpeg') contentType = 'image/jpeg';
+    else if (ext === 'webp') contentType = 'image/webp';
+    else if (ext === 'gif') contentType = 'image/gif';
+
+    res.set('Content-Type', contentType);
+    res.set('Content-Disposition', `inline; filename="${req.params.filename}"`);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+
+    const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
+    downloadStream.pipe(res);
+
+    downloadStream.on('error', () => {
+      res.status(500).end();
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to load chat image' });
+  }
+});
 
 // GET /api/messages/conversations
 // Fetch conversation list for Admin, or retrieve/initialize conversation for Client
@@ -110,14 +208,15 @@ router.get('/conversations/:id/messages', async (req, res) => {
 });
 
 // POST /api/messages/conversations/:id/messages
-// Send a new message in a conversation
-router.post('/conversations/:id/messages', async (req, res) => {
+// Send a new message (text, image, or both) in a conversation
+router.post('/conversations/:id/messages', handleChatImageUpload, async (req, res) => {
   try {
     const conversationId = req.params.id;
-    const { text, sender_id, sender_role, order_id } = req.body;
+    const { sender_id, sender_role, order_id } = req.body;
+    const rawText = typeof req.body.text === 'string' ? req.body.text.trim() : '';
 
-    if (!text || !text.trim()) {
-      return res.status(400).json({ success: false, message: 'Message text cannot be empty' });
+    if (!rawText && !req.file) {
+      return res.status(400).json({ success: false, message: 'Message must contain text or an image attachment' });
     }
     if (!sender_id || !sender_role) {
       return res.status(400).json({ success: false, message: 'sender_id and sender_role are required' });
@@ -128,23 +227,36 @@ router.post('/conversations/:id/messages', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Conversation not found' });
     }
 
+    let imageUrl = null;
+    let imageName = null;
+    if (req.file) {
+      imageUrl = await uploadChatImageToGridFS(req.file);
+      imageName = req.file.originalname || 'photo.png';
+    }
+
     const message = new Message({
       conversation_id: conversationId,
       sender_id,
       sender_role,
-      text: text.trim()
+      text: rawText,
+      image_url: imageUrl,
+      image_name: imageName
     });
     await message.save();
 
+    const previewText = imageUrl
+      ? (rawText ? `📷 ${rawText}` : '📷 Sent a photo')
+      : rawText;
+
     // Update conversation state
     conversation.last_message = {
-      text: text.trim(),
+      text: previewText,
       sender_id,
       sender_role,
       created_at: new Date()
     };
 
-    if (order_id && !conversation.order_id) {
+    if (order_id && order_id !== 'null' && !conversation.order_id) {
       conversation.order_id = order_id;
     }
 
@@ -163,7 +275,7 @@ router.post('/conversations/:id/messages', async (req, res) => {
         ? `${senderUser.first_name} ${senderUser.last_name}`.trim() 
         : (sender_role === 'admin' ? 'Cleaneco Support' : 'Client');
 
-      const snippet = text.length > 50 ? `${text.slice(0, 50)}...` : text;
+      const snippet = previewText.length > 50 ? `${previewText.slice(0, 50)}...` : previewText;
 
       if (sender_role === 'client') {
         // Notify admin

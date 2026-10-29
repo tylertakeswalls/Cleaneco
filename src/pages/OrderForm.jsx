@@ -40,7 +40,8 @@ function OrderForm() {
     const [chequeDetails, setChequeDetails] = useState({
         bankName: '',
         chequeNumber: '',
-        accountName: ''
+        accountName: '',
+        chequeDate: new Date().toISOString().split('T')[0]
     });
 
     // Estimate state
@@ -286,7 +287,7 @@ function OrderForm() {
 
     const handlePaymentSubmit = async () => {
         if (paymentMethod === 'cheque') {
-            if (!chequeDetails.bankName || !chequeDetails.chequeNumber || !chequeDetails.accountName || !chequeFile) {
+            if (!chequeDetails.bankName || !chequeDetails.chequeNumber || !chequeDetails.accountName || !chequeDetails.chequeDate || !chequeFile) {
                 showAlert("Missing Fields", "Please provide all cheque details and upload an image.", "warning");
                 return;
             }
@@ -331,9 +332,12 @@ function OrderForm() {
             
             submitData.append('payment_method', paymentMethod);
             if (paymentMethod === 'cheque') {
+                submitData.append('cheque_issuing_bank', chequeDetails.bankName);
                 submitData.append('cheque_bank_name', chequeDetails.bankName);
                 submitData.append('cheque_number', chequeDetails.chequeNumber);
+                submitData.append('cheque_payer_name', chequeDetails.accountName);
                 submitData.append('cheque_account_name', chequeDetails.accountName);
+                submitData.append('cheque_date', chequeDetails.chequeDate);
                 submitData.append('cheque_amount', 1100);
                 if (chequeFile) {
                     submitData.append('cheque_image', chequeFile);
@@ -442,6 +446,10 @@ function OrderForm() {
                                     <div className="form-group mb-2">
                                         <label className="form-label small fw-bold">Account Name</label>
                                         <input type="text" className="form-control form-control-sm" value={chequeDetails.accountName} onChange={(e) => setChequeDetails({...chequeDetails, accountName: e.target.value})} required />
+                                    </div>
+                                    <div className="form-group mb-2">
+                                        <label className="form-label small fw-bold">Cheque Date</label>
+                                        <input type="date" className="form-control form-control-sm" value={chequeDetails.chequeDate} onChange={(e) => setChequeDetails({...chequeDetails, chequeDate: e.target.value})} required />
                                     </div>
                                     <div className="form-group mb-2">
                                         <label className="form-label small fw-bold text-success"><i className="fas fa-camera me-1"></i>Upload Cheque Image</label>

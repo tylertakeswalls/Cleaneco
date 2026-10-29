@@ -3,7 +3,7 @@ const express = require('express');
 const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
-const { calculateOrderTotals, calculateStartingPrice } = require('../utils/pricing');
+const { calculateOrderTotals, calculateStartingPrice, groupOrdersByOrderId, calculateOrderCollectedRevenue } = require('../utils/pricing');
 const { sendConfirmationEmail, sendRescheduleEmail } = require('../utils/emailHelper');
 const multer = require('multer');
 const path = require('path');
@@ -44,7 +44,7 @@ const formatOrder = (o) => ({
 
 router.get('/', async (req, res) => {
   try {
-    const orders = await Order.find().populate('user_id').populate('service_id').sort({ created_at: -1 }).lean();
+    const orders = await Order.find().populate('user_id').populate('service_id').sort({ created_at: -1, _id: -1 }).lean();
     res.json(orders.map(formatOrder));
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch orders' });
@@ -53,28 +53,42 @@ router.get('/', async (req, res) => {
 
 router.get('/stats', async (req, res) => {
   try {
-    const statusCounts = await Order.aggregate([
-      { $group: { _id: "$status", count: { $sum: 1 } } }
-    ]);
-    const revenueData = await Order.aggregate([
-      { $match: { status: { $nin: ['Pending', 'Cancelled'] } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-          total: {
-            $sum: {
-              $add: [
-                1100, // Reservation Fee + Tax
-                { $cond: [{ $eq: ["$final_payment_status", "Paid"] }, { $subtract: [{ $add: ["$final_price", { $multiply: ["$final_price", 0.1] }] }, 1100] }, 0] }
-              ]
-            }
-          }
+    const rawOrders = await Order.find().sort({ created_at: -1, _id: -1 }).lean();
+    const groupedOrders = groupOrdersByOrderId(rawOrders);
+
+    const statusMap = {};
+    const revenueByDate = {};
+    let totalRevenue = 0;
+
+    groupedOrders.forEach(order => {
+      const status = order.status || 'Pending';
+      statusMap[status] = (statusMap[status] || 0) + 1;
+
+      const rev = calculateOrderCollectedRevenue(order);
+      totalRevenue += rev;
+
+      if (rev > 0 && order.date) {
+        const d = new Date(order.date);
+        if (!Number.isNaN(d.getTime())) {
+          const dateKey = d.toISOString().split('T')[0];
+          revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + rev;
         }
-      },
-      { $sort: { "_id": 1 } }
-    ]);
-    const totalRevenue = revenueData.reduce((acc, val) => acc + val.total, 0);
-    const totalOrders = await Order.countDocuments();
+      }
+    });
+
+    const statusCounts = Object.entries(statusMap).map(([statusKey, count]) => ({
+      _id: statusKey,
+      count
+    }));
+
+    const revenueData = Object.keys(revenueByDate)
+      .sort()
+      .map(dateKey => ({
+        _id: dateKey,
+        total: revenueByDate[dateKey]
+      }));
+
+    const totalOrders = groupedOrders.length;
 
     res.json({ statusCounts, revenueData, totalRevenue, totalOrders });
   } catch (error) {
@@ -101,8 +115,8 @@ router.get('/availability', async (req, res) => {
       {
         $group: {
           _id: "$order_id",
-          date: { $first: { $dateToString: { format: "%Y-%m-%d", date: "$date" } } },
-          time_slot: { $first: "$time_slot" }
+          date: { $first: { $dateToString: { format: "%Y-%m-%d", date: { $ifNull: ["$confirmed_date", "$date"] } } } },
+          time_slot: { $first: { $ifNull: ["$confirmed_time_slot", "$time_slot"] } }
         }
       },
       { $match: { "date": { $ne: null }, "time_slot": { $ne: null } } },
@@ -288,8 +302,16 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
       service_execution_date: null,
       has_final_price: { $ne: true },
       quotation_status: { $in: [null, 'Pending Inspection', ''] },
-      date: { $gte: minInsp, $lte: maxInsp },
-      time_slot: data.timeSlot
+      $or: [
+        { confirmed_date: { $gte: minInsp, $lte: maxInsp } },
+        { confirmed_date: null, date: { $gte: minInsp, $lte: maxInsp } }
+      ],
+      $and: [{
+        $or: [
+          { confirmed_time_slot: data.timeSlot },
+          { confirmed_time_slot: { $in: [null, ''] }, time_slot: data.timeSlot }
+        ]
+      }]
     });
     if (existingSlotBooking) {
       return res.status(400).json({ success: false, message: `The ${data.timeSlot} inspection slot on this date is already booked.` });
@@ -414,11 +436,11 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
         num_households: numHouseholds,
         households: households,
         payment_method: data.payment_method || 'online',
-        cheque_payer_name: data.cheque_payer_name,
+        cheque_payer_name: data.cheque_payer_name || data.cheque_account_name,
         cheque_number: data.cheque_number,
-        cheque_date: data.cheque_date,
+        cheque_date: data.cheque_date || (data.payment_method === 'cheque' ? new Date() : undefined),
         cheque_amount: data.payment_method === 'cheque' ? totalAmount : undefined, // Locked to totalAmount
-        cheque_issuing_bank: data.cheque_issuing_bank,
+        cheque_issuing_bank: data.cheque_issuing_bank || data.cheque_bank_name,
         cheque_type: data.cheque_type,
         cheque_image_url: chequeImageUrl,
         cheque_status: data.payment_method === 'cheque' ? 'pending_verification' : undefined
@@ -509,21 +531,31 @@ router.post('/:id/upload-documents', upload.fields([{ name: 'quotation' }, { nam
 
     let statusChangedToCompleted = false;
 
+    const siblingUpdates = {};
     if (req.files['quotation']) {
       order.quotation_pdf_url = await uploadToGridFS(req.files['quotation'][0], mongoose);
       order.has_final_price = true;
+      siblingUpdates.quotation_pdf_url = order.quotation_pdf_url;
+      siblingUpdates.has_final_price = true;
     }
     if (req.files['service_report']) {
       order.service_report_pdf_url = await uploadToGridFS(req.files['service_report'][0], mongoose);
+      siblingUpdates.service_report_pdf_url = order.service_report_pdf_url;
       if (order.status !== 'Completed') {
         order.status = 'Completed';
+        siblingUpdates.status = 'Completed';
         statusChangedToCompleted = true;
       }
     }
 
     await order.save();
+    if (order.order_id && Object.keys(siblingUpdates).length > 0) {
+      await Order.updateMany({ order_id: order.order_id }, { $set: siblingUpdates });
+    }
 
     if (statusChangedToCompleted) {
+      const siblings = order.order_id ? await Order.find({ order_id: order.order_id }) : [order];
+      const combinedServiceName = [...new Set(siblings.map(s => s.service_type).filter(Boolean))].join(', ') || order.service_type;
       const clientInfo = {
         firstName: order.first_name,
         lastName: order.last_name,
@@ -536,11 +568,15 @@ router.post('/:id/upload-documents', upload.fields([{ name: 'quotation' }, { nam
         notes: order.notes
       };
       const orderItems = [{
-        service_name: order.service_type,
+        service_name: combinedServiceName,
         price: order.has_final_price ? (order.final_price * 1.1) : ((order.price || 0) + (order.tax_amount || 0)),
         base_price: order.price || 0
       }];
-      await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
+      try {
+        await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
+      } catch (emailErr) {
+        console.error('Confirmation email error:', emailErr.message || emailErr);
+      }
 
       if (order.user_id) {
         await new Notification({
@@ -565,6 +601,8 @@ router.put('/:id', async (req, res) => {
 
     if (updateData.request_type === '') updateData.request_type = null;
     if (updateData.price === '') updateData.price = null;
+    if (updateData.confirmed_date === '') updateData.confirmed_date = null;
+    if (updateData.confirmed_time_slot === '') updateData.confirmed_time_slot = null;
     if (updateData.status === 'Cancelled') {
       updateData.quotation_status = 'Client Declined';
     }
@@ -581,7 +619,7 @@ router.put('/:id', async (req, res) => {
       const isExecution = (updateData.reschedule_target === 'execution') || (oldOrder.service_execution_date && !oldOrder.reschedule_target);
       const targetDateToCheck = (isExecution && oldOrder.service_execution_date)
         ? new Date(oldOrder.service_execution_date)
-        : new Date(oldOrder.date);
+        : new Date(oldOrder.confirmed_date || oldOrder.date);
       const now = new Date();
       const diffHours = (targetDateToCheck - now) / (1000 * 60 * 60);
       if (diffHours < 24) {
@@ -597,7 +635,7 @@ router.put('/:id', async (req, res) => {
       rEnd.setHours(23, 59, 59, 999);
 
       const isExecution = (updateData.reschedule_target === 'execution') || (oldOrder.service_execution_date && !oldOrder.reschedule_target);
-      const reschedSlot = updateData.reschedule_time_slot || (isExecution ? oldOrder.service_execution_time_slot : oldOrder.time_slot);
+      const reschedSlot = updateData.reschedule_time_slot || (isExecution ? oldOrder.service_execution_time_slot : (oldOrder.confirmed_time_slot || oldOrder.time_slot));
 
       const { getTruckTeams, countAvailableTrucks } = require('../utils/truckTeams');
       const truckTeams = await getTruckTeams();
@@ -665,8 +703,16 @@ router.put('/:id', async (req, res) => {
             service_execution_date: null,
             has_final_price: { $ne: true },
             quotation_status: { $in: [null, 'Pending Inspection', ''] },
-            date: { $gte: rStart, $lte: rEnd },
-            time_slot: reschedSlot
+            $or: [
+              { confirmed_date: { $gte: rStart, $lte: rEnd } },
+              { confirmed_date: null, date: { $gte: rStart, $lte: rEnd } }
+            ],
+            $and: [{
+              $or: [
+                { confirmed_time_slot: reschedSlot },
+                { confirmed_time_slot: { $in: [null, ''] }, time_slot: reschedSlot }
+              ]
+            }]
           });
           if (inspInSlot) {
             return res.status(400).json({ success: false, message: `The ${reschedSlot} slot on this date is already booked for another site inspection.` });
@@ -676,13 +722,15 @@ router.put('/:id', async (req, res) => {
     }
 
     if (updateData.action === 'approve_reschedule') {
-      const isExecution = (oldOrder.reschedule_target === 'execution') || !!oldOrder.service_execution_date;
+      const isExecution = oldOrder.reschedule_target ? (oldOrder.reschedule_target === 'execution') : !!oldOrder.service_execution_date;
       if (isExecution) {
         updateData.service_execution_date = oldOrder.reschedule_date;
         updateData.service_execution_time_slot = oldOrder.reschedule_time_slot;
       } else {
         updateData.date = oldOrder.reschedule_date;
         updateData.time_slot = oldOrder.reschedule_time_slot;
+        updateData.confirmed_date = oldOrder.reschedule_date;
+        updateData.confirmed_time_slot = oldOrder.reschedule_time_slot;
       }
       updateData.request_type = null;
       updateData.reschedule_target = null;
@@ -703,7 +751,9 @@ router.put('/:id', async (req, res) => {
     await Order.updateMany({ order_id: oldOrder.order_id }, updateData);
     const order = await Order.findById(id);
 
-    if (updateData.status && order) {
+    if (updateData.status && updateData.status !== oldOrder.status && order) {
+      const siblings = order.order_id ? await Order.find({ order_id: order.order_id }) : [order];
+      const combinedServiceName = [...new Set(siblings.map(s => s.service_type).filter(Boolean))].join(', ') || order.service_type;
       const clientInfo = {
         firstName: order.first_name,
         lastName: order.last_name,
@@ -716,11 +766,15 @@ router.put('/:id', async (req, res) => {
         notes: order.notes
       };
       const orderItems = [{
-        service_name: order.service_type,
+        service_name: combinedServiceName,
         price: order.has_final_price ? (order.final_price * 1.1) : ((order.price || 0) + (order.tax_amount || 0)),
         base_price: order.price || 0
       }];
-      await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
+      try {
+        await sendConfirmationEmail(order.order_id, clientInfo, orderItems, true);
+      } catch (emailErr) {
+        console.error('Confirmation email error:', emailErr.message || emailErr);
+      }
 
       if (order.user_id) {
         await new Notification({
@@ -771,9 +825,17 @@ router.put('/:id', async (req, res) => {
     if (req.body.action === 'approve_reschedule') {
       const finalDate = order.service_execution_date || order.date;
       const finalSlot = order.service_execution_time_slot || order.time_slot;
-      await sendRescheduleEmail(order.email, order.first_name, order.order_id, true, finalDate, finalSlot, null);
+      try {
+        await sendRescheduleEmail(order.email, order.first_name, order.order_id, true, finalDate, finalSlot, null);
+      } catch (emailErr) {
+        console.error('Reschedule email error:', emailErr.message || emailErr);
+      }
     } else if (req.body.action === 'reject_reschedule') {
-      await sendRescheduleEmail(order.email, order.first_name, order.order_id, false, null, null, order.reject_reason);
+      try {
+        await sendRescheduleEmail(order.email, order.first_name, order.order_id, false, null, null, order.reject_reason);
+      } catch (emailErr) {
+        console.error('Reschedule email error:', emailErr.message || emailErr);
+      }
       if (order.user_id) {
         await new Notification({
           user_id: order.user_id,
@@ -799,8 +861,15 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    // Delete any sibling service documents sharing the same multi-service order_id
+    if (deletedOrder.order_id) {
+      await Order.deleteMany({ order_id: deletedOrder.order_id });
+    }
+
     // Also delete any associated notifications
-    await Notification.deleteMany({ order_id: deletedOrder.order_id });
+    if (deletedOrder.order_id) {
+      await Notification.deleteMany({ order_id: deletedOrder.order_id });
+    }
 
     // Notify the client that their order was deleted
     if (deletedOrder.user_id) {
@@ -869,11 +938,11 @@ router.post('/:id/pay-cheque', upload.fields([{ name: 'cheque_image' }]), async 
       {
         $set: {
           payment_method: 'cheque',
-          cheque_payer_name: data.cheque_payer_name,
+          cheque_payer_name: data.cheque_payer_name || data.cheque_account_name,
           cheque_number: data.cheque_number,
-          cheque_date: data.cheque_date,
+          cheque_date: data.cheque_date || (data.payment_method === 'cheque' ? new Date() : undefined),
           cheque_amount: 1100,
-          cheque_issuing_bank: data.cheque_issuing_bank,
+          cheque_issuing_bank: data.cheque_issuing_bank || data.cheque_bank_name,
           cheque_image_url: chequeImageUrl,
           cheque_status: 'pending_verification'
         }
@@ -910,11 +979,11 @@ router.post('/:id/pay-cheque-final', upload.fields([{ name: 'cheque_image' }]), 
       {
         $set: {
           payment_method: 'cheque',
-          cheque_payer_name: data.cheque_payer_name,
+          cheque_payer_name: data.cheque_payer_name || data.cheque_account_name,
           cheque_number: data.cheque_number,
-          cheque_date: data.cheque_date,
+          cheque_date: data.cheque_date || (data.payment_method === 'cheque' ? new Date() : undefined),
           cheque_amount: amountToPay,
-          cheque_issuing_bank: data.cheque_issuing_bank,
+          cheque_issuing_bank: data.cheque_issuing_bank || data.cheque_bank_name,
           cheque_image_url: chequeImageUrl,
           cheque_status: 'pending_verification'
         }

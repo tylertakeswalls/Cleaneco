@@ -35,7 +35,7 @@ export function getNotificationRoute(notif, isAdmin = false) {
   }
 
   // 3. User Registration (Admin only)
-  if (isAdmin && (msg.includes('registration') || msg.includes('registered') || msg.includes('new client'))) {
+  if (isAdmin && (msg.includes('registration') || msg.includes('registered') || msg.includes('new client') || msg.includes('client profile'))) {
     return '/admin/users';
   }
 
@@ -58,6 +58,17 @@ export function getNotificationRoute(notif, isAdmin = false) {
     return notif.order_id 
       ? `/orders?orderId=${encodeURIComponent(notif.order_id)}` 
       : '/orders';
+  }
+
+  // 5. Terms, Account & Welcome Notifications
+  if (!isAdmin && (msg.includes('terms and conditions') || details.includes('resources section'))) {
+    return '/resources';
+  }
+  if (msg.includes('password')) {
+    return isAdmin ? '/admin/profile' : '/client/profile';
+  }
+  if (!isAdmin && msg.includes('welcome to cleaneco')) {
+    return '/order';
   }
 
   // Default fallbacks
