@@ -5,7 +5,7 @@ import api from '../api/api';
 import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.png';
 import AlertModal from '../components/AlertModal';
-import { formatDate, getStatusClass, toISODateKey, resolveOrderSchedule } from '../utils/helpers';
+import { formatDate, getStatusClass, toISODateKey, resolveOrderSchedule, parseAssignedTrucks, getBookedTruckMapForOrder } from '../utils/helpers';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
 import jsPDF from 'jspdf';
@@ -144,11 +144,16 @@ function OrderDatabase() {
 
   const openEditModal = (order) => {
     const trips = Number(order.total_trips) || 1;
-    let initialTruckTeam = order.truck_team || '';
+    let initialTruckTeam = order.service_execution_date ? (order.truck_team || '') : '';
 
     // If order has >= 5 trips and no truck assigned yet, auto-pair operational trucks if at least 2 exist
-    if (trips >= 5 && !initialTruckTeam) {
-      const operational = truckTeams.filter(t => (typeof t === 'string' ? true : t.status !== 'unavailable'));
+    if (trips >= 5 && !initialTruckTeam && order.service_execution_date) {
+      const bookedForOrder = getBookedTruckMapForOrder(order, orders, trips);
+      const operational = truckTeams.filter(t => {
+        const name = typeof t === 'string' ? t : t.name;
+        const avail = typeof t === 'string' ? true : t.status !== 'unavailable';
+        return avail && !bookedForOrder[name.toLowerCase()];
+      });
       if (operational.length >= 2) {
         const nameA = typeof operational[0] === 'string' ? operational[0] : operational[0].name;
         const nameB = typeof operational[1] === 'string' ? operational[1] : operational[1].name;
@@ -272,11 +277,41 @@ function OrderDatabase() {
   );
   const showExecutionScheduleCard = Boolean(
     editModal.order && (
-      editModal.order.quotation_status === 'Approved' ||
+      /* Unlock truck assignment only once execution date is scheduled */
       editModal.order.service_execution_date
     )
   );
   const operationalTrucks = truckTeams.filter(t => (typeof t === 'string' ? true : t.status !== 'unavailable'));
+  const unavailableTruckSet = new Set(
+    truckTeams
+      .filter(t => typeof t === 'object' && t && t.status === 'unavailable' && t.name)
+      .map(t => t.name.toLowerCase())
+  );
+  const bookedTruckMap = editModal.order
+    ? getBookedTruckMapForOrder(editModal.order, orders, isHighCapacityOrder ? 5 : 1)
+    : {};
+  const freeOperationalTrucks = operationalTrucks.filter(t => {
+    const name = typeof t === 'string' ? t : t.name;
+    return !bookedTruckMap[name.toLowerCase()];
+  });
+  const modalAssignedTrucks = parseAssignedTrucks(editForm.truck_team);
+  const modalTruckConflicts = modalAssignedTrucks
+    .map(name => bookedTruckMap[name.toLowerCase()])
+    .filter(Boolean);
+  const modalTruckMaintenance = modalAssignedTrucks
+    .filter(name => unavailableTruckSet.has(name.toLowerCase()));
+
+  const getOrderTruckIssue = (order) => {
+    if (!order || order.status !== 'In Progress' || !order.truck_team) return null;
+    const assigned = parseAssignedTrucks(order.truck_team);
+    if (!assigned.length) return null;
+    const bookedForRow = getBookedTruckMapForOrder(order, orders);
+    const conflict = assigned.map(n => bookedForRow[n.toLowerCase()]).find(Boolean);
+    const inMaintenance = assigned.find(n => unavailableTruckSet.has(n.toLowerCase()));
+    if (conflict) return { type: 'conflict', conflict };
+    if (inMaintenance) return { type: 'maintenance', truckName: inMaintenance };
+    return null;
+  };
   const selectedHighCapTrucks = editForm.truck_team
     ? editForm.truck_team.split(/[,&]/).map(s => s.trim()).filter(Boolean)
     : [];
@@ -295,9 +330,9 @@ function OrderDatabase() {
   };
 
   const handleAutoAssignTwoTrucks = () => {
-    if (operationalTrucks.length >= 2) {
-      const nameA = typeof operationalTrucks[0] === 'string' ? operationalTrucks[0] : operationalTrucks[0].name;
-      const nameB = typeof operationalTrucks[1] === 'string' ? operationalTrucks[1] : operationalTrucks[1].name;
+    if (freeOperationalTrucks.length >= 2) {
+      const nameA = typeof freeOperationalTrucks[0] === 'string' ? freeOperationalTrucks[0] : freeOperationalTrucks[0].name;
+      const nameB = typeof freeOperationalTrucks[1] === 'string' ? freeOperationalTrucks[1] : freeOperationalTrucks[1].name;
       setEditForm(prev => ({
         ...prev,
         truck_team: `${nameA} & ${nameB}`
@@ -332,7 +367,7 @@ function OrderDatabase() {
       }
     } catch (err) {
       console.error(err);
-      showAlert("Error", "Error submitting quotation.", "error");
+      showAlert("Error", err.response?.data?.message || "Error submitting quotation.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -358,6 +393,34 @@ function OrderDatabase() {
     if (!editModal.order) return;
 
     const trips = (Number(editModal.order.total_trips) || 0) || estimatedTrips || 1;
+    if (editForm.status !== 'Cancelled' && editForm.truck_team) {
+      if (!editModal.order.service_execution_date) {
+        showAlert("Execution Not Yet Scheduled", "A truck team can only be assigned after the client selects a service execution date.", "warning");
+        return;
+      }
+      const requestedList = parseAssignedTrucks(editForm.truck_team);
+      const conflictMatch = requestedList.map(n => bookedTruckMap[n.toLowerCase()]).find(Boolean);
+      if (conflictMatch) {
+        showAlert(
+          "Truck Schedule Conflict",
+          `${conflictMatch.truckName} is already assigned to Order #${conflictMatch.orderId} (${conflictMatch.slot}) on this execution date. Please select an available truck team.`,
+          "warning"
+        );
+        return;
+      }
+      const prevAssignedLower = new Set(parseAssignedTrucks(editModal.order.truck_team).map(n => n.toLowerCase()));
+      const newlySelectedMaintenance = requestedList.find(
+        n => !prevAssignedLower.has(n.toLowerCase()) && unavailableTruckSet.has(n.toLowerCase())
+      );
+      if (newlySelectedMaintenance) {
+        showAlert(
+          "Truck Unavailable",
+          `${newlySelectedMaintenance} is currently marked Unavailable (Maintenance) in Site Settings.`,
+          "warning"
+        );
+        return;
+      }
+    }
     if (trips >= 5 && editModal.order.quotation_status === 'Approved' && editForm.truck_team) {
       const selected = editForm.truck_team.split(/[,&]/).map(s => s.trim()).filter(Boolean);
       if (selected.length !== 2) {
@@ -398,7 +461,7 @@ function OrderDatabase() {
       showAlert("Success", "Order updated successfully!", "success");
     } catch (error) {
       console.error("Error updating order:", error);
-      showAlert("Error", "Error updating order.", "error");
+      showAlert("Error", error.response?.data?.message || "Error updating order.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -530,7 +593,7 @@ function OrderDatabase() {
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 81);
     doc.setFont("times", "bold");
-    doc.text(`Total Collected Revenue (incl. 10% Tax): PHP ${reportRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, 87);
+    doc.text(`Gross Sales (incl. 10% Tax): PHP ${reportRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, 87);
 
     const tableColumn = ["Order ID", "Customer", "Service", "Schedule", "Status", "Team", "Collected (PHP)"];
     const tableRows = [];
@@ -695,7 +758,33 @@ function OrderDatabase() {
                           <div className="small text-warning fw-bold mt-1">{order.request_type}</div>
                         )}
                       </td>
-                      <td>{order.truck_team || 'Unassigned'}</td>
+                      <td>
+                        <div>{order.truck_team || 'Unassigned'}</div>
+                        {(() => {
+                          const issue = getOrderTruckIssue(order);
+                          if (!issue) return null;
+                          if (issue.type === 'conflict') {
+                            return (
+                              <span
+                                className="badge bg-danger mt-1"
+                                style={{ fontSize: '0.68rem' }}
+                                title={`Conflicts with Order #${issue.conflict.orderId} (${issue.conflict.slot})`}
+                              >
+                                <i className="fas fa-exclamation-triangle me-1"></i>Double-Booked
+                              </span>
+                            );
+                          }
+                          return (
+                            <span
+                              className="badge bg-warning text-dark mt-1"
+                              style={{ fontSize: '0.68rem' }}
+                              title={`${issue.truckName} is marked Unavailable (Maintenance) in Site Settings`}
+                            >
+                              <i className="fas fa-tools me-1"></i>In Maintenance
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td>
                         {order.has_final_price
                           ? `₱${parseNumericAmount(order.final_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -729,7 +818,7 @@ function OrderDatabase() {
         </div>
 
         <div className="revenue-box">
-          <h4>Total Revenue</h4>
+          <h4>Gross Sales</h4>
           <div className="revenue-amount">₱{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         </div>
         
@@ -1033,8 +1122,8 @@ function OrderDatabase() {
                         </div>
                       </div>
                       
-                      <button className="btn btn-success w-100 rounded-pill fw-bold shadow-sm p-3 mb-2" onClick={handleSubmitQuotation} disabled={isSaving}>
-                        {isSaving ? 'Submitting...' : 'Send Quotation to Client'}
+                      <button className="btn btn-success w-100 rounded-pill fw-bold shadow-sm p-3 mb-2" onClick={handleSubmitQuotation} disabled={isSaving || ['Completed', 'Cancelled'].includes(editModal.order.status)}>
+                        {['Completed', 'Cancelled'].includes(editModal.order.status) ? `Quotation Locked (${editModal.order.status})` : (isSaving ? 'Submitting...' : 'Send Quotation to Client')}
                       </button>
                     </div>
                   </div>
@@ -1162,6 +1251,12 @@ function OrderDatabase() {
                                     )}
                                   </div>
 
+                                  {operationalTrucks.length >= 2 && freeOperationalTrucks.length < 2 && (
+                                    <div className="alert alert-warning py-2 px-3 small mb-2">
+                                      <i className="fas fa-calendar-times me-1"></i>
+                                      <strong>Schedule Notice:</strong> Only {freeOperationalTrucks.length} operational truck{freeOperationalTrucks.length === 1 ? ' is' : 's are'} unbooked on this execution date. At least 2 free trucks are required.
+                                    </div>
+                                  )}
                                   {operationalTrucks.length < 2 && (
                                     <div className="alert alert-warning py-2 px-3 small mb-2">
                                       <i className="fas fa-exclamation-triangle me-1"></i>
@@ -1183,12 +1278,14 @@ function OrderDatabase() {
                                         const teamName = typeof team === 'string' ? team : team.name;
                                         const isAvailable = typeof team === 'string' ? true : team.status !== 'unavailable';
                                         const isChecked = selectedHighCapTrucks.includes(teamName);
+                                        const conflict = bookedTruckMap[teamName.toLowerCase()];
+                                        const isSelectable = (isAvailable && !conflict) || isChecked;
 
                                         return (
                                           <div 
                                             key={(typeof team === 'object' && team.id) || idx}
                                             className={`d-flex align-items-center justify-content-between p-2 px-3 rounded border ${isChecked ? 'bg-success bg-opacity-10 border-success' : 'border-light-subtle'}`}
-                                            style={{ opacity: !isAvailable ? 0.6 : 1 }}
+                                            style={{ opacity: (!isAvailable || (conflict && !isChecked)) ? 0.6 : 1 }}
                                           >
                                             <div className="form-check mb-0 d-flex align-items-center">
                                               <input
@@ -1196,31 +1293,31 @@ function OrderDatabase() {
                                                 type="checkbox"
                                                 id={`truck-team-cb-${idx}`}
                                                 checked={isChecked}
-                                                disabled={!isAvailable}
+                                                disabled={!isSelectable}
                                                 onChange={() => handleToggleHighCapacityTruck(teamName)}
-                                                style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}
+                                                style={{ cursor: isSelectable ? 'pointer' : 'not-allowed' }}
                                               />
-                                              <label className="form-check-label fw-bold text-dark mb-0" htmlFor={`truck-team-cb-${idx}`} style={{ cursor: isAvailable ? 'pointer' : 'not-allowed' }}>
+                                              <label className="form-check-label fw-bold text-dark mb-0" htmlFor={`truck-team-cb-${idx}`} style={{ cursor: isSelectable ? 'pointer' : 'not-allowed' }}>
                                                 <i className="fas fa-truck me-2 text-success"></i>
                                                 {teamName}
                                               </label>
                                             </div>
-                                            <span className={`badge ${isAvailable ? (isChecked ? 'bg-success' : 'bg-secondary') : 'bg-danger'}`} style={{ fontSize: '0.72rem' }}>
-                                              {!isAvailable ? 'Unavailable (Maintenance)' : isChecked ? 'Assigned' : 'Available'}
+                                            <span className={`badge ${conflict ? 'bg-warning text-dark' : isAvailable ? (isChecked ? 'bg-success' : 'bg-secondary') : 'bg-danger'}`} style={{ fontSize: '0.72rem' }}>
+                                              {conflict ? `Booked (#${conflict.orderId}, ${conflict.slot})` : !isAvailable ? 'Unavailable (Maintenance)' : isChecked ? 'Assigned' : 'Available'}
                                             </span>
                                           </div>
                                         );
                                       })}
                                     </div>
 
-                                    {operationalTrucks.length >= 2 && selectedHighCapTrucks.length !== 2 && (
+                                    {freeOperationalTrucks.length >= 2 && selectedHighCapTrucks.length !== 2 && (
                                       <div className="mt-2 text-end">
                                         <button
                                           type="button"
                                           className="btn btn-link btn-sm text-decoration-none p-0 text-success fw-bold"
                                           onClick={handleAutoAssignTwoTrucks}
                                         >
-                                          <i className="fas fa-magic me-1"></i>Auto-Select {operationalTrucks.length === 2 ? 'Both Available Trucks' : 'First 2 Available Trucks'}
+                                          <i className="fas fa-magic me-1"></i>Auto-Select {freeOperationalTrucks.length === 2 ? 'Both Free Trucks' : 'First 2 Free Trucks'}
                                         </button>
                                       </div>
                                     )}
@@ -1228,6 +1325,18 @@ function OrderDatabase() {
 
                                   <div className="mt-2 small text-muted">
                                     Current Assignment: <strong>{editForm.truck_team || 'None (Unassigned)'}</strong>
+                                    {modalTruckConflicts.length > 0 && (
+                                      <div className="alert alert-danger py-2 px-3 small mt-2 mb-0">
+                                        <i className="fas fa-exclamation-triangle me-1"></i>
+                                        <strong>Schedule Conflict:</strong> {modalTruckConflicts.map(c => `${c.truckName} (#${c.orderId}, ${c.slot})`).join(', ')} is already booked on this execution date. Please reassign.
+                                      </div>
+                                    )}
+                                    {modalTruckConflicts.length === 0 && modalTruckMaintenance.length > 0 && (
+                                      <div className="alert alert-warning py-2 px-3 small mt-2 mb-0">
+                                        <i className="fas fa-tools me-1"></i>
+                                        <strong>Maintenance Notice:</strong> {modalTruckMaintenance.join(', ')} is currently marked Unavailable (Maintenance) in Site Settings.
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               ) : (
@@ -1247,14 +1356,29 @@ function OrderDatabase() {
                                         <option 
                                           key={(typeof team === 'object' && team.id) || idx} 
                                           value={teamName}
-                                          disabled={!isAvailable && editForm.truck_team !== teamName}
+                                          disabled={(!isAvailable || Boolean(bookedTruckMap[teamName.toLowerCase()])) && editForm.truck_team !== teamName}
                                         >
-                                          {teamName} {!isAvailable ? '(Unavailable - Maintenance)' : ''}
+                                          {teamName}
+                                          {bookedTruckMap[teamName.toLowerCase()]
+                                            ? ` (Booked - #${bookedTruckMap[teamName.toLowerCase()].orderId}, ${bookedTruckMap[teamName.toLowerCase()].slot})`
+                                            : (!isAvailable ? ' (Unavailable - Maintenance)' : '')}
                                         </option>
                                       );
                                     })}
                                   </select>
-                                  <small className="text-muted mt-1 d-block">Assign a team to deploy on the execution date.</small>
+                                  <small className="text-muted mt-1 d-block">Assign an available team to deploy on the execution date (teams booked in an overlapping slot are disabled).</small>
+                                  {modalTruckConflicts.length > 0 && (
+                                    <div className="alert alert-danger py-2 px-3 small mt-2 mb-0">
+                                      <i className="fas fa-exclamation-triangle me-1"></i>
+                                      <strong>Schedule Conflict:</strong> {modalTruckConflicts[0].truckName} is also assigned to Order <strong>#{modalTruckConflicts[0].orderId}</strong> ({modalTruckConflicts[0].slot}) on this date. Please reassign to an available truck team.
+                                    </div>
+                                  )}
+                                  {modalTruckConflicts.length === 0 && modalTruckMaintenance.length > 0 && (
+                                    <div className="alert alert-warning py-2 px-3 small mt-2 mb-0">
+                                      <i className="fas fa-tools me-1"></i>
+                                      <strong>Maintenance Notice:</strong> {modalTruckMaintenance.join(', ')} is currently marked Unavailable (Maintenance) in Site Settings. Consider reassigning to an operational truck.
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

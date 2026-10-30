@@ -55,6 +55,29 @@ function AdminLanding() {
   const growthChartInstance = useRef(null);
   const [growthPeriod, setGrowthPeriod] = useState('monthly');
 
+  const serviceStats = useMemo(() => {
+    const counts = {};
+    groupedOrders.forEach(order => {
+      if (order.status === 'Cancelled') return;
+      const sList = (Array.isArray(order.service_names) && order.service_names.length > 0)
+        ? order.service_names
+        : [order.service_name || order.service_type].filter(Boolean);
+      const uniqueInOrder = [...new Set(sList)];
+      uniqueInOrder.forEach(sName => {
+        counts[sName] = (counts[sName] || 0) + 1;
+      });
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [groupedOrders]);
+
+  const totalServiceBookings = useMemo(() => {
+    return serviceStats.reduce((sum, item) => sum + item[1], 0);
+  }, [serviceStats]);
+
+  const maxServiceBookings = useMemo(() => {
+    return serviceStats.length > 0 ? serviceStats[0][1] : 1;
+  }, [serviceStats]);
+
   useEffect(() => {
     loadDashboardData();
   }, [navigate]);
@@ -127,7 +150,7 @@ function AdminLanding() {
           data: {
             labels: sortedDates.map(d => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
             datasets: [{
-              label: 'Revenue',
+              label: 'Gross Sales',
               data: revenueValues,
               backgroundColor: '#20c997',
               borderRadius: 4,
@@ -213,7 +236,9 @@ function AdminLanding() {
       if (growthPeriod === 'monthly') {
         const [y, m] = currentBucket.split('-');
         const date = new Date(y, parseInt(m) - 1, 1);
-        label = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const monthShort = date.toLocaleDateString('en-US', { month: 'short' });
+        const yearShort = String(y).slice(-2);
+        label = `${monthShort} '${yearShort}`;
       }
 
       labels.push(label);
@@ -229,7 +254,7 @@ function AdminLanding() {
         data: {
           labels: labels,
           datasets: [{
-            label: 'Revenue Growth (%)',
+            label: 'Sales Growth (%)',
             data: growthData,
             borderColor: '#0D8D1E',
             backgroundColor: 'rgba(13, 141, 30, 0.1)',
@@ -246,8 +271,11 @@ function AdminLanding() {
             legend: { display: false },
             tooltip: {
               callbacks: {
+                title: function(context) {
+                  return context[0]?.label || '';
+                },
                 label: function(context) {
-                  return `Growth: ${context.parsed.y.toFixed(2)}%`;
+                  return ` Growth: ${context.parsed.y.toFixed(2)}%`;
                 }
               }
             }
@@ -259,7 +287,13 @@ function AdminLanding() {
             },
             x: {
               grid: { display: false },
-              ticks: { color: '#a0a0a0' }
+              ticks: {
+                color: '#a0a0a0',
+                maxRotation: 0,
+                minRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 7
+              }
             }
           }
         }
@@ -361,7 +395,7 @@ function AdminLanding() {
           <div className="col-md-4">
             <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center">
-                <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Total Revenue</p>
+                <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Gross Sales</p>
                 <h3 className="fw-bold mb-3 text-dark">₱ {dashboardData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
                 <div className="rounded-circle d-flex align-items-center justify-content-center bg-brand-soft icon-container-lg">
                   <i className="fas fa-chart-line fs-5 text-brand"></i>
@@ -402,17 +436,17 @@ function AdminLanding() {
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Visit And Sales Statistics</h5>
                   <div className="d-flex gap-3">
-                    <div className="d-flex align-items-center"><span className="rounded-circle me-2" style={{ width: '10px', height: '10px', backgroundColor: '#20c997' }}></span><small className="text-muted">Revenue</small></div>
+                    <div className="d-flex align-items-center"><span className="rounded-circle me-2" style={{ width: '10px', height: '10px', backgroundColor: '#20c997' }}></span><small className="text-muted">Gross Sales</small></div>
                   </div>
                 </div>
                 <div style={{ height: '300px' }} className="d-flex justify-content-center align-items-center">
                   {allOrders.length === 0 ? (
                     <div className="text-center text-muted">
                       <i className="fas fa-chart-bar fs-1 mb-3 text-light"></i>
-                      <p className="mb-0">No revenue data available yet.</p>
+                      <p className="mb-0">No sales data available yet.</p>
                     </div>
                   ) : (
-                    <canvas ref={lineChartRef} role="img" aria-label="Bar chart showing daily revenue over time"></canvas>
+                    <canvas ref={lineChartRef} role="img" aria-label="Bar chart showing daily sales over time"></canvas>
                   )}
                 </div>
               </div>
@@ -439,13 +473,116 @@ function AdminLanding() {
           </div>
         </div>
 
-        {/* GROWTH CHART */}
+        {/* SERVICES & GROWTH CHARTS */}
         <div className="row mt-4 g-4">
-          <div className="col-12">
+          {/* Most Availed Services (Modern Ranked Leaderboard) */}
+          <div className="col-lg-6">
+            <div className="card border-0 shadow-sm h-100 rounded-xl">
+              <div className="card-body p-4 d-flex flex-column">
+                <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                  <div>
+                    <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Most Availed Services</h5>
+                    <small className="text-muted" style={{ fontSize: '0.78rem' }}>Ranked by client bookings</small>
+                  </div>
+                  <span className="badge rounded-pill" style={{ backgroundColor: '#e8f5e9', color: '#0D8D1E', border: '1px solid #c8e6c9', fontSize: '0.75rem', padding: '5px 12px' }}>
+                    <i className="fas fa-fire me-1"></i>{totalServiceBookings} Total Bookings
+                  </span>
+                </div>
+                <div className="flex-grow-1 overflow-auto pe-1" style={{ maxHeight: '300px' }}>
+                  {serviceStats.length === 0 ? (
+                    <div className="text-center text-muted py-5 my-auto">
+                      <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '56px', height: '56px' }}>
+                        <i className="fas fa-broom fs-4 text-secondary"></i>
+                      </div>
+                      <p className="mb-0 fw-bold text-dark">No service bookings yet</p>
+                      <small>Bookings will appear here once submitted.</small>
+                    </div>
+                  ) : (
+                    <div className="d-flex flex-column gap-2">
+                      {serviceStats.map(([sName, count], idx) => {
+                        const rank = idx + 1;
+                        const percentOfTotal = totalServiceBookings > 0 ? Math.round((count / totalServiceBookings) * 100) : 0;
+                        const relativeBarWidth = maxServiceBookings > 0 ? Math.max(4, Math.round((count / maxServiceBookings) * 100)) : 0;
+                        const isTop = rank === 1;
+
+                        return (
+                          <div
+                            key={sName}
+                            className="p-2 px-3 rounded-3"
+                            style={{
+                              backgroundColor: isTop ? '#f0fdf4' : '#fafafa',
+                              border: isTop ? '1px solid #bbf7d0' : '1px solid rgba(0,0,0,0.04)'
+                            }}
+                          >
+                            <div className="d-flex align-items-center justify-content-between mb-1">
+                              <div className="d-flex align-items-center gap-2 text-truncate me-2">
+                                <span
+                                  className="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold"
+                                  style={{
+                                    width: '22px',
+                                    height: '22px',
+                                    fontSize: '0.7rem',
+                                    backgroundColor: isTop ? '#0D8D1E' : '#e5e7eb',
+                                    color: isTop ? '#ffffff' : '#4b5563',
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  {rank}
+                                </span>
+                                <span
+                                  className={`text-truncate ${isTop ? 'fw-bold text-dark' : 'fw-semibold text-secondary'}`}
+                                  style={{ fontSize: '0.86rem' }}
+                                  title={sName}
+                                >
+                                  {sName}
+                                </span>
+                              </div>
+                              <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                                <span className="fw-bold text-dark" style={{ fontSize: '0.82rem' }}>
+                                  {count} {count === 1 ? 'order' : 'orders'}
+                                </span>
+                                <span
+                                  className="badge rounded-pill"
+                                  style={{
+                                    backgroundColor: isTop ? '#dcfce7' : '#f3f4f6',
+                                    color: isTop ? '#15803d' : '#6b7280',
+                                    fontSize: '0.7rem',
+                                    padding: '2px 7px'
+                                  }}
+                                >
+                                  {percentOfTotal}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="progress" style={{ height: '5px', backgroundColor: isTop ? '#dcfce7' : '#e5e7eb', borderRadius: '999px' }}>
+                              <div
+                                className="progress-bar rounded-pill"
+                                role="progressbar"
+                                style={{
+                                  width: `${relativeBarWidth}%`,
+                                  backgroundColor: isTop ? '#0D8D1E' : '#20c997'
+                                }}
+                                aria-valuenow={relativeBarWidth}
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sales Growth Statistics */}
+          <div className="col-lg-6">
             <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4">
                 <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                  <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Revenue Growth Statistics</h5>
+                  <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Sales Growth Statistics</h5>
                   <div className="d-flex gap-2">
                     <button 
                       className={`btn btn-sm ${growthPeriod === 'monthly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
@@ -468,7 +605,7 @@ function AdminLanding() {
                       <p className="mb-0">Not enough data to calculate growth.</p>
                     </div>
                   ) : (
-                    <canvas ref={growthChartRef} role="img" aria-label="Line chart showing revenue growth"></canvas>
+                    <canvas ref={growthChartRef} role="img" aria-label="Line chart showing sales growth"></canvas>
                   )}
                 </div>
               </div>

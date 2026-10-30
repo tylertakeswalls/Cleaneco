@@ -210,6 +210,16 @@ export function groupOrdersByOrderId(rawOrders = []) {
       if (order.service_report_pdf_url && !existing.service_report_pdf_url) {
         existing.service_report_pdf_url = order.service_report_pdf_url;
       }
+      if (order.truck_team && !existing.truck_team) {
+        existing.truck_team = order.truck_team;
+      }
+      if (order.service_execution_date && !existing.service_execution_date) {
+        existing.service_execution_date = order.service_execution_date;
+        existing.service_execution_time_slot = order.service_execution_time_slot || existing.service_execution_time_slot;
+      }
+      if (order.quotation_status && (!existing.quotation_status || existing.quotation_status === 'Pending Inspection')) {
+        existing.quotation_status = order.quotation_status;
+      }
     }
   });
 

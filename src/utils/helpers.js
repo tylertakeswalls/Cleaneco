@@ -237,3 +237,82 @@ export const resolveOrderSchedule = (order = {}) => {
     pdfText: `${formattedDate}${activeSlot ? ` (${activeSlot})` : ''} [Inspection]`
   };
 };
+
+
+/**
+ * Splits a single or paired truck_team string (e.g. "Truck Team 1 & Truck Team 2")
+ * into deduplicated individual truck names.
+ */
+export const parseAssignedTrucks = (truckTeamStr) => {
+  if (!truckTeamStr || typeof truckTeamStr !== 'string') return [];
+  const seen = new Set();
+  const result = [];
+  for (const part of truckTeamStr.split(/[,&]/)) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(trimmed);
+    }
+  }
+  return result;
+};
+
+export const isWholeDayExecution = (slot, totalTrips) =>
+  (Number(totalTrips) || 1) >= 5 || String(slot || '').trim().toLowerCase() === 'whole day';
+
+export const executionSlotsOverlap = (slotA, tripsA, slotB, tripsB) => {
+  if (isWholeDayExecution(slotA, tripsA) || isWholeDayExecution(slotB, tripsB)) {
+    return true;
+  }
+  if (!slotA || !slotB) return false;
+  return String(slotA).trim().toLowerCase() === String(slotB).trim().toLowerCase();
+};
+
+/**
+ * Builds a lowercase truckName -> { orderId, slot } map of trucks already assigned
+ * to OTHER non-cancelled orders in an overlapping service execution timeframe.
+ */
+export const getBookedTruckMapForOrder = (targetOrder, allOrders = [], overrideTrips = null) => {
+  const booked = {};
+  if (!targetOrder || !targetOrder.service_execution_date) return booked;
+
+  const targetDateKey = toISODateKey(targetOrder.service_execution_date);
+  if (!targetDateKey) return booked;
+
+  const targetSlot = targetOrder.service_execution_time_slot || '';
+  const targetTrips = overrideTrips != null ? Number(overrideTrips) : (Number(targetOrder.total_trips) || 1);
+
+  for (const other of allOrders) {
+    if (!other || other.status === 'Cancelled' || !other.service_execution_date || !other.truck_team) continue;
+
+    const sameOrder =
+      (targetOrder.order_id && other.order_id && String(targetOrder.order_id) === String(other.order_id)) ||
+      (targetOrder.id && other.id && String(targetOrder.id) === String(other.id));
+    if (sameOrder) continue;
+
+    if (toISODateKey(other.service_execution_date) !== targetDateKey) continue;
+
+    if (!executionSlotsOverlap(targetSlot, targetTrips, other.service_execution_time_slot, other.total_trips)) {
+      continue;
+    }
+
+    const otherSlotLabel = isWholeDayExecution(other.service_execution_time_slot, other.total_trips)
+      ? 'Whole Day'
+      : (other.service_execution_time_slot || 'Scheduled');
+
+    for (const tName of parseAssignedTrucks(other.truck_team)) {
+      const key = tName.toLowerCase();
+      if (!booked[key]) {
+        booked[key] = {
+          truckName: tName,
+          orderId: other.order_id || other.id,
+          slot: otherSlotLabel
+        };
+      }
+    }
+  }
+
+  return booked;
+};

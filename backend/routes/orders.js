@@ -208,7 +208,7 @@ router.get('/availability', async (req, res) => {
           date: dateStr,
           time_slot: slot,
           booking_count: executions + inspections + (isFullDay ? 1 : 0),
-          executions_count: executions,
+          executions_count: executions + (isFullDay ? 1 : 0),
           inspections_count: inspections,
           available_trucks: availableTruckCount,
           trucks_left: trucksLeft,
@@ -628,6 +628,15 @@ router.put('/:id', async (req, res) => {
     }
 
     if (updateData.request_type === 'Reschedule Requested' && updateData.reschedule_date) {
+      const reschedDateStr = String(updateData.reschedule_date).split('T')[0];
+      const UnavailableDate = require('../models/UnavailableDate');
+      const blockedReschedDate = await UnavailableDate.findOne({ date: reschedDateStr });
+      if (blockedReschedDate) {
+        return res.status(400).json({
+          success: false,
+          message: `The selected date (${reschedDateStr}) is unavailable: ${blockedReschedDate.reason || 'Company unavailable'}`
+        });
+      }
       const reschedDate = new Date(updateData.reschedule_date);
       const rStart = new Date(reschedDate);
       rStart.setHours(0, 0, 0, 0);
@@ -746,6 +755,116 @@ router.put('/:id', async (req, res) => {
       updateData.reschedule_time_slot = null;
       updateData.reschedule_reason = null;
       delete updateData.action;
+    }
+
+    const {
+      getTruckTeams,
+      parseAssignedTrucks,
+      toDateKey,
+      findTruckScheduleConflicts
+    } = require('../utils/truckTeams');
+
+    const effectiveStatus = updateData.status || oldOrder.status;
+
+    // If an execution reschedule was just approved above, auto-clear truck_team if it now conflicts or is in maintenance
+    if (
+      req.body.action === 'approve_reschedule' &&
+      updateData.service_execution_date &&
+      oldOrder.truck_team
+    ) {
+      const prevTrucks = parseAssignedTrucks(oldOrder.truck_team);
+      const fleet = await getTruckTeams();
+      const availSet = new Set(fleet.filter(t => t.status === 'available').map(t => t.name.toLowerCase()));
+      const hasMaint = prevTrucks.some(t => !availSet.has(t.toLowerCase()));
+      const reschedConflicts = await findTruckScheduleConflicts({
+        Order,
+        excludeOrderId: oldOrder.order_id,
+        execDate: updateData.service_execution_date,
+        execSlot: updateData.service_execution_time_slot,
+        totalTrips: oldOrder.total_trips,
+        truckNames: prevTrucks
+      });
+      if (hasMaint || reschedConflicts.length > 0) {
+        updateData.truck_team = '';
+      }
+    }
+
+    if (effectiveStatus === 'Cancelled') {
+      updateData.truck_team = '';
+    } else if (updateData.truck_team !== undefined) {
+      const nextTruckTeam = String(updateData.truck_team || '').trim();
+      updateData.truck_team = nextTruckTeam;
+
+      const hasExecDate = Boolean(
+        updateData.service_execution_date !== undefined
+          ? updateData.service_execution_date
+          : oldOrder.service_execution_date
+      );
+      if (nextTruckTeam && !hasExecDate && String(oldOrder.truck_team || '').trim() === nextTruckTeam) {
+        updateData.truck_team = '';
+      } else if (nextTruckTeam) {
+        const effectiveExecDate = updateData.service_execution_date !== undefined
+          ? updateData.service_execution_date
+          : oldOrder.service_execution_date;
+        const effectiveExecSlot = updateData.service_execution_time_slot !== undefined
+          ? updateData.service_execution_time_slot
+          : oldOrder.service_execution_time_slot;
+        const effectiveTrips = Number(updateData.total_trips ?? oldOrder.total_trips) || 1;
+
+        if (!effectiveExecDate) {
+          return res.status(400).json({
+            success: false,
+            message: 'Cannot assign a truck team before the client has scheduled a service execution date.'
+          });
+        }
+
+        const requestedTrucks = parseAssignedTrucks(nextTruckTeam);
+        if (effectiveTrips >= 5 && requestedTrucks.length !== 2) {
+          return res.status(400).json({
+            success: false,
+            message: `High-capacity orders (5+ trips) require exactly 2 operational trucks (${requestedTrucks.length} selected).`
+          });
+        }
+        if (effectiveTrips < 5 && requestedTrucks.length > 1) {
+          return res.status(400).json({
+            success: false,
+            message: 'Standard orders (< 5 trips) can only be assigned 1 truck team.'
+          });
+        }
+
+        const fleet = await getTruckTeams();
+        const prevTrucksLower = new Set(parseAssignedTrucks(oldOrder.truck_team).map(t => t.toLowerCase()));
+        for (const tName of requestedTrucks) {
+          if (!prevTrucksLower.has(tName.toLowerCase())) {
+            const match = fleet.find(f => f.name.toLowerCase() === tName.toLowerCase());
+            if (!match) {
+              return res.status(400).json({ success: false, message: `Truck team "${tName}" does not exist in Site Settings.` });
+            }
+            if (match.status === 'unavailable') {
+              return res.status(400).json({
+                success: false,
+                message: `${tName} is currently marked Unavailable (Maintenance) in Site Settings.`
+              });
+            }
+          }
+        }
+
+        const conflicts = await findTruckScheduleConflicts({
+          Order,
+          excludeOrderId: oldOrder.order_id,
+          execDate: effectiveExecDate,
+          execSlot: effectiveExecSlot,
+          totalTrips: effectiveTrips,
+          truckNames: requestedTrucks
+        });
+        if (conflicts.length > 0) {
+          const c = conflicts[0];
+          return res.status(400).json({
+            success: false,
+            message: `${c.truckName} is already assigned to Order #${c.conflictingOrderId} on ${toDateKey(effectiveExecDate)} (${c.conflictingSlot}). Please assign an available truck team.`
+          });
+        }
+      }
     }
 
     await Order.updateMany({ order_id: oldOrder.order_id }, updateData);
@@ -1064,7 +1183,13 @@ router.post('/:id/quotation', async (req, res) => {
     const order = await Order.findById(id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
+    if (order.status === 'Completed' || order.status === 'Cancelled') {
+      return res.status(400).json({ success: false, message: `Cannot submit quotation for a ${order.status.toLowerCase()} order.` });
+    }
     const tripsToSave = total_trips ? parseInt(total_trips, 10) : (order.total_trips || 1);
+    const tierChangedWhileScheduled = Boolean(
+      order.service_execution_date && (((Number(order.total_trips) || 1) >= 5) !== (tripsToSave >= 5))
+    );
 
     await Order.updateMany(
       { order_id: order.order_id },
@@ -1077,7 +1202,12 @@ router.post('/:id/quotation', async (req, res) => {
           final_price: final_price || 0,
           total_trips: tripsToSave,
           has_final_price: true,
-          quotation_status: 'Pending Client Approval'
+          quotation_status: 'Pending Client Approval',
+          ...(tierChangedWhileScheduled ? {
+            service_execution_date: null,
+            service_execution_time_slot: null,
+            truck_team: ''
+          } : {})
         }
       }
     );
@@ -1165,6 +1295,13 @@ router.post('/:id/service-date', async (req, res) => {
     const order = await Order.findById(id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
+    if (order.status === 'Cancelled') {
+      return res.status(400).json({ success: false, message: 'Cannot schedule execution for a cancelled order.' });
+    }
+    if (order.quotation_status !== 'Approved') {
+      return res.status(400).json({ success: false, message: 'Quotation must be approved before scheduling service execution.' });
+    }
+
     const targetDate = new Date(service_execution_date);
     const dateStr = service_execution_date.split('T')[0];
 
@@ -1197,6 +1334,25 @@ router.post('/:id/service-date', async (req, res) => {
     const availableTruckCount = countAvailableTrucks(truckTeams);
 
     const totalTrips = Number(order.total_trips) || 1;
+    const {
+      parseAssignedTrucks: parseExecTrucks,
+      findTruckScheduleConflicts: findExecConflicts
+    } = require('../utils/truckTeams');
+    let shouldClearPreAssignedTruck = false;
+    if (order.truck_team) {
+      const preTrucks = parseExecTrucks(order.truck_team);
+      const availLower = new Set(truckTeams.filter(t => t.status === 'available').map(t => t.name.toLowerCase()));
+      const preMaint = preTrucks.some(t => !availLower.has(t.toLowerCase()));
+      const preConflicts = await findExecConflicts({
+        Order,
+        excludeOrderId: order.order_id,
+        execDate: service_execution_date,
+        execSlot: service_execution_time_slot,
+        totalTrips,
+        truckNames: preTrucks
+      });
+      shouldClearPreAssignedTruck = preMaint || preConflicts.length > 0;
+    }
 
     if (totalTrips >= 5) {
       if (availableTruckCount < 2) {
@@ -1268,6 +1424,7 @@ router.post('/:id/service-date', async (req, res) => {
       {
         service_execution_date: targetDate,
         service_execution_time_slot: service_execution_time_slot,
+        ...(shouldClearPreAssignedTruck ? { truck_team: '' } : {}),
         status: 'In Progress'
       }
     );

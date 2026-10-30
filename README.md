@@ -315,6 +315,32 @@ This document summarizes the recent features and structural updates implemented 
   - Standardized Admin `Confirmed Inspection Time Slot` to a `Morning` / `Afternoon` / `Evening` selector and enforced effective `confirmed_date` / `confirmed_time_slot` conflict checks.
   - Deduplicated multi-service PayMongo webhook emails/notifications, restricted status-change emails to actual status transitions, guarded notification cleanup on legacy order deletions, and fixed `/resources` search redirects and Admin chat `?orderId=` deep-links.
 
+## 42. Truck Fleet Conflict Prevention, Dedicated Whole-Day Locks, Gross Sales Relabeling & Modern Services Leaderboard
+- **Per-Slot & Whole-Day Truck Assignment Conflict Safeguards**:
+  - Implemented `findTruckScheduleConflicts` and `parseAssignedTrucks` in `backend/utils/truckTeams.js`, mirrored by `getBookedTruckMapForOrder` in `src/utils/helpers.js`.
+  - Single-slot jobs (`Morning`, `Afternoon`, `Evening`) block assigning any truck already booked on another order in an overlapping slot or on a whole-day job.
+  - High-capacity (`5+` trips) paired truck strings (`"Truck Team 1 & Truck Team 2"`) lock both trucks across all three slots on that date, and auto-pairing strictly selects operational and free trucks on that date.
+  - Enforced backend validation in `PUT /api/orders/:id` returning `400 Bad Request` with exact conflicting order details, and disabled booked/maintenance trucks in `OrderDatabase.jsx` with real-time conflict banners.
+  - Surfaced live `Double-Booked` (red) and `In Maintenance` (amber) badges in the `OrderDatabase.jsx` table so existing duplicates or maintenance assignments stand out immediately.
+- **Dedicated Whole-Day for High-Capacity (5+ Trips) Jobs (Option B)**:
+  - Enforced dedicated exclusive dates for `5+` trip jobs across `GET /api/orders/availability`, `POST /api/orders/:id/service-date`, `PUT /api/orders/:id` (reschedules), `POST /api/orders/submit`, and `ClientCalendar.jsx`.
+  - Dates with existing executions or inspections cannot be booked for `5+` trips (`Occupied`), and once booked, a `5+` trip job locks the full date from any other service execution or inspection (`Day Locked`).
+- **Fleet Maintenance Warnings & Lifecycle State Resets**:
+  - Toggling a truck to `Unavailable (Maintenance)` in `AdminSettings.jsx` checks active `In Progress` orders and displays an amber warning banner listing affected order IDs.
+  - Approved execution reschedules automatically clear `truck_team` to `Unassigned` if the previously assigned truck conflicts on the new date/slot or is in maintenance.
+  - Revising quotation trip tiers (`< 5` vs `>= 5`) resets execution date and truck assignment to prevent invalid 1-truck slot bookings from becoming unapproved whole-day locks.
+  - Cancelling an order immediately clears `truck_team` and releases calendar slot capacity.
+- **"Total Revenue" to "Gross Sales" Label Realignment**:
+  - Relabeled `Total Revenue` to `Gross Sales` across the `/admin` dashboard KPI card (`AdminLanding.jsx`), `/admin/orders` KPI summary card (`OrderDatabase.jsx`), and auto-generated PDF report text (`doc.text('Gross Sales (incl. 10% Tax): PHP ...')`), while preserving all underlying pricing formulas and states.
+  - Aligned dashboard chart titles and legends (`Gross Sales` and `Sales Growth Statistics`).
+- **Modern "Most Availed Services" Ranked Leaderboard**:
+  - Replaced raw canvas with a modern, high-contrast Ranked Leaderboard component in `AdminLanding.jsx`:
+    - Displays rank pills (`#1` in bold brand green with `#f0fdf4` highlight, `#2+` in neutral pills).
+    - Proportional progress bars (`height: 5px`) showing volume relative to the top service.
+    - Right-aligned order counts and percentage share badges with responsive scrolling.
+    - Zero slanted text or crowded axes.
+  - De-cluttered the adjacent **Sales Growth Statistics** chart: locked ticks to flat horizontal (`maxRotation: 0`, `minRotation: 0`), added `autoSkip: true` with `maxTicksLimit: 7`, and shortened month format (`Aug '25`) while keeping 100% of data points and tooltips.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

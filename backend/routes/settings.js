@@ -3,13 +3,15 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const Setting = require('../models/Setting');
 const User = require('../models/User');
+const Order = require('../models/Order');
 const Notification = require('../models/Notification');
 const {
   getTruckTeams,
   saveTruckTeams,
   normalizeTruckTeams,
   validateTruckTeams,
-  countAvailableTrucks
+  countAvailableTrucks,
+  parseAssignedTrucks
 } = require('../utils/truckTeams');
 const router = express.Router();
 
@@ -141,9 +143,37 @@ router.put('/truck-teams', async (req, res) => {
     }
 
     await saveTruckTeams(teams);
+
+    // Check if any active In Progress order is currently assigned to an unavailable or removed truck
+    const availableNamesLower = new Set(
+      teams.filter(t => t.status === 'available').map(t => t.name.toLowerCase())
+    );
+    const activeAssigned = await Order.find({
+      status: 'In Progress',
+      truck_team: { $nin: [null, ''] }
+    }).select('order_id truck_team').lean();
+
+    const affectedOrderIds = [];
+    const seenOrders = new Set();
+    for (const o of activeAssigned) {
+      const key = o.order_id || String(o._id);
+      if (seenOrders.has(key)) continue;
+      seenOrders.add(key);
+      const trucks = parseAssignedTrucks(o.truck_team);
+      if (trucks.some(t => !availableNamesLower.has(t.toLowerCase()))) {
+        affectedOrderIds.push(key);
+      }
+    }
+
+    const warning = affectedOrderIds.length > 0
+      ? `Truck teams updated. Heads up: ${affectedOrderIds.length} active order(s) (${affectedOrderIds.slice(0, 3).map(id => `#${id}`).join(', ')}${affectedOrderIds.length > 3 ? '...' : ''}) are assigned to an unavailable/removed truck — please reassign them in Order Database.`
+      : null;
+
     res.json({
       success: true,
-      message: 'Truck teams updated successfully',
+      message: warning || 'Truck teams updated successfully',
+      warning,
+      affected_orders: affectedOrderIds,
       truck_teams: teams,
       available_count: countAvailableTrucks(teams)
     });

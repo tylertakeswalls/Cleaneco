@@ -52,7 +52,7 @@ function AdminSettings() {
     try {
       const res = await api.put('/settings/truck-teams', { truck_teams: teams });
       if (res.data.success) {
-        showAlert('success', 'Truck teams updated successfully!');
+        showAlert(res.data.warning ? 'warning' : 'success', res.data.warning || 'Truck teams updated successfully!');
       } else {
         showAlert('error', 'Failed to update truck teams.');
       }
@@ -185,7 +185,7 @@ function AdminSettings() {
         </div>
 
         {alert.show && (
-          <div className={`alert alert-${alert.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show shadow-sm`} role="alert">
+          <div className={`alert alert-${alert.type === 'success' ? 'success' : alert.type === 'warning' ? 'warning' : 'danger'} alert-dismissible fade show shadow-sm`} role="alert">
             <i className={`fas fa-${alert.type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2`}></i>
             {alert.message}
             <button type="button" className="btn-close" onClick={() => setAlert({ show: false, type: '', message: '' })}></button>
