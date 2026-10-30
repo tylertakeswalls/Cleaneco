@@ -103,8 +103,8 @@ router.get('/generate', async (req, res) => {
     doc.moveDown(2);
     
     // -- DATA SUMMARY --
-    doc.font('Times-Bold').text('Revenue Summary:');
-    doc.font('Times-Roman').text(`Total Collected Revenue (incl. 10% Tax): PHP ${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    doc.font('Times-Bold').text('Gross Sales Summary:');
+    doc.font('Times-Roman').text(`Gross Sales (incl. 10% Tax): PHP ${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     
     doc.moveDown(1);
     doc.font('Times-Bold').text('Order Statistics:');

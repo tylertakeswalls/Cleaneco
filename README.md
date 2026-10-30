@@ -331,7 +331,7 @@ This document summarizes the recent features and structural updates implemented 
   - Revising quotation trip tiers (`< 5` vs `>= 5`) resets execution date and truck assignment to prevent invalid 1-truck slot bookings from becoming unapproved whole-day locks.
   - Cancelling an order immediately clears `truck_team` and releases calendar slot capacity.
 - **"Total Revenue" to "Gross Sales" Label Realignment**:
-  - Relabeled `Total Revenue` to `Gross Sales` across the `/admin` dashboard KPI card (`AdminLanding.jsx`), `/admin/orders` KPI summary card (`OrderDatabase.jsx`), and auto-generated PDF report text (`doc.text('Gross Sales (incl. 10% Tax): PHP ...')`), while preserving all underlying pricing formulas and states.
+  - Relabeled `Total Revenue` to `Gross Sales` across the `/admin` dashboard KPI card (`AdminLanding.jsx`), `/admin/orders` KPI summary card (`OrderDatabase.jsx`), and both PDF export suites (frontend table report in `OrderDatabase.jsx` and backend PDFKit templates in `backend/routes/reports.js` for Monthly, Quarterly, and Yearly reports: `Gross Sales Summary:` and `Gross Sales (incl. 10% Tax): PHP ...`), while preserving all underlying pricing formulas and states.
   - Aligned dashboard chart titles and legends (`Gross Sales` and `Sales Growth Statistics`).
 - **Modern "Most Availed Services" Ranked Leaderboard**:
   - Replaced raw canvas with a modern, high-contrast Ranked Leaderboard component in `AdminLanding.jsx`:

@@ -79,7 +79,7 @@ Before clients book, administrators configure the service catalog and pricing fo
 #### 3. Upfront Reservation Fee Payment (Client)
 - **Fee Structure**: **`₱1,000.00`** Reservation & Inspection Fee + **`₱100.00`** (10% Service Tax) = **`₱1,100.00`** non-refundable deposit, credited in full toward the final bill.
 - **Payment Pathways**:
-  1. **PayMongo Online Checkout**: Supports Credit/Debit Cards, GCash, Maya, and GrabPay. Verified via HMAC-SHA256 webhook (`/api/payments/webhook`), automatically transitioning `status` from `Pending` → **`In Progress`**, updating revenue KPIs, and dispatching an EmailJS confirmation receipt. If a client exits checkout early, the order stays `Pending` on `/orders` with a 1-click **`Pay ₱1100.00 Reservation`** recovery card (hiding the progress bar until paid).
+  1. **PayMongo Online Checkout**: Supports Credit/Debit Cards, GCash, Maya, and GrabPay. Verified via HMAC-SHA256 webhook (`/api/payments/webhook`), automatically transitioning `status` from `Pending` → **`In Progress`**, updating gross sales KPIs, and dispatching an EmailJS confirmation receipt. If a client exits checkout early, the order stays `Pending` on `/orders` with a 1-click **`Pay ₱1100.00 Reservation`** recovery card (hiding the progress bar until paid).
   2. **Corporate Cheque (Commercial & Industrial Only)**: Captures Bank Name, Cheque Number, Account Name, and Cheque Date alongside a cheque photo streamed directly to **MongoDB GridFS** (`order_files`). Sets `cheque_status: 'pending_verification'` while `status` remains `Pending` until reviewed by staff.
 
 #### 4. Cheque Verification & Inspection Confirmation (Admin — `/admin/orders`)
@@ -121,7 +121,7 @@ Before clients book, administrators configure the service catalog and pricing fo
      - Using **Message Support** (`/client/messages?orderId=...`) or the floating **`ClientChatWidget`**, the client negotiates scope or pricing directly with administration in a conversation thread linked to the `order_id`. Admins can then revise factors or discounts and re-send the updated quotation.
   3. **Path C — Direct-Dispatch Cancellation Governance**:
      - Self-service decline/cancel buttons are intentionally omitted to protect fleet reservations. Clients are directed to call dispatch at **`046-447-03-54`**.
-     - Only administrators can transition an order to **`Cancelled`** (protected by a confirmation dialog), which sets `quotation_status: 'Client Declined'`, immediately releases inspection/execution calendar holds, excludes the order from revenue KPIs, and permanently locks the cancelled record from further edits.
+     - Only administrators can transition an order to **`Cancelled`** (protected by a confirmation dialog), which sets `quotation_status: 'Client Declined'`, immediately releases inspection/execution calendar holds, excludes the order from gross sales KPIs, and permanently locks the cancelled record from further edits.
 
 ---
 
@@ -181,8 +181,8 @@ Before clients book, administrators configure the service catalog and pricing fo
 
 #### 13. Executive Dashboard & 3-Tier PDF Export Suite
 - **Admin Dashboard (`/admin` — `AdminLanding.jsx`)**:
-  - Displays real-time **Total Revenue** (`₱1,100` reservation fees on active/completed orders + settled final balances), **Total Orders**, and **Completed Orders**.
-  - Renders three interactive **Chart.js** visualizations: *Visit & Sales Statistics* (daily revenue bar chart), *Order Status Overview* (doughnut chart), and *Revenue Growth Statistics* (line chart toggleable across `Monthly`, `Quarterly`, and `Yearly` buckets), alongside the master **`AdminCalendar`** and *Recent Orders* feed.
+  - Displays real-time **Gross Sales** (`₱1,100` reservation fees on active/completed orders + settled final balances), **Total Orders**, and **Completed Orders**.
+  - Renders interactive data visualizations: *Visit & Sales Statistics* (daily gross sales bar chart), *Order Status Overview* (doughnut chart), *Sales Growth Statistics* (line chart toggleable across `Monthly`, `Quarterly`, and `Yearly` buckets), and the *Most Availed Services* ranked leaderboard, alongside the master **`AdminCalendar`** and *Recent Orders* feed.
 - **Administrative PDF Reports**:
   1. **Operations & Sales Reports (`/admin`)**: Backend `pdfkit` engine (`/api/reports/generate?period=monthly|quarterly|yearly`) generating branded management summaries.
   2. **Order Database Report (`/admin/orders`)**: Frontend `jsPDF` + `jspdf-autotable` export respecting active service, status, and date filters.
