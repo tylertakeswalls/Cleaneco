@@ -341,6 +341,19 @@ This document summarizes the recent features and structural updates implemented 
     - Zero slanted text or crowded axes.
   - De-cluttered the adjacent **Sales Growth Statistics** chart: locked ticks to flat horizontal (`maxRotation: 0`, `minRotation: 0`), added `autoSkip: true` with `maxTicksLimit: 7`, and shortened month format (`Aug '25`) while keeping 100% of data points and tooltips.
 
+## 43. Flexible Residential Booking & Neighbor Sharing Incentives
+- **Frictionless Solo Booking with Optional Neighbor Group Sharing**:
+  - Removed the mandatory 3-household barrier for residential clients on `/order` (`OrderForm.jsx`). Homeowners with standalone or urgent septic/cleaning needs can now book immediately for their home alone (defaulting to 1 Household auto-synced with their profile).
+  - Maintained the single flat **`₱1,100`** reservation deposit, eliminating customer drop-off while preserving company revenue.
+- **Dynamic Savings & Truck Capacity Incentive Tiers**:
+  - **1 Household (Solo)**: Displays informative guidance that solo residential bookings are dispatched under standard single-trip terms, with an encouraging prompt: *"Add another neighbor nearby to save more!"*
+  - **2 Households (Shared)**: Dynamically updates to *"Great! Add another neighbor nearby to save even more on your shared service!"*
+  - **3+ Households (Group)**: Unlocks *"Full 10 cu.m tanker load reached! Maximum group savings unlocked across all participating households."*
+  - Replaced rigid "Required" badges with a protected `Lead Applicant` tag on Household #1 and individual `Remove` actions on each neighbor add-on (`#2`, `#3`, etc.).
+- **Backend Validation & Stack Compatibility**:
+  - Updated `POST /api/orders/submit` in `backend/routes/orders.js` to accept `num_households >= 1`.
+  - Enforced strict validation for Household #1 and any entered neighbor rows while maintaining full backward and forward compatibility with existing orders, truck assignments, Admin management drawers (`OrderDatabase.jsx`), and Client order feeds (`OngoingOrders.jsx`).
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

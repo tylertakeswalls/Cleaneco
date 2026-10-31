@@ -48,10 +48,8 @@ function OrderForm() {
     const [estimateInputs, setEstimateInputs] = useState({});
     const [baseEstimate, setBaseEstimate] = useState(0);
 
-    // Residential 3-household minimum state
+    // Residential households state (1 household default, optional neighbor additions)
     const [households, setHouseholds] = useState([
-        { name: '', address: '' },
-        { name: '', address: '' },
         { name: '', address: '' }
     ]);
 
@@ -160,10 +158,7 @@ function OrderForm() {
             const leadName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
             const leadAddress = formData.address || '';
             setHouseholds(prev => {
-                const updated = [...prev];
-                while (updated.length < 3) {
-                    updated.push({ name: '', address: '' });
-                }
+                const updated = prev && prev.length > 0 ? [...prev] : [{ name: '', address: '' }];
                 updated[0] = {
                     name: leadName || updated[0]?.name || '',
                     address: leadAddress || updated[0]?.address || ''
@@ -186,8 +181,8 @@ function OrderForm() {
     };
 
     const removeHousehold = (index) => {
-        if (households.length <= 3) {
-            showAlert("Minimum Required", "Residential bookings require a minimum of 3 households.", "warning");
+        if (index === 0 || households.length <= 1) {
+            showAlert("Primary Household", "The lead applicant household cannot be removed.", "warning");
             return;
         }
         setHouseholds(prev => prev.filter((_, i) => i !== index));
@@ -253,19 +248,21 @@ function OrderForm() {
         }
 
         if (formData.clientType === 'residential') {
-            if (households.length < 3) {
-                showAlert("Minimum Households Required", "Residential bookings require a minimum of 3 participating households.", "warning");
+            if (!households || households.length < 1) {
+                showAlert("Household Details Required", "Please provide details for your household.", "warning");
                 return;
             }
-            const missingRequired = households.slice(0, 3).some((h) => !h.name?.trim() || !h.address?.trim());
-            if (missingRequired) {
-                showAlert("Household Details Required", "Please provide both the Name and Address for all 3 required households.", "warning");
+            const missingPrimary = !households[0]?.name?.trim() || !households[0]?.address?.trim();
+            if (missingPrimary) {
+                showAlert("Household Details Required", "Please provide both the Name and Address for the primary household.", "warning");
                 return;
             }
-            const missingAdditional = households.slice(3).some((h) => !h.name?.trim() || !h.address?.trim());
-            if (missingAdditional) {
-                showAlert("Household Details Incomplete", "Please provide both Name and Address for all additional households, or remove empty entries.", "warning");
-                return;
+            if (households.length > 1) {
+                const missingAdditional = households.slice(1).some((h) => !h.name?.trim() || !h.address?.trim());
+                if (missingAdditional) {
+                    showAlert("Household Details Incomplete", "Please provide both Name and Address for all added neighbor households, or remove empty entries.", "warning");
+                    return;
+                }
             }
         }
 
@@ -589,16 +586,56 @@ function OrderForm() {
                         />
                     </div>
 
-                    {/* Residential Group Booking (Minimum 3 Households) */}
+                    {/* Residential Household & Neighborhood Sharing */}
                     {formData.clientType === 'residential' && (
                         <div className="card border-0 p-4 mb-4 shadow-sm" style={{ backgroundColor: '#ffffff', border: '1.5px solid #86efac', borderRadius: '1rem' }}>
                             <div className="mb-3">
-                                <h5 className="fw-bold mb-1 d-flex align-items-center" style={{ color: '#0D8D1E' }}>
-                                    <i className="fas fa-home me-2"></i>Residential Group Booking
-                                </h5>
-                                <p className="text-muted small mb-0">
-                                    Residential bookings require a minimum of <strong>3 households</strong>. A single <strong>₱1,100</strong> group reservation fee covers all participating homes.
-                                </p>
+                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                    <h5 className="fw-bold mb-0 d-flex align-items-center" style={{ color: '#0D8D1E' }}>
+                                        <i className="fas fa-home me-2"></i>Residential Household & Neighborhood Sharing
+                                    </h5>
+                                    {households.length === 1 && (
+                                        <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.75rem' }}>
+                                            <i className="fas fa-user me-1"></i>Solo Booking (1 Home)
+                                        </span>
+                                    )}
+                                    {households.length === 2 && (
+                                        <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '0.75rem' }}>
+                                            <i className="fas fa-user-friends me-1"></i>Shared (2 Homes)
+                                        </span>
+                                    )}
+                                    {households.length >= 3 && (
+                                        <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '0.75rem' }}>
+                                            <i className="fas fa-users me-1"></i>Group Unlocked ({households.length} Homes)
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Dynamic Savings & Capacity Feedback */}
+                                {households.length === 1 && (
+                                    <div className="alert alert-light border border-success border-opacity-25 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#f8fafc' }}>
+                                        <i className="fas fa-info-circle text-success me-2 fs-6"></i>
+                                        <div className="small text-dark">
+                                            Booking for your home alone. Have neighbors nearby who also need service? <strong>Add another neighbor nearby to save more!</strong>
+                                        </div>
+                                    </div>
+                                )}
+                                {households.length === 2 && (
+                                    <div className="alert alert-light border border-primary border-opacity-25 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#eff6ff' }}>
+                                        <i className="fas fa-user-friends text-primary me-2 fs-6"></i>
+                                        <div className="small text-dark">
+                                            Great! <strong>Add another neighbor nearby to save even more</strong> on your shared service!
+                                        </div>
+                                    </div>
+                                )}
+                                {households.length >= 3 && (
+                                    <div className="alert alert-light border border-success border-opacity-50 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#ecfdf5' }}>
+                                        <i className="fas fa-check-circle text-success me-2 fs-6"></i>
+                                        <div className="small text-dark">
+                                            <strong>Full 10 cu.m tanker load reached!</strong> Maximum group savings unlocked across all participating households. A single <strong>₱1,100</strong> reservation fee covers all participating homes.
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Household Entries */}
@@ -609,7 +646,7 @@ function OrderForm() {
                                         className="p-3 rounded border"
                                         style={{ 
                                             backgroundColor: index === 0 ? '#f0fdf4' : '#ffffff',
-                                            borderColor: index < 3 ? '#bbf7d0' : '#e2e8f0',
+                                            borderColor: index === 0 ? '#bbf7d0' : '#e2e8f0',
                                             overflow: 'hidden',
                                             boxSizing: 'border-box'
                                         }}
@@ -630,24 +667,26 @@ function OrderForm() {
                                                 >
                                                     {index + 1}
                                                 </span>
-                                                <span className="fw-bold small text-dark">Household #{index + 1}</span>
+                                                <span className="fw-bold small text-dark">
+                                                    {index === 0 ? 'Household #1 (Your Home)' : `Neighbor Household #${index + 1}`}
+                                                </span>
                                                 {index === 0 && (
                                                     <span className="badge" style={{ backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.68rem' }}>
                                                         Lead Applicant
                                                     </span>
                                                 )}
-                                                {index > 0 && index < 3 && (
+                                                {index > 0 && (
                                                     <span className="badge bg-light text-muted border" style={{ fontSize: '0.68rem' }}>
-                                                        Required
+                                                        Neighbor Add-on
                                                     </span>
                                                 )}
                                             </div>
-                                            {index >= 3 && (
+                                            {index > 0 && (
                                                 <button
                                                     type="button"
                                                     className="btn btn-outline-danger btn-sm py-0 px-2 border-0"
                                                     onClick={() => removeHousehold(index)}
-                                                    title="Remove household"
+                                                    title="Remove neighbor household"
                                                     style={{ fontSize: '0.78rem' }}
                                                 >
                                                     <i className="fas fa-trash-alt me-1"></i>Remove
@@ -704,7 +743,8 @@ function OrderForm() {
                                     }}
                                     onClick={addHousehold}
                                 >
-                                    <i className="fas fa-plus me-1"></i>Add Another Household
+                                    <i className="fas fa-plus me-1"></i>
+                                    {households.length === 1 ? 'Add Neighboring Household (Optional)' : 'Add Another Neighbor'}
                                 </button>
                             </div>
                         </div>

@@ -9,7 +9,7 @@ This document details the complete, end-to-end service lifecycle and operational
 ```mermaid
 flowchart TD
     S0["Admin Configures Services & Dynamic Pricing Factors (/admin/services)"] --> A
-    A["Client Submits Booking Request (/order)<br/>Residential: Min. 3 Households | Multi-Service Snapshot Captured"] --> B["Pay Upfront Reservation Fee ₱1,100 (₱1,000 + 10% Tax)<br/>PayMongo Instant Checkout OR Commercial/Industrial Cheque"]
+    A["Client Submits Booking Request (/order)<br/>Residential: Solo or Group Sharing | Multi-Service Snapshot Captured"] --> B["Pay Upfront Reservation Fee ₱1,100 (₱1,000 + 10% Tax)<br/>PayMongo Instant Checkout OR Commercial/Industrial Cheque"]
     B -->|PayMongo Paid OR Admin Approves Cheque| C["Order Status: In Progress<br/>Admin Confirms Inspection Schedule & Assigns Recon Team"]
     B -->|Unpaid / Cheque Rejected| B1["Order Status: Pending<br/>Client Dashboard Shows 'Pay Reservation' / 'Retry Payment'"]
     B1 --> B
@@ -59,9 +59,9 @@ Before clients book, administrators configure the service catalog and pricing fo
 - **Service Deletion Guard**: Backend validation (`/api/services/:id`) blocks deleting any service linked to historical or active orders, instructing administrators to toggle it **`Unavailable`** instead so order history remains intact.
 
 #### 2. Service Selection, Group Rules & Booking Submission (Client — `/order`)
-- **Account Classification & Residential 3-Household Minimum**:
-  - **Residential Accounts (`residential`)**: Must register a **minimum of 3 participating households** (Resident Full Name + House/Lot/Street Address) under the **Residential Group Booking** block. Household #1 auto-syncs with the lead applicant, and additional households (`4+`) can be added dynamically—all covered by a single **`₱1,100`** group reservation fee.
-  - **Commercial & Industrial Accounts (`commercial`, `industrial`)**: Bypass the 3-household requirement, store a registered `Company Name` (formatted system-wide as `Client Name (Company Name)`), and unlock Corporate Cheque payments.
+- **Account Classification & Residential Household Rules**:
+  - **Residential Accounts (`residential`)**: Allows immediate solo bookings for a single home (Household #1 auto-synced with the lead applicant) or dynamic addition of neighboring homes (`#2`, `#3+`) for shared savings under the **Residential Household & Neighborhood Sharing** block—all covered by a single **`₱1,100`** reservation fee.
+  - **Commercial & Industrial Accounts (`commercial`, `industrial`)**: Store a registered `Company Name` (formatted system-wide as `Client Name (Company Name)`), bypass household add-on blocks, and unlock Corporate Cheque payments.
 - **Multi-Service Selection & Permanent Pricing Snapshot**:
   - Clients can select **multiple services** in a single transaction, filling out each service's dynamic questionnaire (`ServicePricingFields.jsx`), service region (`NCR` or `CALABARZON`), full address, optional nearest landmark, and additional notes.
   - All selected services share a unified `order_id` (`ORD...`), aggregated seamlessly across client cards and admin tables (`processGroupedOrders`).
@@ -240,7 +240,7 @@ Before clients book, administrators configure the service catalog and pricing fo
 | Register Account (18+, Inline TOS PDF) & Verify Email | ✅ | — | — |
 | Initiate Cryptographic Forgot & Reset Password Flow | ✅ | ✅ | ✅ |
 | Configure Services, Dynamic Pricing Factors & Availability (`/admin/services`) | ❌ | ❌ | ✅ |
-| Submit Multi-Service Booking (Residential 3-Household Group / Corporate) | ❌ | ✅ | ✅ (`/admin/order-form`) |
+| Submit Multi-Service Booking (Residential Solo or Group Sharing / Corporate) | ❌ | ✅ | ✅ (`/admin/order-form`) |
 | Pay `₱1,100` Reservation Fee (PayMongo Online / Commercial & Industrial Cheque) | ❌ | ✅ | ❌ |
 | Verify / Approve or Reject Corporate Cheque Submissions (GridFS Proof) | ❌ | ❌ | ✅ |
 | Confirm Site Inspection Schedule & Assign Recon Team | ❌ | View only | ✅ |

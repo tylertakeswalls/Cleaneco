@@ -257,18 +257,28 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
     const clientType = data.clientType || 'residential';
 
     if (clientType === 'residential') {
-      if (numHouseholds < 3 || !Array.isArray(households) || households.length < 3) {
+      if (numHouseholds < 1 || !Array.isArray(households) || households.length < 1) {
         return res.status(400).json({
           success: false,
-          message: 'Residential bookings require a minimum of 3 participating households.'
+          message: 'Residential bookings require at least 1 participating household.'
         });
       }
-      const invalidHousehold = households.slice(0, 3).some(h => !h.name || !h.address || !h.name.trim() || !h.address.trim());
-      if (invalidHousehold) {
+      // Validate primary household (lead applicant)
+      if (!households[0] || !households[0].name || !households[0].address || !households[0].name.trim() || !households[0].address.trim()) {
         return res.status(400).json({
           success: false,
-          message: 'Please provide both the name and address for each required household.'
+          message: 'Please provide both the name and address for the primary household.'
         });
+      }
+      // If additional neighbor households are provided, validate each one
+      if (households.length > 1) {
+        const invalidAdditional = households.slice(1).some(h => !h.name || !h.address || !h.name.trim() || !h.address.trim());
+        if (invalidAdditional) {
+          return res.status(400).json({
+            success: false,
+            message: 'Please provide both the name and address for each added neighbor household, or remove empty entries.'
+          });
+        }
       }
     }
 
