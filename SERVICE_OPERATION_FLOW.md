@@ -182,7 +182,7 @@ Before clients book, administrators configure the service catalog and pricing fo
 #### 13. Executive Dashboard & 3-Tier PDF Export Suite
 - **Admin Dashboard (`/admin` — `AdminLanding.jsx`)**:
   - Displays real-time **Gross Sales** (`₱1,100` reservation fees on active/completed orders + settled final balances), **Total Orders**, and **Completed Orders**.
-  - Renders interactive data visualizations: *Visit & Sales Statistics* (daily gross sales bar chart), *Order Status Overview* (doughnut chart), *Sales Growth Statistics* (line chart toggleable across `Monthly`, `Quarterly`, and `Yearly` buckets), and the *Most Availed Services* ranked leaderboard, alongside the master **`AdminCalendar`** and *Recent Orders* feed.
+  - Renders interactive data visualizations: *Gross Sales Statistics* (bar chart toggleable across `Daily`, `Monthly`, `Quarterly`, and `Yearly` buckets), *Order Status Overview* (doughnut chart), *Sales Growth Statistics* (line chart toggleable across `Monthly`, `Quarterly`, and `Yearly` buckets), and the *Most Availed Services* ranked leaderboard, alongside the master **`AdminCalendar`** and *Recent Orders* feed.
 - **Administrative PDF Reports**:
   1. **Operations & Sales Reports (`/admin`)**: Backend `pdfkit` engine (`/api/reports/generate?period=monthly|quarterly|yearly`) generating branded management summaries.
   2. **Order Database Report (`/admin/orders`)**: Frontend `jsPDF` + `jspdf-autotable` export respecting active service, status, and date filters.

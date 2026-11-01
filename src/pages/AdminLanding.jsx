@@ -54,6 +54,7 @@ function AdminLanding() {
   const growthChartRef = useRef(null);
   const growthChartInstance = useRef(null);
   const [growthPeriod, setGrowthPeriod] = useState('monthly');
+  const [salesPeriod, setSalesPeriod] = useState('monthly');
 
   const serviceStats = useMemo(() => {
     const counts = {};
@@ -82,110 +83,187 @@ function AdminLanding() {
     loadDashboardData();
   }, [navigate]);
 
+  // Status chart (Doughnut)
   useEffect(() => {
-    const renderCharts = () => {
-      const statusCounts = groupedOrders.reduce((acc, order) => {
-        acc[order.status] = (acc[order.status] || 0) + 1;
-        return acc;
-      }, {});
+    if (groupedOrders.length === 0) return;
 
-      const dailyRevenue = groupedOrders.reduce((acc, order) => {
-        const rev = calculateOrderCollectedRevenue(order);
-        if (rev > 0 && order.date) {
-          const parsed = new Date(order.date);
-          if (!Number.isNaN(parsed.getTime())) {
-            const d = parsed.toISOString().split('T')[0];
-            acc[d] = (acc[d] || 0) + rev;
-          }
-        }
-        return acc;
-      }, {});
+    const statusCounts = groupedOrders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
 
-      const sortedDates = Object.keys(dailyRevenue).sort();
-      const revenueValues = sortedDates.map(date => dailyRevenue[date]);
+    if (statusChartInstance.current) statusChartInstance.current.destroy();
 
-      if (statusChartInstance.current) statusChartInstance.current.destroy();
-      if (lineChartInstance.current) lineChartInstance.current.destroy();
-
-      const statusCtx = statusChartRef.current?.getContext('2d');
-      if (statusCtx) {
-        statusChartInstance.current = new Chart(statusCtx, {
-          type: 'doughnut',
-          data: {
-            labels: ['Pending', 'In Progress', 'Completed', 'Cancelled'],
-            datasets: [{
-              data: [
-                statusCounts['Pending'] || 0,
-                statusCounts['In Progress'] || 0,
-                statusCounts['Completed'] || 0,
-                statusCounts['Cancelled'] || 0
-              ],
-              backgroundColor: ['#ffc107', '#0dcaf0', '#20c997', '#dc3545'],
-              borderWidth: 0,
-              hoverOffset: 4
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'right',
-                labels: {
-                  usePointStyle: true,
-                  padding: 20,
-                  font: { size: 12, family: "'Inter', sans-serif" }
-                }
-              }
-            },
-            cutout: '70%'
-          }
-        });
-      }
-
-      const lineCtx = lineChartRef.current?.getContext('2d');
-      if (lineCtx) {
-        lineChartInstance.current = new Chart(lineCtx, {
-          type: 'bar', // Like the visit and sales statistics bar chart in reference
-          data: {
-            labels: sortedDates.map(d => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
-            datasets: [{
-              label: 'Gross Sales',
-              data: revenueValues,
-              backgroundColor: '#20c997',
-              borderRadius: 4,
-              barThickness: 12,
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: { color: '#f0f0f0', drawBorder: false },
-                ticks: { callback: (value) => '₱' + value, color: '#a0a0a0' }
-              },
-              x: {
-                grid: { display: false },
-                ticks: { color: '#a0a0a0' }
+    const statusCtx = statusChartRef.current?.getContext('2d');
+    if (statusCtx) {
+      statusChartInstance.current = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Pending', 'In Progress', 'Completed', 'Cancelled'],
+          datasets: [{
+            data: [
+              statusCounts['Pending'] || 0,
+              statusCounts['In Progress'] || 0,
+              statusCounts['Completed'] || 0,
+              statusCounts['Cancelled'] || 0
+            ],
+            backgroundColor: ['#ffc107', '#0dcaf0', '#0D8D1E', '#dc3545'],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                usePointStyle: true,
+                padding: 20,
+                font: { size: 12, family: "'Inter', sans-serif" }
               }
             }
-          }
-        });
-      }
-    };
-
-    if (groupedOrders.length > 0) renderCharts();
+          },
+          cutout: '70%'
+        }
+      });
+    }
 
     return () => {
       if (statusChartInstance.current) statusChartInstance.current.destroy();
-      if (lineChartInstance.current) lineChartInstance.current.destroy();
     };
   }, [groupedOrders]);
+
+  // Gross Sales Bar Chart
+  useEffect(() => {
+    if (groupedOrders.length === 0) return;
+
+    const getBucket = (dateObj) => {
+      const year = dateObj.getFullYear();
+      if (salesPeriod === 'yearly') return `${year}`;
+      if (salesPeriod === 'quarterly') {
+        const q = Math.floor(dateObj.getMonth() / 3) + 1;
+        return `${year}-Q${q}`;
+      }
+      if (salesPeriod === 'monthly') {
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        return `${year}-${month}`;
+      }
+      // 'daily'
+      return dateObj.toISOString().split('T')[0];
+    };
+
+    // If daily, only take the last 30 days of activity to prevent clumping
+    let minDailyTime = 0;
+    if (salesPeriod === 'daily') {
+      let maxTime = Date.now();
+      groupedOrders.forEach(o => {
+        if (o.date) {
+          const t = new Date(o.date).getTime();
+          if (!Number.isNaN(t) && t > maxTime) maxTime = t;
+        }
+      });
+      minDailyTime = maxTime - (30 * 24 * 60 * 60 * 1000);
+    }
+
+    const aggregated = groupedOrders.reduce((acc, order) => {
+      const rev = calculateOrderCollectedRevenue(order);
+      if (rev > 0 && order.date) {
+        const parsed = new Date(order.date);
+        if (!Number.isNaN(parsed.getTime())) {
+          if (salesPeriod === 'daily' && minDailyTime > 0 && parsed.getTime() < minDailyTime) {
+            return acc;
+          }
+          const bucket = getBucket(parsed);
+          acc[bucket] = (acc[bucket] || 0) + rev;
+        }
+      }
+      return acc;
+    }, {});
+
+    const sortedBuckets = Object.keys(aggregated).sort();
+    const revenueValues = sortedBuckets.map(b => aggregated[b]);
+    const labels = sortedBuckets.map(bucket => {
+      if (salesPeriod === 'yearly') return bucket;
+      if (salesPeriod === 'quarterly') return bucket;
+      if (salesPeriod === 'monthly') {
+        const [y, m] = bucket.split('-');
+        const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+        const monthShort = date.toLocaleDateString('en-US', { month: 'short' });
+        const yearShort = String(y).slice(-2);
+        return `${monthShort} '${yearShort}`;
+      }
+      // 'daily'
+      return new Date(`${bucket}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+
+    if (lineChartInstance.current) lineChartInstance.current.destroy();
+
+    const lineCtx = lineChartRef.current?.getContext('2d');
+    if (lineCtx) {
+      lineChartInstance.current = new Chart(lineCtx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Gross Sales',
+            data: revenueValues,
+            backgroundColor: '#0D8D1E',
+            hoverBackgroundColor: '#0A6F17',
+            borderRadius: 6,
+            maxBarThickness: 36,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1f2937',
+              titleFont: { size: 12, family: "'Inter', sans-serif" },
+              bodyFont: { size: 12, family: "'Inter', sans-serif" },
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  const val = context.parsed.y || 0;
+                  return `Gross Sales: ₱${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#f3f4f6', drawBorder: false },
+              ticks: {
+                callback: (value) => '₱' + Number(value).toLocaleString('en-US'),
+                color: '#9ca3af',
+                font: { size: 11, family: "'Inter', sans-serif" }
+              }
+            },
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: '#9ca3af',
+                autoSkip: true,
+                maxTicksLimit: 8,
+                maxRotation: 0,
+                minRotation: 0,
+                font: { size: 11, family: "'Inter', sans-serif" }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    return () => {
+      if (lineChartInstance.current) lineChartInstance.current.destroy();
+    };
+  }, [groupedOrders, salesPeriod]);
 
   useEffect(() => {
     if (groupedOrders.length === 0) return;
@@ -429,14 +507,29 @@ function AdminLanding() {
 
         {/* MAIN CHARTS GRID */}
         <div className="row g-4">
-          {/* Revenue / Visits Chart (Large Left) */}
+          {/* Daily Gross Sales Chart (Large Left) */}
           <div className="col-lg-7">
             <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Visit And Sales Statistics</h5>
-                  <div className="d-flex gap-3">
-                    <div className="d-flex align-items-center"><span className="rounded-circle me-2" style={{ width: '10px', height: '10px', backgroundColor: '#20c997' }}></span><small className="text-muted">Gross Sales</small></div>
+                <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                  <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Gross Sales Statistics</h5>
+                  <div className="d-flex gap-2">
+                    <button 
+                      className={`btn btn-sm ${salesPeriod === 'daily' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      onClick={() => setSalesPeriod('daily')}
+                    >Daily</button>
+                    <button 
+                      className={`btn btn-sm ${salesPeriod === 'monthly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      onClick={() => setSalesPeriod('monthly')}
+                    >Monthly</button>
+                    <button 
+                      className={`btn btn-sm ${salesPeriod === 'quarterly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      onClick={() => setSalesPeriod('quarterly')}
+                    >Quarterly</button>
+                    <button 
+                      className={`btn btn-sm ${salesPeriod === 'yearly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      onClick={() => setSalesPeriod('yearly')}
+                    >Yearly</button>
                   </div>
                 </div>
                 <div style={{ height: '300px' }} className="d-flex justify-content-center align-items-center">
@@ -446,7 +539,7 @@ function AdminLanding() {
                       <p className="mb-0">No sales data available yet.</p>
                     </div>
                   ) : (
-                    <canvas ref={lineChartRef} role="img" aria-label="Bar chart showing daily sales over time"></canvas>
+                    <canvas ref={lineChartRef} role="img" aria-label="Bar chart showing gross sales over time"></canvas>
                   )}
                 </div>
               </div>
@@ -560,7 +653,7 @@ function AdminLanding() {
                                 role="progressbar"
                                 style={{
                                   width: `${relativeBarWidth}%`,
-                                  backgroundColor: isTop ? '#0D8D1E' : '#20c997'
+                                  backgroundColor: '#0D8D1E'
                                 }}
                                 aria-valuenow={relativeBarWidth}
                                 aria-valuemin="0"

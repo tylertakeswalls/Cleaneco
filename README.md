@@ -354,6 +354,19 @@ This document summarizes the recent features and structural updates implemented 
   - Updated `POST /api/orders/submit` in `backend/routes/orders.js` to accept `num_households >= 1`.
   - Enforced strict validation for Household #1 and any entered neighbor rows while maintaining full backward and forward compatibility with existing orders, truck assignments, Admin management drawers (`OrderDatabase.jsx`), and Client order feeds (`OngoingOrders.jsx`).
 
+## 44. Gross Sales Analytics Realignment, De-Cluttered Axes & Unified Brand Green Palette
+- **Gross Sales Statistics Chart Realignment & Multi-Period Aggregation**:
+  - Replaced the misleading boilerplate title `"Visit And Sales Statistics"` with **`Gross Sales Statistics`** on `/admin` (`AdminLanding.jsx`), reflecting actual cash collected across reservation fees and completed balances.
+  - Added period toggle controls (**`Daily`**, **`Monthly`**, **`Quarterly`**, **`Yearly`**) using the exact same button styling (`btn btn-sm btn-brand` / `btn-outline-secondary`) and layout as the adjacent **Sales Growth Statistics** card.
+  - Defaults to **`Monthly`** aggregation, grouping 14+ months of activity into clean, evenly spaced monthly totals (`Aug '25`, `Sep '25`, etc.) rather than cramming 50+ jagged daily slivers into one view.
+- **De-Cluttered Horizontal X-Axis**:
+  - Locked tick label rotation to flat 0° (`maxRotation: 0`, `minRotation: 0`), completely eliminating slanted and overlapping text.
+  - Enabled `autoSkip: true` with `maxTicksLimit: 8` for clean, readable spacing across any screen size.
+- **Full Brand Green Palette Consistency (`#0D8D1E`)**:
+  - Standardized bar graphics in **Gross Sales Statistics** to Cleaneco primary brand green (`#0D8D1E`) with a rich hover state (`#0A6F17`).
+  - Updated the **Completed** doughnut segment and legend in **Order Status Overview** from mint/teal (`#20c997`) to primary brand green (`#0D8D1E`).
+  - Unified all progress bar fills in the **Most Availed Services** ranked leaderboard to primary brand green (`#0D8D1E`) across all ranks (#1 to #5+).
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
