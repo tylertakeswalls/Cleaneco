@@ -3,15 +3,16 @@
     padding: 20px;
     border-radius: 10px;
     border: 1px solid #eee;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
     max-width: 800px;
     margin: 0 auto;
 }
+
 /* arrows adjustment */
 .calendar-header {
     display: flex;
     align-items: center;
-    justify-content: space-between; 
+    justify-content: space-between;
     font-weight: bold;
     text-align: center;
     padding: 10px 20px;
@@ -101,10 +102,21 @@
 }
 
 /* Status colors */
-.status-pending { background: #ffb300; }
-.status-inprogress { background: #1976d2; }
-.status-completed { background: #2e7d32; }
-.status-cancelled { background: #d32f2f; }
+.status-pending {
+    background: #ffb300;
+}
+
+.status-inprogress {
+    background: #1976d2;
+}
+
+.status-completed {
+    background: #2e7d32;
+}
+
+.status-cancelled {
+    background: #d32f2f;
+}
 
 /* Highlight selected date */
 .calendar-cell.selected {
@@ -113,42 +125,107 @@
     font-weight: 700;
 }
 
-/* Popup */
-.calendar-popup {
-    position: absolute;
-    background: white;
-    border: 1px solid #ddd;
-    padding: 12px;
-    border-radius: 8px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-    z-index: 9999;
+/* Date Details Side Drawer (non-blocking: calendar stays visible and clickable) */
+.calendar-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(420px, 100vw);
+    background: #ffffff;
+    border-left: 1px solid #e2e8f0;
+    box-shadow: -12px 0 32px -8px rgba(15, 23, 42, 0.18);
+    display: flex;
+    flex-direction: column;
+    z-index: 1050;
+    animation: calendarDrawerSlideIn 0.3s ease forwards;
 }
 
-.calendar-close-btn {
-    background: #777;
-    color: white;
-    border: none;
-    padding: 7px 14px;
-    border-radius: 5px;
-    cursor: pointer;
+/* Reverse of the slide-in, played before the drawer is unmounted */
+.calendar-drawer.closing {
+    animation: calendarDrawerSlideOut 0.3s ease forwards;
+}
+
+.calendar-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 22px;
+    border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0;
+}
+
+.calendar-drawer-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #eef8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.calendar-drawer-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px 22px 24px;
+}
+
+.calendar-order-card {
+    transition: all 0.2s ease;
+    border-color: #e2e8f0 !important;
+}
+
+.calendar-order-card:hover {
+    background-color: #f0fdf4 !important;
+    border-color: #86efac !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Mirrors the Manage Orders drawer's slideInRight (orderdatabase.css): 0.3s ease, from fully off-screen right */
+@keyframes calendarDrawerSlideIn {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes calendarDrawerSlideOut {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(100%);
+    }
 }
 
 /* Responsive tweaks for admin calendar */
 @media (max-width: 768px) {
-    .calendar-container, .admin-calendar-container {
+
+    .calendar-container,
+    .admin-calendar-container {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         padding: 10px;
         width: 100%;
         display: block;
     }
-    .calendar-header, .calendar-grid {
+
+    .calendar-header,
+    .calendar-grid {
         min-width: 600px;
     }
+
     .calendar-day-header {
         font-size: 0.85rem;
         padding: 4px 0;
     }
+
     .calendar-cell {
         min-height: 60px;
     }

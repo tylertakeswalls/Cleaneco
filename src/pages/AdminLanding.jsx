@@ -498,7 +498,7 @@ function AdminLanding() {
                 <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Completed Orders</p>
                 <h3 className="fw-bold mb-3 text-dark">{dashboardData.completedOrders.toLocaleString()}</h3>
                 <div className="rounded-circle d-flex align-items-center justify-content-center bg-brand-soft icon-container-lg">
-                  <i className="fas fa-gem fs-5 text-brand"></i>
+                  <i className="fas fa-check fs-5 text-brand"></i>
                 </div>
               </div>
             </div>

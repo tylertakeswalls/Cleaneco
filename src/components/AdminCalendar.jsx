@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import "../assets/styles/adminCalendar.css";
 import { resolveOrderSchedule } from "../utils/helpers";
 import { formatName } from "../utils/formatName";
@@ -9,8 +11,11 @@ import { formatName } from "../utils/formatName";
 export default function AdminCalendar({ orders = [] }) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
-    const [popupVisible, setPopupVisible] = useState(false);
-    const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [isDrawerClosing, setIsDrawerClosing] = useState(false);
+    const drawerOpenedAt = useRef(0);
+
+    const navigate = useNavigate();
 
     // Convert orders into phase-aware date map (Execution Date when scheduled, Confirmed/Preferred Inspection Date otherwise)
     const ordersByDate = orders.reduce((acc, order) => {
@@ -41,25 +46,62 @@ export default function AdminCalendar({ orders = [] }) {
     for (let i = 0; i < startDay; i++) datesArray.push(null);
     for (let d = 1; d <= daysInMonth; d++) datesArray.push(d);
 
-    const handleDateClick = (day, e) => {
+    const handleDateClick = (day) => {
         if (!day) return;
         const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-        const formattedDate = formatDate(clickedDate);
-        setSelectedDate(formattedDate);
-
-        const rect = e.currentTarget.getBoundingClientRect();
-        setPopupPosition({
-            top: rect.bottom + window.scrollY + 8,
-            left: rect.left + window.scrollX + 8,
-        });
-        setPopupVisible(true);
+        setSelectedDate(formatDate(clickedDate));
+        setIsDrawerClosing(false); // cancels an in-progress slide-out if a date is clicked mid-close
+        if (!isDrawerOpen) {
+            drawerOpenedAt.current = Date.now();
+            setIsDrawerOpen(true);
+        }
     };
 
-    const handleClosePopup = () => setPopupVisible(false);
+    // Double-clicking a date cell closes the drawer (allows admin to dismiss without moving to the X button)
+    const handleDateDoubleClick = (day) => {
+        if (!day) return;
+        if (isDrawerOpen && !isDrawerClosing && Date.now() - drawerOpenedAt.current > 250) {
+            handleCloseDrawer();
+        }
+    };
+
+    // Start the slide-out; the drawer is unmounted once the animation finishes (see handleDrawerAnimationEnd)
+    const handleCloseDrawer = () => setIsDrawerClosing(true);
+
+    const handleDrawerAnimationEnd = (event) => {
+        if (event.target !== event.currentTarget) return; // ignore animations bubbling up from children
+        if (isDrawerClosing) {
+            setIsDrawerOpen(false);
+            setIsDrawerClosing(false);
+        }
+    };
+
+    // Dismiss on Escape, or on clicks outside both the drawer and the calendar
+    // (clicking another date keeps the drawer open and just swaps its contents)
+    useEffect(() => {
+        if (!isDrawerOpen) return;
+
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape") setIsDrawerClosing(true);
+        };
+        const handlePointerDown = (event) => {
+            if (!event.target.closest(".calendar-drawer, .admin-calendar-container")) {
+                setIsDrawerClosing(true);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        document.addEventListener("mousedown", handlePointerDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            document.removeEventListener("mousedown", handlePointerDown);
+        };
+    }, [isDrawerOpen]);
+
     const maxDate = new Date();
     maxDate.setMonth(maxDate.getMonth() + 1);
-    const canGoNext = currentDate.getFullYear() < maxDate.getFullYear() || 
-                      (currentDate.getFullYear() === maxDate.getFullYear() && currentDate.getMonth() < maxDate.getMonth());
+    const canGoNext = currentDate.getFullYear() < maxDate.getFullYear() ||
+        (currentDate.getFullYear() === maxDate.getFullYear() && currentDate.getMonth() < maxDate.getMonth());
 
     const goToPrevMonth = () =>
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -96,7 +138,9 @@ export default function AdminCalendar({ orders = [] }) {
                         <div
                             key={index}
                             className={`calendar-cell ${day ? "clickable" : ""} ${dateString === selectedDate ? "selected" : ""}`}
-                            onClick={(e) => handleDateClick(day, e)}
+                            onClick={() => handleDateClick(day)}
+                            onDoubleClick={() => handleDateDoubleClick(day)}
+                            title={day ? (dateString === selectedDate && isDrawerOpen ? "Double-click to close details" : "Click to view details") : ""}
                         >
                             <div className="day-number">{day}</div>
                             {dayOrders?.length > 0 && (
@@ -117,54 +161,101 @@ export default function AdminCalendar({ orders = [] }) {
                 })}
             </div>
 
-            {/* Date popup */}
-            {popupVisible && (
-                <div className="calendar-popup" style={{ top: popupPosition.top, left: popupPosition.left, minWidth: "260px", maxWidth: "340px" }}>
-                    <div className="popup-title fw-bold mb-2 pb-1 border-bottom d-flex justify-content-between align-items-center">
-                        <span>{selectedDate}</span>
-                        <span className="badge bg-secondary" style={{ fontSize: "0.7rem" }}>
-                            {selectedDayOrders.length} {selectedDayOrders.length === 1 ? "Order" : "Orders"}
-                        </span>
-                    </div>
-                    {selectedDayOrders.length === 0 ? (
-                        <div className="text-muted small mb-2">No scheduled orders on this date.</div>
-                    ) : (
-                        <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: "220px", overflowY: "auto" }}>
-                            {selectedDayOrders.map((o, idx) => (
-                                <div key={o.order_id || o.id || idx} className="p-2 rounded border bg-light" style={{ fontSize: "0.78rem" }}>
-                                    <div className="d-flex justify-content-between align-items-center gap-2 mb-1">
-                                        <span className="fw-bold text-dark text-truncate">{o.service_name || o.service_type || "Service"}</span>
-                                        <span
-                                            style={{
-                                                backgroundColor: o._schedule.badgeBg,
-                                                color: o._schedule.badgeColor,
-                                                border: `1px solid ${o._schedule.badgeBorder}`,
-                                                borderRadius: "999px",
-                                                padding: "1px 7px",
-                                                fontSize: "0.68rem",
-                                                fontWeight: 600,
-                                                whiteSpace: "nowrap"
-                                            }}
-                                        >
-                                            {o._schedule.label}
-                                        </span>
-                                    </div>
-                                    <div className="text-muted text-truncate">
-                                        {formatName(o)}{o.order_id ? ` • ${o.order_id}` : ""}
-                                    </div>
-                                    {(o._schedule.activeSlot || o.truck_team) && (
-                                        <div className="text-secondary mt-1">
-                                            {o._schedule.activeSlot && <>Slot: <strong>{o._schedule.activeSlot}</strong></>}
-                                            {o._schedule.activeSlot && o.truck_team ? " • " : ""}
-                                            {o.truck_team && <span>{o.truck_team}</span>}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+            {/* Date Details Side Drawer (portaled to <body> so it isn't trapped inside the animated .card) */}
+            {isDrawerOpen && selectedDate && createPortal(
+                <aside
+                    className={`calendar-drawer ${isDrawerClosing ? "closing" : ""}`}
+                    onAnimationEnd={handleDrawerAnimationEnd}
+                    role="dialog"
+                    aria-modal="false"
+                    aria-label="Scheduled orders for selected date"
+                >
+                    <div className="calendar-drawer-header">
+                        <div className="d-flex align-items-center gap-2">
+                            <div className="calendar-drawer-icon">
+                                <i className="far fa-calendar-alt text-brand"></i>
+                            </div>
+                            <div>
+                                <h6 className="mb-0 fw-bold text-dark">
+                                    {new Date(`${selectedDate}T00:00:00`).toLocaleDateString("en-US", {
+                                        weekday: "short",
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric"
+                                    })}
+                                </h6>
+                                <small className="text-muted">
+                                    {selectedDayOrders.length} {selectedDayOrders.length === 1 ? "Scheduled Service" : "Scheduled Services"}
+                                </small>
+                            </div>
                         </div>
-                    )}
-                    <button className="calendar-close-btn w-100" onClick={handleClosePopup}>Close</button>
-                </div>
+                        <button
+                            type="button"
+                            className="btn-close"
+                            onClick={handleCloseDrawer}
+                            aria-label="Close"
+                        />
+                    </div>
+
+                    <div className="calendar-drawer-body">
+                        {selectedDayOrders.length === 0 ? (
+                            <div className="text-center text-muted py-5">
+                                <i className="fas fa-calendar-check fs-2 text-secondary mb-2 opacity-50 d-block"></i>
+                                <p className="mb-0 fw-semibold">No orders scheduled on this date.</p>
+                            </div>
+                        ) : (
+                            <div className="d-flex flex-column gap-2">
+                                {selectedDayOrders.map((o, idx) => (
+                                    <div
+                                        key={o.order_id || o.id || idx}
+                                        className="p-3 rounded border bg-light calendar-order-card"
+                                        style={{ cursor: o.order_id ? "pointer" : "default" }}
+                                        onClick={() => {
+                                            if (o.order_id) {
+                                                navigate(`/admin/orders?orderId=${encodeURIComponent(o.order_id)}`);
+                                            }
+                                        }}
+                                        title={o.order_id ? `Click to view ${o.order_id} in Orders Database` : ""}
+                                    >
+                                        <div className="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                            <span className="fw-bold text-dark text-truncate">{o.service_name || o.service_type || "Service"}</span>
+                                            <span
+                                                style={{
+                                                    backgroundColor: o._schedule.badgeBg,
+                                                    color: o._schedule.badgeColor,
+                                                    border: `1px solid ${o._schedule.badgeBorder}`,
+                                                    borderRadius: "999px",
+                                                    padding: "2px 8px",
+                                                    fontSize: "0.72rem",
+                                                    fontWeight: 600,
+                                                    whiteSpace: "nowrap"
+                                                }}
+                                            >
+                                                {o._schedule.label}
+                                            </span>
+                                        </div>
+                                        <div className="text-muted small text-truncate">
+                                            {formatName(o)}{o.order_id ? ` • ${o.order_id}` : ""}
+                                        </div>
+                                        {(o._schedule.activeSlot || o.truck_team) && (
+                                            <div className="text-secondary small mt-1">
+                                                {o._schedule.activeSlot && <>Slot: <strong>{o._schedule.activeSlot}</strong></>}
+                                                {o._schedule.activeSlot && o.truck_team ? " • " : ""}
+                                                {o.truck_team && <span>{o.truck_team}</span>}
+                                            </div>
+                                        )}
+                                        {o.order_id && (
+                                            <div className="text-success small mt-2 text-end fw-semibold">
+                                                Manage Order <i className="fas fa-chevron-right ms-1" style={{ fontSize: "0.65rem" }}></i>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </aside>,
+                document.body
             )}
         </div>
     );

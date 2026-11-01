@@ -24,6 +24,7 @@ function OrderDatabase() {
   const [loading, setLoading] = useState(true);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [editModal, setEditModal] = useState({ show: false, order: null });
+  const [isEditDrawerClosing, setIsEditDrawerClosing] = useState(false);
   const [editForm, setEditForm] = useState({ 
     status: '', price: '', request_type: '', approval_fee: '',
     confirmed_date: '', confirmed_time_slot: '', truck_team: '',
@@ -169,6 +170,7 @@ function OrderDatabase() {
       .filter(Boolean);
 
     setEditModal({ show: true, order: { ...order, service_ids: normalizedServiceIds } });
+    setIsEditDrawerClosing(false); // cancels an in-progress slide-out if reopened mid-close
     setEditForm({
       status: order.status || '',
       price: order.price || '',
@@ -209,8 +211,17 @@ function OrderDatabase() {
     setActiveTab('details');
   };
 
+  // Start the slide-out; the drawer is unmounted once the animation finishes (see handleEditDrawerAnimationEnd)
   const closeEditModal = () => {
-    setEditModal({ show: false, order: null });
+    setIsEditDrawerClosing(true);
+  };
+
+  const handleEditDrawerAnimationEnd = (e) => {
+    if (e.target !== e.currentTarget) return; // ignore animations bubbling up from children
+    if (isEditDrawerClosing) {
+      setEditModal({ show: false, order: null });
+      setIsEditDrawerClosing(false);
+    }
   };
 
   const handleEditChange = (e) => {
@@ -823,8 +834,8 @@ function OrderDatabase() {
         </div>
         
         {editModal.show && createPortal(
-        <div className="side-drawer-overlay" onClick={closeEditModal}>
-          <div className="side-drawer" onClick={e => e.stopPropagation()}>
+        <div className={`side-drawer-overlay ${isEditDrawerClosing ? 'closing' : ''}`} onClick={closeEditModal}>
+          <div className={`side-drawer ${isEditDrawerClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()} onAnimationEnd={handleEditDrawerAnimationEnd}>
             <div className="side-drawer-header">
               <h5 className="mb-0 text-dark fw-bold"><i className="fas fa-edit me-2" style={{color: '#0D8D1E'}}></i>Manage Order</h5>
               <button type="button" className="btn-close" onClick={closeEditModal}></button>

@@ -367,6 +367,20 @@ This document summarizes the recent features and structural updates implemented 
   - Updated the **Completed** doughnut segment and legend in **Order Status Overview** from mint/teal (`#20c997`) to primary brand green (`#0D8D1E`).
   - Unified all progress bar fills in the **Most Availed Services** ranked leaderboard to primary brand green (`#0D8D1E`) across all ranks (#1 to #5+).
 
+## 45. Admin Calendar Side Drawer, Double-Click Dismissal & Unified Drawer Motion Physics
+- **Portaled Full-Height Calendar Side Drawer (`AdminCalendar.jsx` & `adminCalendar.css`)**:
+  - Replaced legacy popup/modal mechanics with a modern, full-height side drawer rendered at the root level via `createPortal(..., document.body)`.
+  - Permanently resolves viewport fold cut-offs, coordinate calculations, and CSS transform-trapping inside animated dashboard `.card` containers.
+  - Renders human-readable timestamps (e.g. `Mon, Nov 9, 2026 • 3 Scheduled Services`) alongside detailed scheduled order cards, service phase badges, time slots, truck teams, and direct navigation links to `/admin/orders?orderId=...`.
+- **Double-Click Date Dismissal & Non-Blocking Browsing**:
+  - Enables rapid day-to-day browsing without requiring admins to reach for the ✕ close button: single-clicking any date opens or switches the drawer's content seamlessly, while double-clicking the date cell smoothly slides the drawer closed.
+  - Includes a 250ms debounce guard to prevent accidental immediate dismissals on initial opening, with standard dismissals via `Escape`, click-outside, and header ✕ button retained.
+- **Synchronized 0.3s Slide-In & Slide-Out Motion Physics (`OrderDatabase.jsx` & `orderdatabase.css`)**:
+  - Unified motion physics across both administrative drawers: the **Calendar Schedule Drawer** and the **Manage Orders Side Drawer** in `OrderDatabase.jsx`.
+  - Added smooth reverse slide-out keyframes (`calendarDrawerSlideOut` and `sideDrawerSlideOutRight` / `sideDrawerFadeOut`) over `0.3s ease`, eliminating abrupt unmounting upon cancellation, backdrop click, or saving.
+- **Completed Orders KPI Icon Modernization (`AdminLanding.jsx`)**:
+  - Replaced the diamond icon (`fas fa-gem`) with a clean checkmark (`fas fa-check`) inside the soft-green circular badge beneath the **Completed Orders** counter, reinforcing clarity and contextual relevance.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
