@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import '../assets/styles/thankyou.css';
-import carousel2 from '../assets/styles/images/carousel2.png'
+import carousel2 from '../assets/styles/images/carousel2.webp';
 import { useRef } from 'react';
 
 function ThankYou() {

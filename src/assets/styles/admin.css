@@ -227,23 +227,41 @@
 
 /* Quick actions buttons */
 .btn-primary {
-    background: linear-gradient(135deg, #007bff, #0056b3);
+    background: #007bff;
+    background-image: none !important;
     border: none;
+}
+.btn-primary:hover {
+    background: #0056b3;
 }
 
 .btn-success {
-    background: linear-gradient(135deg, #0D8D1E, #0A6F17);
-       border: none;
+    background: #0D8D1E;
+    background-image: none !important;
+    border: none;
+}
+.btn-success:hover {
+    background: #0A6F17;
 }
 
 .btn-warning {
-    background: linear-gradient(135deg, #ffc107, #e0a800);
+    background: #ffc107;
+    background-image: none !important;
     border: none;
+    color: #212529;
+}
+.btn-warning:hover {
+    background: #e0a800;
+    color: #212529;
 }
 
 .btn-secondary {
-    background: linear-gradient(135deg, #6c757d, #545b62);
+    background: #6c757d;
+    background-image: none !important;
     border: none;
+}
+.btn-secondary:hover {
+    background: #545b62;
 }
 
 .btn-primary-solid {
@@ -432,8 +450,13 @@
 }
 
 .btn-delete {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  background: #dc3545;
+  background-image: none !important;
   color: #fff;
+  border: none;
+}
+.btn-delete:hover:not(:disabled) {
+  background: #c82333;
 }
 
 .btn-delete:disabled {
@@ -442,13 +465,23 @@
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  background: #0D8D1E;
+  background-image: none !important;
   color: #fff;
+  border: none;
+}
+.btn-save:hover {
+  background: #0A6F17;
 }
 
 .btn-cancel {
-  background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+  background: #6c757d;
+  background-image: none !important;
   color: #fff;
+  border: none;
+}
+.btn-cancel:hover {
+  background: #545b62;
 }
 
 /* Role icons */
@@ -583,6 +616,32 @@
     min-width: 90px;
     display: inline-block;
     text-align: center;
+}
+
+/* Sleek internal scrollbar for Recent Orders */
+.recent-orders-list {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 4px;
+}
+
+.recent-orders-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.recent-orders-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.recent-orders-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.recent-orders-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /* Impeccable Design Tokens */

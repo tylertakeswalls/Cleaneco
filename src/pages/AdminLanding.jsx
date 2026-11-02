@@ -5,6 +5,7 @@ import api from '../api/api';
 import '../assets/styles/admin.css';
 import AdminCalendar from '../components/AdminCalendar';
 import { formatName } from '../utils/formatName';
+import { formatOrderReference } from '../utils/helpers';
 import { groupOrdersByOrderId, calculateOrderCollectedRevenue } from '../utils/pricing';
 
 const getOrderTimestamp = (order) => {
@@ -107,7 +108,7 @@ function AdminLanding() {
               statusCounts['Completed'] || 0,
               statusCounts['Cancelled'] || 0
             ],
-            backgroundColor: ['#ffc107', '#0dcaf0', '#0D8D1E', '#dc3545'],
+            backgroundColor: ['#ffb300', '#2563eb', '#2e7d32', '#d32f2f'],
             borderWidth: 0,
             hoverOffset: 4
           }]
@@ -441,6 +442,58 @@ function AdminLanding() {
       .slice(0, 5);
   }, [groupedOrders]);
 
+  // Operational triage items needing admin action
+  const attentionItems = useMemo(() => {
+    const items = [];
+    groupedOrders.forEach(order => {
+      // 1. Cheque payments pending verification
+      if (order.payment_method === 'cheque' && order.cheque_status === 'pending_verification') {
+        items.push({
+          id: order.id,
+          order_id: order.order_id,
+          type: 'cheque',
+          badgeText: 'Cheque Verification',
+          badgeClass: 'bg-warning text-dark',
+          icon: 'fas fa-money-check-alt text-warning',
+          client: formatName(order.first_name, order.middle_name, order.last_name) || order.user_email || 'Client',
+          details: `₱${(order.cheque_amount || 1100).toLocaleString()} cheque waiting for verification`
+        });
+      }
+
+      // 2. Reschedule requests
+      if (order.request_type === 'Reschedule Requested' || (order.reschedule_date && !order.reschedule_resolved)) {
+        items.push({
+          id: order.id,
+          order_id: order.order_id,
+          type: 'reschedule',
+          badgeText: 'Reschedule Request',
+          badgeClass: 'text-white',
+          badgeStyle: { backgroundColor: '#2563eb' },
+          icon: 'fas fa-calendar-alt',
+          iconStyle: { color: '#2563eb' },
+          client: formatName(order.first_name, order.middle_name, order.last_name) || order.user_email || 'Client',
+          details: 'Client requested a schedule change'
+        });
+      }
+
+      // 3. Clarification requests on quotations
+      if (order.quotation_status === 'Clarification Requested') {
+        items.push({
+          id: order.id,
+          order_id: order.order_id,
+          type: 'clarification',
+          badgeText: 'Clarification Needed',
+          badgeClass: 'bg-danger text-white',
+          icon: 'fas fa-question-circle text-danger',
+          client: formatName(order.first_name, order.middle_name, order.last_name) || order.user_email || 'Client',
+          details: 'Client requested clarification on quotation'
+        });
+      }
+    });
+
+    return items;
+  }, [groupedOrders]);
+
   return (
     <>
       {/* PAGE CONTENT */}
@@ -455,15 +508,30 @@ function AdminLanding() {
             Dashboard
           </h4>
           <div className="d-flex flex-wrap align-items-center gap-2">
-            <span className="text-muted fw-bold me-2" style={{ fontSize: '0.85rem' }}>Reports:</span>
-            <button className="btn btn-brand btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('monthly')}>
-              <i className="fas fa-file-pdf me-1"></i>Monthly
+            <span className="text-muted fw-bold me-1 small"><i className="fas fa-download me-1 text-success"></i>Export:</span>
+            <button 
+              className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
+              onClick={() => handleGenerateReport('monthly')}
+              title="Download Monthly Performance Report PDF"
+              aria-label="Download Monthly Performance Report PDF"
+            >
+              <i className="fas fa-file-pdf me-1 text-white"></i>Monthly Report
             </button>
-            <button className="btn btn-brand btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('quarterly')}>
-              <i className="fas fa-file-pdf me-1"></i>Quarterly
+            <button 
+              className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
+              onClick={() => handleGenerateReport('quarterly')}
+              title="Download Quarterly Performance Report PDF"
+              aria-label="Download Quarterly Performance Report PDF"
+            >
+              <i className="fas fa-file-pdf me-1 text-white"></i>Quarterly Report
             </button>
-            <button className="btn btn-brand btn-sm shadow-sm px-3" onClick={() => handleGenerateReport('yearly')}>
-              <i className="fas fa-file-pdf me-1"></i>Yearly
+            <button 
+              className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
+              onClick={() => handleGenerateReport('yearly')}
+              title="Download Yearly Performance Report PDF"
+              aria-label="Download Yearly Performance Report PDF"
+            >
+              <i className="fas fa-file-pdf me-1 text-white"></i>Yearly Report
             </button>
           </div>
         </div>
@@ -505,6 +573,62 @@ function AdminLanding() {
           </div>
         </div>
 
+        {/* NEEDS ATTENTION TRIAGE PANEL */}
+        <div className="card border-0 shadow-sm rounded-xl mb-4 overflow-hidden">
+          <div className="card-header bg-white border-0 p-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <h5 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2" style={{ fontSize: '1.1rem' }}>
+                <i className="fas fa-bell text-warning"></i>
+                Needs Attention Today
+                {attentionItems.length > 0 && (
+                  <span className="badge rounded-pill bg-danger ms-2" style={{ fontSize: '0.75rem' }}>
+                    {attentionItems.length}
+                  </span>
+                )}
+              </h5>
+              <p className="text-muted small mb-0">Pending cheques, quotation clarifications, and schedule change requests</p>
+            </div>
+            <Link to="/admin/orders" className="btn btn-brand btn-sm rounded-pill px-3 fw-semibold text-white">
+              View All Orders <i className="fas fa-arrow-right ms-1"></i>
+            </Link>
+          </div>
+          <div className="card-body p-4">
+            {attentionItems.length === 0 ? (
+              <div className="text-center py-3 text-muted">
+                <i className="fas fa-check-circle text-success fs-3 mb-2 d-block"></i>
+                <span className="fw-medium">All caught up! No cheques, clarifications, or reschedule requests pending triage.</span>
+              </div>
+            ) : (
+              <div className="row g-3">
+                {attentionItems.slice(0, 6).map((item, idx) => (
+                  <div key={item.id || idx} className="col-md-6 col-lg-4">
+                    <div className="p-3 rounded border bg-light h-100 d-flex flex-column justify-content-between">
+                      <div>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <span className={`badge rounded-pill ${item.badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem', ...(item.badgeStyle || {}) }}>
+                            {item.badgeText}
+                          </span>
+                          <span className="badge bg-white text-dark border px-2 py-1 fw-bold text-nowrap">#{formatOrderReference(item.order_id)}</span>
+                        </div>
+                        <div className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                          <i className={item.icon} style={item.iconStyle || {}}></i>
+                          <span className="text-truncate">{item.client}</span>
+                        </div>
+                        <p className="small text-secondary mb-0">{item.details}</p>
+                      </div>
+                      <div className="mt-3 pt-2 border-top text-end">
+                        <Link to={`/admin/orders?orderId=${encodeURIComponent(item.order_id)}`} className="btn btn-sm btn-brand rounded-pill px-3 py-1 text-white">
+                          Manage <i className="fas fa-chevron-right ms-1" style={{ fontSize: '0.7rem' }}></i>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* MAIN CHARTS GRID */}
         <div className="row g-4">
           {/* Daily Gross Sales Chart (Large Left) */}
@@ -515,19 +639,19 @@ function AdminLanding() {
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Gross Sales Statistics</h5>
                   <div className="d-flex gap-2">
                     <button 
-                      className={`btn btn-sm ${salesPeriod === 'daily' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${salesPeriod === 'daily' ? 'btn-brand' : 'btn-solid-light'}`} 
                       onClick={() => setSalesPeriod('daily')}
                     >Daily</button>
                     <button 
-                      className={`btn btn-sm ${salesPeriod === 'monthly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${salesPeriod === 'monthly' ? 'btn-brand' : 'btn-solid-light'}`} 
                       onClick={() => setSalesPeriod('monthly')}
                     >Monthly</button>
                     <button 
-                      className={`btn btn-sm ${salesPeriod === 'quarterly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${salesPeriod === 'quarterly' ? 'btn-brand' : 'btn-solid-light'}`} 
                       onClick={() => setSalesPeriod('quarterly')}
                     >Quarterly</button>
                     <button 
-                      className={`btn btn-sm ${salesPeriod === 'yearly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${salesPeriod === 'yearly' ? 'btn-brand' : 'btn-solid-light'}`} 
                       onClick={() => setSalesPeriod('yearly')}
                     >Yearly</button>
                   </div>
@@ -678,24 +802,25 @@ function AdminLanding() {
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Sales Growth Statistics</h5>
                   <div className="d-flex gap-2">
                     <button 
-                      className={`btn btn-sm ${growthPeriod === 'monthly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${growthPeriod === 'monthly' ? 'btn-brand' : 'btn-solid-light'}`} 
                       onClick={() => setGrowthPeriod('monthly')}
                     >Monthly</button>
                     <button 
-                      className={`btn btn-sm ${growthPeriod === 'quarterly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${growthPeriod === 'quarterly' ? 'btn-brand' : 'btn-solid-light'}`} 
                       onClick={() => setGrowthPeriod('quarterly')}
                     >Quarterly</button>
                     <button 
-                      className={`btn btn-sm ${growthPeriod === 'yearly' ? 'btn-brand' : 'btn-outline-secondary'}`} 
+                      className={`btn btn-sm ${growthPeriod === 'yearly' ? 'btn-brand' : 'btn-solid-light'}`} 
                       onClick={() => setGrowthPeriod('yearly')}
                     >Yearly</button>
                   </div>
                 </div>
                 <div style={{ height: '300px' }} className="d-flex justify-content-center align-items-center">
-                  {allOrders.length === 0 ? (
-                    <div className="text-center text-muted">
-                      <i className="fas fa-chart-line fs-1 mb-3 text-light"></i>
-                      <p className="mb-0">Not enough data to calculate growth.</p>
+                  {groupedOrders.length < 2 ? (
+                    <div className="text-center text-muted p-4">
+                      <i className="fas fa-chart-line fs-1 mb-3 text-secondary opacity-50 d-block"></i>
+                      <p className="fw-semibold text-dark mb-1">Not enough historical data to calculate sales growth</p>
+                      <small className="text-muted">Growth trends will automatically appear once orders span across 2 or more comparison periods ({growthPeriod}).</small>
                     </div>
                   ) : (
                     <canvas ref={growthChartRef} role="img" aria-label="Line chart showing sales growth"></canvas>
@@ -718,13 +843,16 @@ function AdminLanding() {
           </div>
 
           <div className="col-lg-4">
-            <div className="card border-0 shadow-sm h-100 rounded-xl">
-              <div className="card-body p-4 d-flex flex-column">
-                <div className="d-flex justify-content-between align-items-center mb-4">
+            <div className="card border-0 shadow-sm h-100 rounded-xl overflow-hidden">
+              <div className="card-body p-3 p-sm-4 d-flex flex-column">
+                <div className="d-flex justify-content-between align-items-center mb-3 mb-sm-4">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Recent Orders</h5>
                   <Link to="/admin/orders" className="text-brand text-decoration-none small fw-bold">View All</Link>
                 </div>
-                <div className="flex-grow-1 d-flex flex-column gap-3 overflow-auto" style={{ maxHeight: '400px' }}>
+                <div 
+                  className="flex-grow-1 d-flex flex-column gap-2 gap-sm-3 recent-orders-list" 
+                  style={{ maxHeight: '400px' }}
+                >
                   {recentOrders.length === 0 ? (
                     <div className="text-center text-muted my-auto py-5">
                       <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height:'60px'}}>
@@ -737,11 +865,13 @@ function AdminLanding() {
                     recentOrders.map((order, idx) => (
                       <div
                         key={order.order_id || order.id || idx}
-                        className="d-flex align-items-center p-3 rounded"
+                        className="d-flex align-items-center p-2 p-sm-3 rounded"
                         style={{
                           backgroundColor: '#f8f9fa',
                           border: '1px solid rgba(0,0,0,0.05)',
-                          cursor: order.order_id ? 'pointer' : 'default'
+                          cursor: order.order_id ? 'pointer' : 'default',
+                          width: '100%',
+                          minWidth: 0
                         }}
                         onClick={() => {
                           if (order.order_id) {
@@ -749,20 +879,30 @@ function AdminLanding() {
                           }
                         }}
                       >
-                        <div className="rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0 bg-brand-soft icon-container-md text-brand">
+                        <div className="rounded-circle d-flex align-items-center justify-content-center me-2 me-sm-3 flex-shrink-0 bg-brand-soft icon-container-md text-brand">
                           <i className="fas fa-shopping-bag"></i>
                         </div>
-                        <div className="flex-grow-1 min-w-0">
-                          <h6 className="mb-1 fw-bold text-truncate" style={{ fontSize: '0.9rem' }}>{order.service_name || order.service_type || 'Service'}</h6>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <small className="text-muted text-truncate me-2">{formatName(order)}</small>
-                            <span className="badge flex-shrink-0" style={{
-                              backgroundColor: order.status === 'Completed' ? '#198754' :
-                                order.status === 'Pending' ? '#ffc107' :
-                                  order.status === 'Cancelled' ? '#dc3545' : '#0dcaf0',
-                              color: order.status === 'Pending' ? '#000' : '#fff',
-                              fontSize: '0.7rem'
-                            }}>{order.status}</span>
+                        <div className="flex-grow-1 overflow-hidden" style={{ minWidth: 0 }}>
+                          <h6 className="mb-1 fw-bold text-truncate" style={{ fontSize: '0.88rem' }}>
+                            {order.service_name || order.service_type || 'Service'}
+                          </h6>
+                          <div className="d-flex justify-content-between align-items-center gap-2">
+                            <small className="text-muted text-truncate" style={{ minWidth: 0, flex: '1 1 auto' }}>
+                              {formatName(order)}
+                            </small>
+                            <span 
+                              className="badge flex-shrink-0" 
+                              style={{
+                                backgroundColor: order.status === 'Completed' ? '#2e7d32' :
+                                  order.status === 'Pending' ? '#ffb300' :
+                                    order.status === 'Cancelled' ? '#d32f2f' : '#2563eb',
+                                color: '#ffffff',
+                                fontSize: '0.68rem',
+                                padding: '4px 8px'
+                              }}
+                            >
+                              {order.status}
+                            </span>
                           </div>
                         </div>
                       </div>

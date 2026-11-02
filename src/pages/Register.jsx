@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/auth.css';
 import logocontainer from '../assets/styles/images/logo_container.png';
+import { PSGC_PROVINCES } from '../data/psgcData';
+import { formatPhoneNumber } from '../utils/helpers';
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -29,7 +31,92 @@ function Register() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const navigate = useNavigate();
+
+  // Field-level validator for onBlur and onChange
+  const validateField = (name, value, allData = formData) => {
+    const val = (value || '').trim();
+    const nameRegex = /^[a-zA-ZÀ-ſ\s.\-']+$/;
+
+    switch (name) {
+      case 'firstName':
+        if (!val) return 'First name is required.';
+        if (!nameRegex.test(val)) return 'First name contains invalid characters.';
+        return '';
+      case 'middleName':
+        if (val && !nameRegex.test(val)) return 'Middle name contains invalid characters.';
+        return '';
+      case 'lastName':
+        if (!val) return 'Last name is required.';
+        if (!nameRegex.test(val)) return 'Last name contains invalid characters.';
+        return '';
+      case 'gender':
+        if (!value) return 'Please select your gender.';
+        return '';
+      case 'dateOfBirth': {
+        if (!value) return 'Date of birth is required.';
+        const dobDate = new Date(value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (dobDate > today) return 'Date of birth cannot be in the future.';
+        let age = today.getFullYear() - dobDate.getFullYear();
+        const m = today.getMonth() - dobDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) age--;
+        if (age < 18) return 'You must be at least 18 years old to register.';
+        return '';
+      }
+      case 'email':
+        if (!val) return 'Email address is required.';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return 'Please enter a valid email address.';
+        return '';
+      case 'phone': {
+        if (!val) return 'Phone number is required.';
+        const phoneRegex = /^\(\+63\) \d{3}-\d{3}-\d{4}$/;
+        if (!phoneRegex.test(val)) return 'Format must be (+63) xxx-xxx-xxxx.';
+        return '';
+      }
+      case 'addressLine1':
+        if (!val) return 'Street address / house number is required.';
+        return '';
+      case 'barangay':
+        if (!val) return 'Barangay is required.';
+        return '';
+      case 'city':
+        if (!val) return 'City or municipality is required.';
+        return '';
+      case 'province':
+        if (!val) return 'Province is required.';
+        return '';
+      case 'username':
+        if (!val) return 'Username is required.';
+        if (val.length < 3) return 'Username must be at least 3 characters.';
+        return '';
+      case 'password':
+        if (!value) return 'Password is required.';
+        if (value.length < 6) return 'Password must be at least 6 characters.';
+        return '';
+      case 'confirmPassword':
+        if (!value) return 'Please confirm your password.';
+        if (value !== allData.password) return 'Passwords do not match.';
+        return '';
+      case 'companyName':
+        if ((allData.clientType === 'commercial' || allData.clientType === 'industrial') && !val) {
+          return 'Company name is required for business accounts.';
+        }
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    const errorMsg = validateField(name, value, formData);
+    setErrors(prev => ({ ...prev, [name]: errorMsg }));
+  };
 
   // Terms of Service state
   const [isTosModalOpen, setIsTosModalOpen] = useState(false);
@@ -38,28 +125,37 @@ function Register() {
   const handleChange = (e) => {
     let { name, value } = e.target;
 
-    if (name === 'phone') {
-      let digits = value.replace(/\D/g, '');
-      if (digits.startsWith('63')) digits = digits.substring(2);
-      else if (digits.startsWith('0')) digits = digits.substring(1);
-
-      if (digits.length > 0) {
-        if (digits.length <= 3) {
-          value = `(+63) ${digits}`;
-        } else if (digits.length <= 6) {
-          value = `(+63) ${digits.slice(0, 3)}-${digits.slice(3)}`;
-        } else {
-          value = `(+63) ${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-        }
-      } else {
-        value = '';
+    if (name === 'province') {
+      const updated = {
+        ...formData,
+        province: value,
+        city: ''
+      };
+      setFormData(updated);
+      if (touched.province) {
+        setErrors(prev => ({
+          ...prev,
+          province: validateField('province', value, updated),
+          city: ''
+        }));
       }
+      return;
     }
 
-    setFormData({
+    if (name === 'phone') {
+      value = formatPhoneNumber(value);
+    }
+
+    const updated = {
       ...formData,
       [name]: value
-    });
+    };
+    setFormData(updated);
+
+    if (touched[name]) {
+      const errorMsg = validateField(name, value, updated);
+      setErrors(prev => ({ ...prev, [name]: errorMsg }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -67,60 +163,30 @@ function Register() {
     setLoading(true);
     setMessage('');
 
-    // Validations: Name must be string only
-    const nameRegex = /^[a-zA-Z\s]+$/;
-    if (!nameRegex.test(formData.firstName)) {
-      setMessage("First name must contain letters and spaces only.");
-      setLoading(false);
-      return;
-    }
-    if (!nameRegex.test(formData.lastName)) {
-      setMessage("Last name must contain letters and spaces only.");
-      setLoading(false);
-      return;
+    // Trigger full validation for all fields
+    const fieldsToValidate = [
+      'firstName', 'middleName', 'lastName', 'gender', 'dateOfBirth',
+      'email', 'phone', 'addressLine1', 'barangay', 'city', 'province',
+      'username', 'password', 'confirmPassword'
+    ];
+    if (formData.clientType === 'commercial' || formData.clientType === 'industrial') {
+      fieldsToValidate.push('companyName');
     }
 
-    // Validations: Phone number must match (+63) xxx-xxx-xxxx
-    const phoneRegex = /^\(\+63\) \d{3}-\d{3}-\d{4}$/;
-    if (!phoneRegex.test(formData.phone)) {
-      setMessage("Phone number must be in the format (+63) xxx-xxx-xxxx.");
-      setLoading(false);
-      return;
-    }
+    const newErrors = {};
+    const newTouched = {};
+    fieldsToValidate.forEach(field => {
+      newTouched[field] = true;
+      const err = validateField(field, formData[field], formData);
+      if (err) newErrors[field] = err;
+    });
 
-    // Validations: Birthday cannot be in the future
-    if (formData.dateOfBirth) {
-      const dobDate = new Date(formData.dateOfBirth);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // reset time
+    setTouched(newTouched);
+    setErrors(newErrors);
 
-      let age = today.getFullYear() - dobDate.getFullYear();
-      const m = today.getMonth() - dobDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
-        age--;
-      }
-
-      if (dobDate > today) {
-        setMessage("Date of birth cannot be in the future.");
-        setLoading(false);
-        return;
-      }
-
-      if (age < 18) {
-        setMessage("You must be at least 18 years old to register.");
-        setLoading(false);
-        return;
-      }
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setMessage("Passwords do not match.");
-      setLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setMessage("Password must be at least 6 characters long.");
+    const firstError = Object.values(newErrors).find(msg => Boolean(msg));
+    if (firstError) {
+      setMessage(firstError);
       setLoading(false);
       return;
     }
@@ -135,7 +201,7 @@ function Register() {
       // Concatenate address categories
       const fullAddress = `${formData.addressLine1}${formData.addressLine2 ? ', ' + formData.addressLine2 : ''}, Barangay ${formData.barangay}, ${formData.city}, ${formData.province}`;
 
-      // Create payload with combined address
+      // Create payload with combined address and explicit gender
       const payload = {
         username: formData.username,
         firstName: formData.firstName,
@@ -144,6 +210,12 @@ function Register() {
         email: formData.email,
         phone: formData.phone,
         address: fullAddress,
+        addressLine1: formData.addressLine1,
+        addressLine2: formData.addressLine2,
+        province: formData.province,
+        city: formData.city,
+        barangay: formData.barangay,
+        gender: formData.gender,
         dateOfBirth: formData.dateOfBirth,
         password: formData.password,
         clientType: formData.clientType,
@@ -185,50 +257,56 @@ function Register() {
         </h5>
         <div className="row mb-3">
           <div className="col-md-12">
-            <div className="d-flex gap-3 justify-content-between">
-              <div
-                className="card flex-grow-1 p-3 text-center border-2 shadow-sm"
-                style={{
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderColor: formData.clientType === 'residential' ? '#0D8D1E' : '#e2e8f0',
-                  backgroundColor: formData.clientType === 'residential' ? '#f0fdf4' : '#fff',
-                  transform: formData.clientType === 'residential' ? 'translateY(-2px)' : 'none'
-                }}
-                onClick={() => setFormData({ ...formData, clientType: 'residential' })}
-              >
-                <i className="fas fa-home mb-2 fs-3" style={{ color: formData.clientType === 'residential' ? '#0D8D1E' : '#94a3b8' }}></i>
-                <div className="fw-bold" style={{ color: formData.clientType === 'residential' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Residential</div>
+            <div className="row g-2">
+              <div className="col-12 col-sm-4">
+                <div
+                  className="card h-100 p-3 text-center border-2 shadow-sm"
+                  style={{
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    borderColor: formData.clientType === 'residential' ? '#0D8D1E' : '#e2e8f0',
+                    backgroundColor: formData.clientType === 'residential' ? '#f0fdf4' : '#fff',
+                    transform: formData.clientType === 'residential' ? 'translateY(-2px)' : 'none'
+                  }}
+                  onClick={() => setFormData({ ...formData, clientType: 'residential' })}
+                >
+                  <i className="fas fa-home mb-2 fs-3" style={{ color: formData.clientType === 'residential' ? '#0D8D1E' : '#94a3b8' }}></i>
+                  <div className="fw-bold text-nowrap" style={{ color: formData.clientType === 'residential' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Residential</div>
+                </div>
               </div>
 
-              <div
-                className="card flex-grow-1 p-3 text-center border-2 shadow-sm"
-                style={{
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderColor: formData.clientType === 'commercial' ? '#0D8D1E' : '#e2e8f0',
-                  backgroundColor: formData.clientType === 'commercial' ? '#f0fdf4' : '#fff',
-                  transform: formData.clientType === 'commercial' ? 'translateY(-2px)' : 'none'
-                }}
-                onClick={() => setFormData({ ...formData, clientType: 'commercial' })}
-              >
-                <i className="fas fa-building mb-2 fs-3" style={{ color: formData.clientType === 'commercial' ? '#0D8D1E' : '#94a3b8' }}></i>
-                <div className="fw-bold" style={{ color: formData.clientType === 'commercial' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Commercial</div>
+              <div className="col-12 col-sm-4">
+                <div
+                  className="card h-100 p-3 text-center border-2 shadow-sm"
+                  style={{
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    borderColor: formData.clientType === 'commercial' ? '#0D8D1E' : '#e2e8f0',
+                    backgroundColor: formData.clientType === 'commercial' ? '#f0fdf4' : '#fff',
+                    transform: formData.clientType === 'commercial' ? 'translateY(-2px)' : 'none'
+                  }}
+                  onClick={() => setFormData({ ...formData, clientType: 'commercial' })}
+                >
+                  <i className="fas fa-building mb-2 fs-3" style={{ color: formData.clientType === 'commercial' ? '#0D8D1E' : '#94a3b8' }}></i>
+                  <div className="fw-bold text-nowrap" style={{ color: formData.clientType === 'commercial' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Commercial</div>
+                </div>
               </div>
 
-              <div
-                className="card flex-grow-1 p-3 text-center border-2 shadow-sm"
-                style={{
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderColor: formData.clientType === 'industrial' ? '#0D8D1E' : '#e2e8f0',
-                  backgroundColor: formData.clientType === 'industrial' ? '#f0fdf4' : '#fff',
-                  transform: formData.clientType === 'industrial' ? 'translateY(-2px)' : 'none'
-                }}
-                onClick={() => setFormData({ ...formData, clientType: 'industrial' })}
-              >
-                <i className="fas fa-industry mb-2 fs-3" style={{ color: formData.clientType === 'industrial' ? '#0D8D1E' : '#94a3b8' }}></i>
-                <div className="fw-bold" style={{ color: formData.clientType === 'industrial' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Industrial</div>
+              <div className="col-12 col-sm-4">
+                <div
+                  className="card h-100 p-3 text-center border-2 shadow-sm"
+                  style={{
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    borderColor: formData.clientType === 'industrial' ? '#0D8D1E' : '#e2e8f0',
+                    backgroundColor: formData.clientType === 'industrial' ? '#f0fdf4' : '#fff',
+                    transform: formData.clientType === 'industrial' ? 'translateY(-2px)' : 'none'
+                  }}
+                  onClick={() => setFormData({ ...formData, clientType: 'industrial' })}
+                >
+                  <i className="fas fa-industry mb-2 fs-3" style={{ color: formData.clientType === 'industrial' ? '#0D8D1E' : '#94a3b8' }}></i>
+                  <div className="fw-bold text-nowrap" style={{ color: formData.clientType === 'industrial' ? '#0D8D1E' : '#64748b', fontSize: '0.9rem' }}>Industrial</div>
+                </div>
               </div>
             </div>
           </div>
@@ -237,16 +315,26 @@ function Register() {
         {(formData.clientType === 'commercial' || formData.clientType === 'industrial') && (
           <div className="row mb-3">
             <div className="col-md-12">
-              <div className="form-group">
+              <div className="form-group text-start">
+                <label htmlFor="reg-companyName" className="form-label fw-semibold small text-dark mb-1">
+                  Company / Establishment Name <span className="text-danger">*</span>
+                </label>
                 <input
+                  id="reg-companyName"
                   type="text"
                   name="companyName"
-                  className="form-control"
-                  placeholder="Company Name"
+                  className={`form-control ${touched.companyName && errors.companyName ? 'is-invalid border-danger' : ''}`}
+                  placeholder="e.g. Cleaneco Commercial Hub Inc."
                   value={formData.companyName}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                 />
+                {touched.companyName && errors.companyName && (
+                  <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                    {errors.companyName}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -258,53 +346,88 @@ function Register() {
         </h5>
         <div className="row">
           <div className="col-md-4">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-firstName" className="form-label fw-semibold small text-dark mb-1">
+                First Name <span className="text-danger">*</span>
+              </label>
               <input
+                id="reg-firstName"
                 type="text"
                 name="firstName"
-                className="form-control"
-                placeholder="First Name"
+                className={`form-control ${touched.firstName && errors.firstName ? 'is-invalid border-danger' : ''}`}
+                placeholder="e.g. Juan"
                 value={formData.firstName}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 required
               />
+              {touched.firstName && errors.firstName && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.firstName}
+                </div>
+              )}
             </div>
           </div>
           <div className="col-md-4">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-middleName" className="form-label fw-semibold small text-dark mb-1">
+                Middle Name <span className="text-muted fw-normal">(Optional)</span>
+              </label>
               <input
+                id="reg-middleName"
                 type="text"
                 name="middleName"
-                className="form-control"
-                placeholder="Middle Name (Optional)"
+                className={`form-control ${touched.middleName && errors.middleName ? 'is-invalid border-danger' : ''}`}
+                placeholder="e.g. Santos"
                 value={formData.middleName}
                 onChange={handleChange}
+                onBlur={handleBlur}
               />
+              {touched.middleName && errors.middleName && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.middleName}
+                </div>
+              )}
             </div>
           </div>
           <div className="col-md-4">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-lastName" className="form-label fw-semibold small text-dark mb-1">
+                Last Name <span className="text-danger">*</span>
+              </label>
               <input
+                id="reg-lastName"
                 type="text"
                 name="lastName"
-                className="form-control"
-                placeholder="Last Name"
+                className={`form-control ${touched.lastName && errors.lastName ? 'is-invalid border-danger' : ''}`}
+                placeholder="e.g. Dela Cruz"
                 value={formData.lastName}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 required
               />
+              {touched.lastName && errors.lastName && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.lastName}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         <div className="row">
           <div className="col-md-6">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-gender" className="form-label fw-semibold small text-dark mb-1">
+                Gender <span className="text-danger">*</span>
+              </label>
               <select
+                id="reg-gender"
                 name="gender"
-                className="form-select"
+                className={`form-select ${touched.gender && errors.gender ? 'is-invalid border-danger' : ''}`}
                 value={formData.gender}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 required
                 style={{
                   color: formData.gender ? '#333' : '#6c757d',
@@ -320,19 +443,34 @@ function Register() {
                 <option value="male">Male</option>
                 <option value="female">Female</option>
               </select>
+              {touched.gender && errors.gender && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.25rem' }}>
+                  {errors.gender}
+                </div>
+              )}
             </div>
           </div>
           <div className="col-md-6">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-dateOfBirth" className="form-label fw-semibold small text-dark mb-1">
+                Date of Birth <span className="text-danger">*</span>
+              </label>
               <input
+                id="reg-dateOfBirth"
                 type="date"
                 name="dateOfBirth"
-                className="form-control"
+                className={`form-control ${touched.dateOfBirth && errors.dateOfBirth ? 'is-invalid border-danger' : ''}`}
                 value={formData.dateOfBirth}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 required
                 style={{ color: formData.dateOfBirth ? '#333' : '#6c757d' }}
               />
+              {touched.dateOfBirth && errors.dateOfBirth && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.dateOfBirth}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -343,29 +481,50 @@ function Register() {
         </h5>
         <div className="row">
           <div className="col-md-6">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-email" className="form-label fw-semibold small text-dark mb-1">
+                Email Address <span className="text-danger">*</span>
+              </label>
               <input
+                id="reg-email"
                 type="email"
                 name="email"
-                className="form-control"
-                placeholder="Email Address"
+                className={`form-control ${touched.email && errors.email ? 'is-invalid border-danger' : ''}`}
+                placeholder="e.g. juan.delacruz@example.com"
                 value={formData.email}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 required
               />
+              {touched.email && errors.email && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.email}
+                </div>
+              )}
             </div>
           </div>
           <div className="col-md-6">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-phone" className="form-label fw-semibold small text-dark mb-1">
+                Phone Number <span className="text-danger">*</span>
+              </label>
               <input
+                id="reg-phone"
                 type="tel"
                 name="phone"
-                className="form-control"
-                placeholder="Phone Number"
+                className={`form-control ${touched.phone && errors.phone ? 'is-invalid border-danger' : ''}`}
+                placeholder="(+63) 9xx-xxx-xxxx"
+                maxLength={18}
                 value={formData.phone}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 required
               />
+              {touched.phone && errors.phone && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.phone}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -376,70 +535,148 @@ function Register() {
         </h5>
         <div className="row">
           <div className="col-md-6">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-addressLine1" className="form-label fw-semibold small text-dark mb-1">
+                Street Address / House No. / Building <span className="text-danger">*</span>
+              </label>
               <input
+                id="reg-addressLine1"
                 type="text"
                 name="addressLine1"
-                className="form-control"
-                placeholder="Address Line 1 (Street, House No.)"
+                className={`form-control ${touched.addressLine1 && errors.addressLine1 ? 'is-invalid border-danger' : ''}`}
+                placeholder="e.g. Blk 12 Lot 4, Emerald St."
                 value={formData.addressLine1}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 required
               />
+              {touched.addressLine1 && errors.addressLine1 && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.addressLine1}
+                </div>
+              )}
             </div>
           </div>
           <div className="col-md-6">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-addressLine2" className="form-label fw-semibold small text-dark mb-1">
+                Subdivision / Village / Unit <span className="text-muted fw-normal">(Optional)</span>
+              </label>
               <input
+                id="reg-addressLine2"
                 type="text"
                 name="addressLine2"
                 className="form-control"
-                placeholder="Address Line 2 (Subdivision - Optional)"
+                placeholder="e.g. Greenbreeze Subdivision"
                 value={formData.addressLine2}
                 onChange={handleChange}
+                onBlur={handleBlur}
               />
             </div>
           </div>
         </div>
 
         <div className="row">
+          {/* Linked PSGC Dropdown: Province First */}
           <div className="col-md-4">
-            <div className="form-group">
-              <input
-                type="text"
-                name="barangay"
-                className="form-control"
-                placeholder="Barangay"
-                value={formData.barangay}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="form-group">
-              <input
-                type="text"
-                name="city"
-                className="form-control"
-                placeholder="City/Municipality"
-                value={formData.city}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="form-group">
-              <input
-                type="text"
+            <div className="form-group text-start">
+              <label htmlFor="reg-province" className="form-label fw-semibold small text-dark mb-1">
+                Province <span className="text-danger">*</span>
+              </label>
+              <select
+                id="reg-province"
                 name="province"
-                className="form-control"
-                placeholder="Province"
+                className={`form-select ${touched.province && errors.province ? 'is-invalid border-danger' : ''}`}
                 value={formData.province}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                required
+                style={{
+                  color: formData.province ? '#333' : '#6c757d',
+                  borderRadius: '0',
+                  border: '1px solid #ccc',
+                  height: '45px',
+                  fontSize: '0.9rem',
+                  paddingTop: '0.375rem',
+                  paddingBottom: '0.375rem'
+                }}
+              >
+                <option value="" disabled>Select Province</option>
+                {Object.keys(PSGC_PROVINCES).map(prov => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </select>
+              {touched.province && errors.province && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.25rem' }}>
+                  {errors.province}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Linked PSGC Dropdown: City/Municipality dynamically populated from selected Province */}
+          <div className="col-md-4">
+            <div className="form-group text-start">
+              <label htmlFor="reg-city" className="form-label fw-semibold small text-dark mb-1">
+                City / Municipality <span className="text-danger">*</span>
+              </label>
+              <select
+                id="reg-city"
+                name="city"
+                className={`form-select ${touched.city && errors.city ? 'is-invalid border-danger' : ''}`}
+                value={formData.city}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                disabled={!formData.province}
+                required
+                style={{
+                  color: formData.city ? '#333' : '#6c757d',
+                  borderRadius: '0',
+                  border: '1px solid #ccc',
+                  height: '45px',
+                  fontSize: '0.9rem',
+                  paddingTop: '0.375rem',
+                  paddingBottom: '0.375rem',
+                  backgroundColor: !formData.province ? '#f8fafc' : '#fff'
+                }}
+              >
+                <option value="" disabled>
+                  {formData.province ? 'Select City / Municipality' : 'Select Province First'}
+                </option>
+                {(PSGC_PROVINCES[formData.province] || []).map(cityName => (
+                  <option key={cityName} value={cityName}>{cityName}</option>
+                ))}
+              </select>
+              {touched.city && errors.city && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.25rem' }}>
+                  {errors.city}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Barangay */}
+          <div className="col-md-4">
+            <div className="form-group text-start">
+              <label htmlFor="reg-barangay" className="form-label fw-semibold small text-dark mb-1">
+                Barangay <span className="text-danger">*</span>
+              </label>
+              <input
+                id="reg-barangay"
+                type="text"
+                name="barangay"
+                className={`form-control ${touched.barangay && errors.barangay ? 'is-invalid border-danger' : ''}`}
+                placeholder="e.g. Brgy. San Agustin"
+                value={formData.barangay}
+                onChange={handleChange}
+                onBlur={handleBlur}
                 required
               />
+              {touched.barangay && errors.barangay && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.barangay}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -448,65 +685,101 @@ function Register() {
         <h5 className="mb-3 mt-4 fw-bold border-bottom pb-2" style={{ color: '#0D8D1E' }}>
           <i className="fas fa-shield-alt me-2"></i>Account Security
         </h5>
-        <div className="form-group">
+        <div className="form-group text-start">
+          <label htmlFor="reg-username" className="form-label fw-semibold small text-dark mb-1">
+            Create Username <span className="text-danger">*</span>
+          </label>
           <input
+            id="reg-username"
             type="text"
             name="username"
-            className="form-control"
-            placeholder="Create Username"
+            className={`form-control ${touched.username && errors.username ? 'is-invalid border-danger' : ''}`}
+            placeholder="e.g. jdelacruz"
             value={formData.username}
             onChange={handleChange}
+            onBlur={handleBlur}
             required
           />
+          {touched.username && errors.username && (
+            <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+              {errors.username}
+            </div>
+          )}
         </div>
 
         <div className="row">
           <div className="col-md-6">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-password" className="form-label fw-semibold small text-dark mb-1">
+                Password <span className="text-danger">*</span>
+              </label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="reg-password"
                   type={showPassword ? "text" : "password"}
                   name="password"
-                  className="form-control"
-                  placeholder="Password"
+                  className={`form-control ${touched.password && errors.password ? 'is-invalid border-danger' : ''}`}
+                  placeholder="At least 6 characters"
                   value={formData.password}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   autoComplete="new-password"
                   required
                   minLength="6"
                   style={{ paddingRight: '2.5rem' }}
                 />
-                <span
-                  style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 10 }}
+                <button
+                  type="button"
+                  className="btn btn-link p-0"
+                  aria-label="Toggle password visibility"
+                  style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 10, textDecoration: 'none' }}
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"} style={{ color: '#0D8D1E' }}></i>
-                </span>
+                </button>
               </div>
+              {touched.password && errors.password && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.password}
+                </div>
+              )}
             </div>
           </div>
           <div className="col-md-6">
-            <div className="form-group">
+            <div className="form-group text-start">
+              <label htmlFor="reg-confirmPassword" className="form-label fw-semibold small text-dark mb-1">
+                Confirm Password <span className="text-danger">*</span>
+              </label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="reg-confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
-                  className="form-control"
-                  placeholder="Confirm Password"
+                  className={`form-control ${touched.confirmPassword && errors.confirmPassword ? 'is-invalid border-danger' : ''}`}
+                  placeholder="Re-enter password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   autoComplete="new-password"
                   required
                   minLength="6"
                   style={{ paddingRight: '2.5rem' }}
                 />
-                <span
-                  style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 10 }}
+                <button
+                  type="button"
+                  className="btn btn-link p-0"
+                  aria-label="Toggle confirm password visibility"
+                  style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 10, textDecoration: 'none' }}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   <i className={showConfirmPassword ? "fas fa-eye-slash" : "fas fa-eye"} style={{ color: '#0D8D1E' }}></i>
-                </span>
+                </button>
               </div>
+              {touched.confirmPassword && errors.confirmPassword && (
+                <div className="invalid-feedback d-block text-start small mb-2" style={{ marginTop: '-0.5rem' }}>
+                  {errors.confirmPassword}
+                </div>
+              )}
             </div>
           </div>
         </div>

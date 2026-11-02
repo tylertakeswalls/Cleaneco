@@ -25,12 +25,25 @@ export const getStatusClass = (status) => {
 };
 
 export const formatCurrency = (amount) => {
-  if (amount === undefined || amount === null || isNaN(amount)) return '₱0';
+  if (amount === undefined || amount === null || isNaN(amount)) return '₱0.00';
   const num = parseFloat(amount);
   return '₱' + num.toLocaleString('en-US', {
-    minimumFractionDigits: num % 1 !== 0 ? 2 : 0,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+};
+
+export const formatOrderReference = (orderId) => {
+  if (!orderId) return '';
+  const str = String(orderId).trim();
+  if (/^CLN-\d{4}-\d{4}$/i.test(str)) return str.toUpperCase();
+  const digits = str.replace(/\D/g, '');
+  if (digits.length >= 4) {
+    const year = new Date().getFullYear();
+    const last4 = digits.slice(-4);
+    return `CLN-${year}-${last4}`;
+  }
+  return str;
 };
 
 export const formatPHP = (amount, isNegative = false) => {
@@ -41,6 +54,20 @@ export const formatPHP = (amount, isNegative = false) => {
     maximumFractionDigits: 2
   });
   return (isNegative || parseFloat(amount) < 0) ? `-${formatted}` : formatted;
+};
+
+export const formatPhoneNumber = (value) => {
+  if (!value) return '';
+  let digits = String(value).replace(/\D/g, '');
+  if (digits.startsWith('63')) digits = digits.substring(2);
+  else if (digits.startsWith('0')) digits = digits.substring(1);
+
+  digits = digits.slice(0, 10);
+
+  if (digits.length === 0) return '';
+  if (digits.length <= 3) return `(+63) ${digits}`;
+  if (digits.length <= 6) return `(+63) ${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `(+63) ${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
 };
 
 export const toISODateKey = (dateVal) => {
@@ -225,8 +252,8 @@ export const resolveOrderSchedule = (order = {}) => {
     phase: 'inspection',
     label: 'Site Inspection',
     shortPhaseTag: 'Insp',
-    badgeBg: '#dbeafe',
-    badgeColor: '#1d4ed8',
+    badgeBg: '#eff6ff',
+    badgeColor: '#2563eb',
     badgeBorder: '#bfdbfe',
     activeDate,
     activeSlot,

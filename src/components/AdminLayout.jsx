@@ -105,7 +105,7 @@ export default function AdminLayout() {
 
   const renderNavActions = () => (
     <ul className="navbar-nav flex-row align-items-center mb-0">
-      <li className="nav-item position-relative me-3" style={{ cursor: 'pointer' }} onClick={() => setShowNotifTray(!showNotifTray)}>
+      <li className="nav-item position-relative me-3" style={{ cursor: 'pointer' }} onClick={() => setShowNotifTray(!showNotifTray)} role="button" aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`} tabIndex={0}>
         <div className="nav-link">
           <i className="fas fa-bell fs-5" style={{ color: '#ffffff' }}></i>
           {unreadCount > 0 && (
@@ -236,7 +236,7 @@ export default function AdminLayout() {
               <span className="flex-grow-1">Dashboard</span>
               <i className="fas fa-home ms-2"></i>
             </Link>
-            <Link to="/admin/messages" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/messages' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/messages' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
+            <Link to="/admin/messages" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/messages' ? '' : 'opacity-75'}`} aria-label={`Messages ${unreadMessagesCount > 0 ? `(${unreadMessagesCount} unread)` : ''}`} style={location.pathname === '/admin/messages' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
               <span className="flex-grow-1">Messages</span>
               {unreadMessagesCount > 0 && (
                 <span className="badge rounded-pill bg-danger me-2" style={{ fontSize: '0.7rem' }}>
@@ -245,7 +245,7 @@ export default function AdminLayout() {
               )}
               <i className="fas fa-comments ms-2"></i>
             </Link>
-            <Link to="/admin/orders" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/orders' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/orders' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
+            <Link to="/admin/orders" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/orders' ? '' : 'opacity-75'}`} aria-label="Orders Database" style={location.pathname === '/admin/orders' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
               <span className="flex-grow-1">All Orders</span>
               <i className="fas fa-database ms-2"></i>
             </Link>

@@ -37,6 +37,8 @@
 .table-container {
     max-height: 400px;
     overflow-y: auto;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
     border: 1px solid #ccc;
     border-radius: 6px;
 }
@@ -94,22 +96,22 @@
 }
 
 .pending-text {
-    color: orange !important;
+    color: #f59e0b !important;
     font-weight: bold;
 }
 
 .completed-text {
-    color: green !important;
+    color: #16a34a !important;
     font-weight: bold;
 }
 
 .in-progress-text {
-    color: blue !important;
+    color: #2563eb !important;
     font-weight: bold;
 }
 
 .cancelled-text {
-    color: red !important;
+    color: #dc2626 !important;
     font-weight: bold;
 }
 
@@ -177,17 +179,17 @@
 }
 
 .btn-outline-cleaneco {
-    background-color: #ffffff !important;
+    background-color: #0D8D1E !important;
     background-image: none !important;
     border: 1.5px solid #0D8D1E !important;
-    color: #0D8D1E !important;
+    color: #ffffff !important;
     cursor: pointer !important;
     transition: all 0.2s ease-in-out !important;
 }
 
 .btn-outline-cleaneco:hover {
-    background-color: #0D8D1E !important;
-    border-color: #0D8D1E !important;
+    background-color: #0A6F17 !important;
+    border-color: #0A6F17 !important;
     color: #ffffff !important;
 }
 
@@ -208,3 +210,68 @@
     cursor: not-allowed !important;
 }
 
+/* Ongoing Orders Accordion & Card Responsiveness */
+.order-accordion-btn {
+    padding: 1.25rem 1.5rem !important;
+    transition: background-color 0.2s ease, padding 0.2s ease;
+}
+
+.order-accordion-btn::after {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding-bottom: 90px;
+    }
+
+    .order-accordion-btn {
+        padding: 0.9rem 1rem !important;
+    }
+    
+    .order-service-badge {
+        font-size: 0.8rem !important;
+        padding: 0.3rem 0.75rem !important;
+    }
+
+    .progress-tracker-circle {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 0.75rem !important;
+    }
+
+    .progress-tracker-line {
+        top: 17px !important;
+    }
+
+    .progress-tracker-label {
+        font-size: 0.65rem !important;
+        padding: 0 !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .order-accordion-btn {
+        padding: 0.75rem 0.85rem !important;
+    }
+
+    .order-service-badge {
+        font-size: 0.76rem !important;
+        padding: 0.25rem 0.6rem !important;
+    }
+
+    .progress-tracker-circle {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 0.7rem !important;
+    }
+
+    .progress-tracker-line {
+        top: 15px !important;
+    }
+
+    .progress-tracker-label {
+        font-size: 0.6rem !important;
+    }
+}

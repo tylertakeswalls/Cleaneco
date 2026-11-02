@@ -150,7 +150,7 @@ export default function ClientCalendar({
             if (bookedCount > 0) {
                 return { isFullyBooked: false, statusText: `${3 - bookedCount} Left`, type: "partial" };
             }
-            return { isFullyBooked: false, statusText: "Available", type: "available" };
+            return { isFullyBooked: false, statusText: "", type: "available" };
         } else {
             // Execution mode
             if (totalTrips >= 5) {
@@ -177,7 +177,7 @@ export default function ClientCalendar({
                 if (openSlots < 3) {
                     return { isFullyBooked: false, statusText: `${openSlots} Slot${openSlots === 1 ? '' : 's'} Open`, type: "partial" };
                 }
-                return { isFullyBooked: false, statusText: "Available", type: "available" };
+                return { isFullyBooked: false, statusText: "", type: "available" };
             }
         }
     };
@@ -268,16 +268,16 @@ export default function ClientCalendar({
 
             <div className="card-body p-3">
                 {/* Calendar Grid Header */}
-                <div className="text-center fw-bold mb-2 text-muted" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', fontSize: '0.85rem' }}>
+                <div className="text-center fw-bold mb-2 text-muted" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '3px', fontSize: '0.8rem', width: '100%' }}>
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                         <div key={d}>{d}</div>
                     ))}
                 </div>
 
                 {/* Calendar Days Grid */}
-                <div className="text-center" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                <div className="text-center" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '3px', width: '100%' }}>
                     {datesArray.map((day, index) => {
-                        if (!day) return <div key={`empty-${index}`} style={{ visibility: "hidden" }}></div>;
+                        if (!day) return <div key={`empty-${index}`} style={{ minWidth: 0, visibility: "hidden" }}></div>;
 
                         const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                         const dateString = formatDate(dateObj);
@@ -324,13 +324,13 @@ export default function ClientCalendar({
                         }
 
                         if (isSelected) {
-                            borderStyle = "2px solid #0D8D1E";
-                            bgStyle = "#dcfce7";
-                            textColor = "#166534";
+                            borderStyle = "2px solid #0B7519";
+                            bgStyle = "#0D8D1E";
+                            textColor = "#ffffff";
                         }
 
                         return (
-                            <div key={`day-${day}`}>
+                            <div key={`day-${day}`} style={{ minWidth: 0 }}>
                                 <div
                                     onClick={() => handleDateClick(dateString, isOutOfRange, isFullyBooked, isBlockedAdmin)}
                                     className="d-flex flex-column align-items-center justify-content-center p-1 rounded w-100"
@@ -339,14 +339,19 @@ export default function ClientCalendar({
                                         color: textColor,
                                         border: borderStyle,
                                         cursor: cursorStyle,
-                                        height: "65px",
+                                        minHeight: "56px",
+                                        height: "auto",
+                                        padding: "4px 1px",
+                                        boxSizing: "border-box",
+                                        minWidth: 0,
+                                        boxShadow: isSelected ? "0 4px 10px rgba(13, 141, 30, 0.35)" : "none",
                                         transition: "all 0.2s ease-in-out",
                                         opacity: isOutOfRange ? 0.5 : 1
                                     }}
                                 >
-                                    <div className="fw-bold fs-6">{day}</div>
+                                    <div className="fw-bold" style={{ fontSize: "0.95rem", lineHeight: 1.2, color: isSelected ? "#fff" : textColor }}>{day}</div>
                                     {statusText && (
-                                        <div style={{ fontSize: "0.62rem", fontWeight: "700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                                        <div style={{ fontSize: "0.58rem", fontWeight: "700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%", marginTop: "2px", lineHeight: 1.1, color: isSelected ? "#fff" : undefined }}>
                                             {statusText}
                                         </div>
                                     )}
@@ -403,11 +408,11 @@ export default function ClientCalendar({
 
                                     const isSlotSelected = selectedTimeSlot === slot.key;
 
-                                    let btnClass = "btn btn-outline-success flex-grow-1 fw-bold py-2";
+                                    let btnClass = "btn btn-solid-light flex-grow-1 fw-bold py-2";
                                     if (isBooked) {
                                         btnClass = "btn btn-light text-muted border-0 flex-grow-1 py-2";
                                     } else if (isSlotSelected) {
-                                        btnClass = "btn btn-success flex-grow-1 fw-bold py-2";
+                                        btnClass = "btn btn-solid-brand flex-grow-1 fw-bold py-2";
                                     }
 
                                     return (
@@ -418,9 +423,9 @@ export default function ClientCalendar({
                                             onClick={() => !isBooked && handleSlotClick(slot.key)}
                                             style={{
                                                 borderRadius: "0.5rem",
-                                                borderColor: (!isBooked && !isSlotSelected) ? "#0D8D1E" : undefined,
-                                                color: (!isBooked && !isSlotSelected) ? "#0D8D1E" : undefined,
-                                                background: isSlotSelected ? "#0D8D1E" : undefined,
+                                                border: "none",
+                                                background: isSlotSelected ? "#0D8D1E" : (!isBooked ? "#f1f5f9" : undefined),
+                                                color: isSlotSelected ? "#ffffff" : (!isBooked ? "#1e293b" : undefined),
                                                 cursor: isBooked ? "not-allowed" : "pointer",
                                                 opacity: isBooked ? 0.6 : 1
                                             }}

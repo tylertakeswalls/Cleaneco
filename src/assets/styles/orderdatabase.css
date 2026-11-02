@@ -17,11 +17,40 @@
 }
 
 .table-container {
-    max-height: 400px;
+    max-height: 480px;
     overflow-y: auto;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
     margin-bottom: 15px;
+    background: #ffffff;
+    width: 100%;
+    max-width: 100%;
+}
+
+.table-container::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.table-container .table {
+    min-width: 1040px;
+    margin-bottom: 0;
 }
 
 .btn-edit {
@@ -63,22 +92,22 @@
 }
 
 .status-cell.pending-text { 
-    color: orange !important; 
+    color: #f59e0b !important; 
     font-weight: bold !important; 
 }
 
 .status-cell.completed-text { 
-    color: green !important; 
+    color: #16a34a !important; 
     font-weight: bold !important; 
 }
 
 .status-cell.in-progress-text { 
-    color: blue !important; 
+    color: #2563eb !important; 
     font-weight: bold !important; 
 }
 
 .status-cell.cancelled-text { 
-    color: red !important; 
+    color: #dc2626 !important; 
     font-weight: bold !important; 
 }
 
@@ -89,6 +118,8 @@
     top: 0;
     z-index: 10;
     border: none;
+    white-space: nowrap;
+    vertical-align: middle;
 }
 
 .table tbody tr:hover {
@@ -103,29 +134,58 @@
     border-radius: 0;
 }
 
-.revenue-box {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border: 2px solid #0D8D1E;
+/* Executive KPI Cards in Order Database */
+.db-kpi-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    max-width: 400px;
-    margin: 0 auto;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 1.25rem 1.15rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
-.revenue-box h4 {
-    color: #0D8D1E;
-    margin-bottom: 10px;
-    font-weight: bold;
-    font-size: 1.5rem;
+.db-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
-.revenue-amount {
-    font-size: 2.5rem;
-    color: #0D8D1E;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+.db-kpi-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #64748b;
+}
+
+.db-kpi-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    margin: 0.4rem 0 0.25rem 0;
+    letter-spacing: -0.5px;
+    word-break: break-word;
+}
+
+.db-kpi-subtext {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin: 0;
+}
+
+.db-kpi-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.15rem;
 }
 
 .form-control {
@@ -259,26 +319,51 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
     .table-container {
-        max-height: 300px;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        width: 100% !important;
+        max-width: 100% !important;
     }
     
+    .table-container .table,
+    .table {
+        min-width: 900px;
+    }
+}
+
+@media (max-width: 768px) {
+    .section-bg {
+        padding: 16px 10px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+    }
+
     .table-box {
-        padding: 15px;
+        padding: 16px 12px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 10px !important;
+        box-sizing: border-box !important;
+    }
+
+    .table-container {
+        max-height: 440px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
     
-    .revenue-box {
-        max-width: 300px;
-        padding: 15px;
-    }
-    
-    .revenue-amount {
-        font-size: 2rem;
+    .db-kpi-value {
+        font-size: 1.4rem;
     }
     
     .banner-img {
-        height: 200px;
+        height: 180px;
     }
     
     .modal-body {
@@ -288,6 +373,53 @@
     .modal-dialog {
         margin: 1rem;
         max-width: calc(100% - 2rem);
+    }
+
+    /* Responsive Filter Toolbar */
+    .filters-container {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .filters-container input[type="text"] {
+        grid-column: 1 / -1;
+    }
+
+    .filters-container > * {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 44px !important;
+        margin: 0 !important;
+    }
+
+    .filters-container .ms-auto {
+        margin-left: 0 !important;
+    }
+
+    .filters-container .btn-primary {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 480px) {
+    .section-bg {
+        padding: 12px 6px !important;
+    }
+
+    .table-box {
+        padding: 12px 8px !important;
+        border-radius: 8px !important;
+    }
+
+    .filters-container {
+        grid-template-columns: 1fr !important;
+    }
+
+    .filters-container > * {
+        grid-column: 1 / -1 !important;
     }
 }
 
@@ -305,16 +437,6 @@
 
 .mr-2 {
     margin-right: 0.5rem;
-}
-
-@media (max-width: 992px) {
-    .table-container {
-        overflow-x: auto;
-    }
-    
-    .table {
-        min-width: 800px;
-    }
 }
 
 .btn-delete {
@@ -405,6 +527,8 @@
 .side-drawer-body {
     flex-grow: 1;
     overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 .side-drawer-footer {
@@ -414,4 +538,19 @@
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
+}
+
+@media (max-width: 576px) {
+    .side-drawer-header,
+    .side-drawer-body,
+    .side-drawer-footer {
+        padding: 1rem !important;
+    }
+    .side-drawer-footer {
+        flex-wrap: wrap;
+        gap: 0.5rem !important;
+    }
+    .side-drawer-footer button {
+        flex: 1 1 auto;
+    }
 }

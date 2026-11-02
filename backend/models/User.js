@@ -9,6 +9,11 @@ const userSchema = new mongoose.Schema({
   last_name: { type: String, required: true },
   phone: { type: String },
   address: { type: String },
+  addressLine1: { type: String },
+  addressLine2: { type: String },
+  province: { type: String },
+  city: { type: String },
+  barangay: { type: String },
   gender: { type: String },
   date_of_birth: { type: Date },
   profile_picture: { type: String },
@@ -24,6 +29,5 @@ const userSchema = new mongoose.Schema({
   loginAttempts: { type: Number, required: true, default: 0 },
   lockUntil: { type: Date }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
-
 
 module.exports = mongoose.model('User', userSchema);

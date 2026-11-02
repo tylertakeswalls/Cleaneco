@@ -32,6 +32,16 @@ const uploadToGridFS = (file, mongooseInstance) => {
 
 const router = express.Router();
 
+// In-memory availability cache (60s TTL) for concurrency load optimization (Item 28)
+let availabilityCache = null;
+let availabilityCacheTime = 0;
+const AVAILABILITY_TTL_MS = 60 * 1000;
+
+function invalidateAvailabilityCache() {
+  availabilityCache = null;
+  availabilityCacheTime = 0;
+}
+
 const formatOrder = (o) => ({
   ...o,
   id: o._id,
@@ -97,6 +107,10 @@ router.get('/stats', async (req, res) => {
 });
 
 router.get('/availability', async (req, res) => {
+  const now = Date.now();
+  if (availabilityCache && (now - availabilityCacheTime < AVAILABILITY_TTL_MS)) {
+    return res.json(availabilityCache);
+  }
   try {
     const { getTruckTeams, countAvailableTrucks } = require('../utils/truckTeams');
     const truckTeams = await getTruckTeams();
@@ -218,6 +232,8 @@ router.get('/availability', async (req, res) => {
       });
     });
 
+    availabilityCache = availability;
+    availabilityCacheTime = Date.now();
     res.json(availability);
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch availability: ' + error.message });

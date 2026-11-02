@@ -107,7 +107,7 @@
 }
 
 .status-inprogress {
-    background: #1976d2;
+    background: #2563eb;
 }
 
 .status-completed {
@@ -119,6 +119,15 @@
 }
 
 /* Highlight selected date */
+.calendar-cell.has-pending {
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+}
+
+.calendar-cell.has-pending .day-number {
+    color: #b45309;
+}
+
 .calendar-cell.selected {
     background-color: #ffe5e5;
     border-color: #4da13a;

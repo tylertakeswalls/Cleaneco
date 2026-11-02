@@ -164,7 +164,7 @@ function Header() {
             <Link className={`nav-link ${location.pathname === '/orders' ? 'active' : ''}`} to="/orders">Ongoing Orders</Link>
           </li>
           <li className="nav-item">
-            <Link className={`nav-link d-flex align-items-center ${location.pathname === '/client/messages' || location.pathname === '/messages' ? 'active' : ''}`} to="/client/messages">
+            <Link className={`nav-link d-flex align-items-center ${location.pathname === '/client/messages' || location.pathname === '/messages' ? 'active' : ''}`} to="/client/messages" aria-label={`Messages ${unreadMessages > 0 ? `(${unreadMessages} unread)` : ''}`}>
               <span>Messages</span>
               {unreadMessages > 0 && (
                 <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '0.65rem' }}>
@@ -239,7 +239,7 @@ function Header() {
     return (
       <ul className="navbar-nav flex-row align-items-center mb-0 ms-auto me-2 me-lg-0">
         {loggedInUser !== 'admin' && (
-          <li className="nav-item position-relative me-3" style={{ cursor: 'pointer' }} onClick={() => setShowNotifTray(!showNotifTray)}>
+          <li className="nav-item position-relative me-3" style={{ cursor: 'pointer' }} onClick={() => setShowNotifTray(!showNotifTray)} role="button" aria-label="Notifications" tabIndex={0}>
             <div className="nav-link">
               <i className="fas fa-bell fs-5" style={{ color: '#ffffff' }}></i>
               {unreadCount > 0 && (
@@ -296,7 +296,7 @@ function Header() {
         
         {/* Profile Picture Link */}
         <li className="nav-item dropdown position-relative">
-          <div className="nav-link dropdown-toggle d-flex align-items-center p-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" style={{ cursor: 'pointer' }}>
+          <div className="nav-link dropdown-toggle d-flex align-items-center p-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="User account menu" style={{ cursor: 'pointer' }}>
             <img 
               src={profilePic || '/default_profile.jpg'} 
               alt="Profile" 

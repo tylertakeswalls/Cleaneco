@@ -1,3 +1,4 @@
+import { formatOrderReference } from '../utils/helpers';
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -116,12 +117,12 @@ export default function AdminCalendar({ orders = [] }) {
     return (
         <div className="admin-calendar-container">
             <div className="calendar-header">
-                <button onClick={goToPrevMonth}>‹</button>
+                <button onClick={goToPrevMonth} aria-label="Previous month">‹</button>
                 <h2>
                     {currentDate.toLocaleString("default", { month: "long" })}{" "}
                     {currentDate.getFullYear()}
                 </h2>
-                <button onClick={goToNextMonth} disabled={!canGoNext} style={{ opacity: canGoNext ? 1 : 0.5, cursor: canGoNext ? 'pointer' : 'not-allowed' }}>›</button>
+                <button onClick={goToNextMonth} disabled={!canGoNext} style={{ opacity: canGoNext ? 1 : 0.5, cursor: canGoNext ? 'pointer' : 'not-allowed' }} aria-label="Next month">›</button>
             </div>
 
             <div className="calendar-grid">
@@ -133,14 +134,15 @@ export default function AdminCalendar({ orders = [] }) {
                     const dateString =
                         day != null ? formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day)) : null;
                     const dayOrders = dateString ? ordersByDate[dateString] : [];
+                    const hasPending = dayOrders && dayOrders.some(o => o.status === 'Pending' || o._schedule?.phase === 'pref_inspection');
 
                     return (
                         <div
                             key={index}
-                            className={`calendar-cell ${day ? "clickable" : ""} ${dateString === selectedDate ? "selected" : ""}`}
+                            className={`calendar-cell ${day ? "clickable" : ""} ${dateString === selectedDate ? "selected" : ""} ${hasPending ? "has-pending" : ""}`}
                             onClick={() => handleDateClick(day)}
                             onDoubleClick={() => handleDateDoubleClick(day)}
-                            title={day ? (dateString === selectedDate && isDrawerOpen ? "Double-click to close details" : "Click to view details") : ""}
+                            title={day ? (dateString === selectedDate && isDrawerOpen ? "Double-click to close details" : (hasPending ? "Pending bookings/inspections • Click to view details" : "Click to view details")) : ""}
                         >
                             <div className="day-number">{day}</div>
                             {dayOrders?.length > 0 && (
@@ -235,7 +237,7 @@ export default function AdminCalendar({ orders = [] }) {
                                             </span>
                                         </div>
                                         <div className="text-muted small text-truncate">
-                                            {formatName(o)}{o.order_id ? ` • ${o.order_id}` : ""}
+                                            {formatName(o)}{o.order_id ? ` • #${formatOrderReference(o.order_id)}` : ""}
                                         </div>
                                         {(o._schedule.activeSlot || o.truck_team) && (
                                             <div className="text-secondary small mt-1">

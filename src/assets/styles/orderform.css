@@ -226,7 +226,15 @@ textarea.form-control, textarea.form-control:focus {
         gap: 0;
     }
 
-    .name-row .form-group, .contact-row .form-group {
+    .name-row .form-group {
+        margin-bottom: 10px;
+    }
+
+    .contact-row .form-group {
         margin-bottom: 20px;
+    }
+
+    .form-container {
+        padding-bottom: 90px;
     }
 }

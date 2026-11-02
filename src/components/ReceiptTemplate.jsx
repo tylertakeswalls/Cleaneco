@@ -1,3 +1,4 @@
+import { formatOrderReference } from '../utils/helpers';
 import React from 'react';
 import { formatDate, formatPHP } from '../utils/helpers';
 import { buildOrderServiceBreakdowns } from '../utils/pricing';
@@ -41,7 +42,7 @@ const ReceiptTemplate = ({ receiptOrder, services = [] }) => {
       <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', margin: '14pt 0' }}>OFFICIAL RECEIPT</div>
 
       <div style={{ lineHeight: '1.25' }}>
-        <div style={{ marginBottom: '4pt' }}>This receipt confirms the completion and payment for Order ID: <strong>{receiptOrder.order_id}</strong>.</div>
+        <div style={{ marginBottom: '4pt' }}>This receipt confirms the completion and payment for Order ID: <strong>{formatOrderReference(receiptOrder.order_id)}</strong> <span style={{ fontSize: '9pt', color: '#666' }}>({receiptOrder.order_id})</span>.</div>
         <div style={{ marginBottom: '4pt' }}>Service provided: {serviceDisplay}</div>
         <div style={{ marginBottom: '12pt' }}>
           Service date: {formatDate(receiptOrder.service_execution_date || receiptOrder.date)} at {receiptOrder.service_execution_time_slot || receiptOrder.time_slot}

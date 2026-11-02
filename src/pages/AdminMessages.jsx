@@ -1,8 +1,9 @@
+import { formatOrderReference } from '../utils/helpers';
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/admin.css';
-import carousel1 from '../assets/styles/images/carousel1.png';
+import carousel1 from '../assets/styles/images/carousel1.webp';
 import ChatImageLightbox, {
   CHAT_IMAGE_ACCEPT,
   resolveChatImageUrl,
@@ -357,6 +358,43 @@ export default function AdminMessages() {
           @media (max-width: 768px) {
             .banner-img {
               height: 180px;
+            }
+          }
+          @media (max-width: 767.98px) {
+            .admin-chat-hub {
+              height: calc(100vh - 120px) !important;
+              min-height: 520px;
+              border-radius: 0.85rem;
+              width: 100% !important;
+            }
+            .admin-threads-sidebar {
+              width: 100% !important;
+              min-width: 0 !important;
+              max-width: 100% !important;
+              border-right: none !important;
+              flex: 1 1 100% !important;
+            }
+            .admin-stage-container {
+              width: 100% !important;
+              min-width: 0 !important;
+              max-width: 100% !important;
+              flex: 1 1 100% !important;
+            }
+            .container-fluid.py-4.px-md-4 {
+              padding-left: 0.75rem !important;
+              padding-right: 0.75rem !important;
+              padding-top: 1rem !important;
+              padding-bottom: 1rem !important;
+            }
+            .chat-composer-box {
+              border-radius: 1rem;
+              padding: 0.6rem 0.8rem;
+            }
+          }
+          @media (min-width: 768px) and (max-width: 991.98px) {
+            .admin-threads-sidebar {
+              width: 320px !important;
+              min-width: 300px !important;
             }
           }
           .admin-chat-hub {
@@ -789,11 +827,11 @@ export default function AdminMessages() {
                         <div className="d-flex justify-content-between align-items-baseline mb-1">
                           <h6 
                             className={`mb-0 text-truncate ${unreadCount > 0 ? 'fw-bold text-dark' : 'fw-semibold text-dark'}`} 
-                            style={{ maxWidth: '170px', fontSize: '0.92rem' }}
+                            style={{ fontSize: '0.92rem', flex: '1 1 auto', minWidth: 0, marginRight: '8px' }}
                           >
                             {clientFullName}
                           </h6>
-                          <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                          <small className="text-muted flex-shrink-0 ms-auto" style={{ fontSize: '0.7rem' }}>
                             {conv.last_message?.created_at ? formatTime(conv.last_message.created_at) : formatTime(conv.updated_at)}
                           </small>
                         </div>
@@ -825,11 +863,11 @@ export default function AdminMessages() {
                                 border: '1px solid #C8E6C9' 
                               }}
                             >
-                              <i className="fas fa-tag me-1" style={{ fontSize: '0.58rem' }}></i>#{conv.order_id}
+                              <i className="fas fa-tag me-1" style={{ fontSize: '0.58rem' }}></i>#{formatOrderReference(conv.order_id)}
                             </span>
                           )}
                           {client.companyName && (
-                            <span className="text-muted text-truncate" style={{ fontSize: '0.7rem', maxWidth: '110px' }}>
+                            <span className="text-muted text-truncate" style={{ fontSize: '0.7rem', maxWidth: '180px' }}>
                               <i className="fas fa-building me-1"></i>{client.companyName}
                             </span>
                           )}
@@ -860,8 +898,8 @@ export default function AdminMessages() {
                   {/* Mobile Back Button */}
                   <button
                     type="button"
-                    className="btn btn-outline-secondary btn-sm d-md-none rounded-circle"
-                    style={{ width: '36px', height: '36px', padding: 0 }}
+                    className="btn btn-solid-light btn-sm d-md-none rounded-circle"
+                    style={{ width: '36px', height: '36px', padding: 0, border: 'none' }}
                     onClick={() => setSelectedConv(null)}
                     title="Back to inbox"
                   >
@@ -914,7 +952,7 @@ export default function AdminMessages() {
                             border: '1px solid #CBD5E1'
                           }}
                         >
-                          <i className="fas fa-tag" style={{ color: '#0D8D1E', fontSize: '0.68rem' }}></i> Order #{selectedConv.order_id}
+                          <i className="fas fa-tag" style={{ color: '#0D8D1E', fontSize: '0.68rem' }}></i> Order #{formatOrderReference(selectedConv.order_id)}
                         </span>
                       )}
                     </div>
@@ -1104,8 +1142,8 @@ export default function AdminMessages() {
                         <button
                           type="button"
                           onClick={clearSelectedImage}
-                          className="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 ms-2"
-                          style={{ width: '28px', height: '28px', padding: 0 }}
+                          className="btn btn-sm btn-solid-light rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 ms-2"
+                          style={{ width: '28px', height: '28px', padding: 0, border: 'none' }}
                           title="Remove attached image"
                         >
                           <i className="fas fa-times" style={{ fontSize: '0.75rem' }}></i>

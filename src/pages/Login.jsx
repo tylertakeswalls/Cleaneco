@@ -136,7 +136,10 @@ function Login() {
 
         Object.entries(userKeys).forEach(([key, value]) => {
           sessionStorage.setItem(key, value);
-          localStorage.setItem(key, value);
+          // Restrict sensitive JWT token to sessionStorage only (prevent persistent disk exposure)
+          if (key !== 'token') {
+            localStorage.setItem(key, value);
+          }
         });
         
         setMessage("Login successful! Redirecting...");
@@ -258,7 +261,7 @@ function Login() {
               <div className="mt-3">
                 <button 
                   type="button" 
-                  className="btn btn-sm btn-outline-danger fw-bold" 
+                  className="btn btn-sm btn-solid-danger fw-bold" 
                   onClick={handleResendVerification}
                   disabled={resending}
                 >

@@ -1,3 +1,4 @@
+import { formatOrderReference } from '../utils/helpers';
 import React from 'react';
 import { formatDate, formatPHP } from '../utils/helpers';
 import { buildOrderServiceBreakdowns } from '../utils/pricing';
@@ -42,7 +43,7 @@ const BillingTemplate = ({ billingOrder, services = [] }) => {
       <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', margin: '14pt 0', textTransform: 'uppercase' }}>FINAL BILLING REPORT</div>
 
       <div style={{ lineHeight: '1.25', marginBottom: '14pt' }}>
-        <div>Order Reference: <strong>{billingOrder.order_id}</strong></div>
+        <div>Order Reference: <strong>{formatOrderReference(billingOrder.order_id)}</strong> <span style={{ fontSize: '9pt', color: '#666' }}>({billingOrder.order_id})</span></div>
         <div>Service: {serviceDisplay}</div>
         <div>Execution Date: {billingOrder.service_execution_date ? formatDate(billingOrder.service_execution_date) : formatDate(billingOrder.confirmed_date || billingOrder.date)}</div>
       </div>

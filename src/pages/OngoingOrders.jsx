@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
-import { formatDate, getStatusClass, formatCurrency } from '../utils/helpers';
+import { formatDate, getStatusClass, formatCurrency, formatOrderReference } from '../utils/helpers';
 import '../assets/styles/ongoingorders.css';
-import carousel6 from '../assets/styles/images/carousel6.png';
+import carousel6 from '../assets/styles/images/carousel6.webp';
 import paymongoLogo from '../assets/styles/images/paymongo.png';
 import ReceiptTemplate from '../components/ReceiptTemplate';
 import ClientCalendar from '../components/ClientCalendar';
@@ -375,16 +375,11 @@ function OngoingOrders() {
   };
 
   const steps = [
-    { title: "Approved Quotation – Approved P.O.", desc: "The client approves the quotation and issues a Purchase Order (P.O.), officially authorizing the work to proceed." },
-    { title: "Set Schedule Date", desc: "Coordinate with the client to confirm the service date, time, site access requirements, and other logistical details." },
-    { title: "Meeting for Operation", desc: "Conduct a coordination meeting to review the scope of work, assign responsibilities, discuss safety requirements, equipment, and project timeline." },
-    { title: "Team Deployment on Site", desc: "Dispatch the assigned personnel, vehicles, equipment, and necessary materials to the project site as scheduled." },
-    { title: "Pre-Operation", desc: "Perform site inspection, secure work permits (if required), conduct toolbox meeting, assess hazards, inspect equipment, and prepare the work area before starting the service." },
-    { title: "Service Operation Flow", desc: "Execute the core tasks: siphoning, desludging, deep cleaning, or declogging according to the agreed method statement and industry standards." },
-    { title: "Demobilization", desc: "Clean up the work area, secure all tools and equipment, manage collected waste according to environmental regulations, and formally turn over the site to the client." },
-    { title: "Post-Operation", desc: "Conduct a final walkthrough with the client to verify completion, document the results, and obtain sign-off on the service provided." },
-    { title: "Issuance of Billing / Service Report", desc: "Prepare and submit the detailed Service Report along with the Billing Statement or Invoice to the client for the completed works." },
-    { title: "Client Payment", desc: "The client processes and remits the payment based on the submitted billing document, officially closing the transaction." }
+    { title: "Stage 1: Reserved", desc: "Submit your preliminary details, preferred date, and pay the ₱1,100.00 reservation fee to secure your inspection slot." },
+    { title: "Stage 2: For Inspection", desc: "Our technical team arrives at your property to conduct physical measurements, tank assessment, and hose length verification." },
+    { title: "Stage 3: Quoted", desc: "Receive a transparent, itemized quotation reflecting exact site findings. Review and approve the quotation to unlock execution scheduling." },
+    { title: "Stage 4: For Service Execution", desc: "Our vacuum truck crew is deployed on your confirmed service execution date to complete siphoning, desludging, or cleaning." },
+    { title: "Stage 5: Completed", desc: "Inspect completed works with our lead technician, settle remaining balance (with full ₱1,100.00 reservation credit), and access official reports." }
   ];
 
   if (loading) {
@@ -401,7 +396,7 @@ function OngoingOrders() {
       <div className="d-print-none">
         <img src={carousel6} alt="Banner" className="img-fluid banner-img w-100" />
 
-      <div className="container py-5">
+      <div className="container py-3 py-sm-5">
         <h3 className="fw-bold mb-4 text-success">My Ongoing Orders</h3>
 
         {orders.length === 0 ? (
@@ -422,18 +417,19 @@ function OngoingOrders() {
                 >
                   <h2 className="accordion-header" id={`heading${order.id}`}>
                     <button
-                      className={`accordion-button ${!isExpanded ? 'collapsed' : ''} fw-bold`}
+                      className={`accordion-button order-accordion-btn ${!isExpanded ? 'collapsed' : ''} fw-bold`}
                       type="button"
                       data-bs-toggle="collapse"
                       data-bs-target={`#collapse${order.id}`}
                       aria-expanded={isExpanded ? "true" : "false"}
                       aria-controls={`collapse${order.id}`}
-                      style={{ backgroundColor: isTarget ? '#F0FDF4' : '#fff', color: '#333', padding: '1.5rem' }}
+                      style={{ backgroundColor: isTarget ? '#F0FDF4' : '#fff', color: '#333' }}
                     >
-                      <div className="d-flex justify-content-between align-items-center w-100 me-3">
+                      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center w-100 me-2 me-md-3 gap-2 gap-md-0">
                         <div>
                           <span className="text-muted small d-block mb-1">
-                            Order #{order.order_id}
+                            Order <strong className="text-nowrap">#{formatOrderReference(order.order_id)}</strong>{' '}
+                            <span className="text-secondary opacity-75 small text-nowrap">({order.order_id})</span>
                             {isTarget && <span className="badge bg-success ms-2 small">Selected Order</span>}
                           </span>
                           {(() => {
@@ -442,16 +438,15 @@ function OngoingOrders() {
                               : [order.service_name || order.service_type].filter(Boolean);
 
                             return (
-                              <div className="d-flex flex-wrap align-items-center gap-2 mt-1">
+                              <div className="d-flex flex-wrap align-items-center gap-1 gap-sm-2 mt-1">
                                 {servicesList.map((sName, sIdx) => (
                                   <span 
                                     key={sIdx} 
-                                    className="badge px-3 py-2 rounded-pill fw-bold shadow-sm" 
+                                    className="badge rounded-pill fw-bold shadow-sm order-service-badge" 
                                     style={{ 
                                       backgroundColor: '#f0fdf4', 
                                       color: '#0D8D1E', 
-                                      border: '1.5px solid #86efac',
-                                      fontSize: '0.9rem'
+                                      border: '1.5px solid #86efac'
                                     }}
                                   >
                                     <i className="fas fa-check-circle me-1 text-success"></i>
@@ -462,11 +457,32 @@ function OngoingOrders() {
                             );
                           })()}
                         </div>
-                        <div className="text-end">
-                          <span className={`badge rounded-pill ${getStatusClass(order.status)} mb-1 d-block`} style={{ fontSize: '0.85rem' }}>
-                            {order.status}
-                          </span>
-                          <span className="text-muted small fw-medium">{formatDate(order.date)}</span>
+                        <div className="text-start text-md-end w-100 w-md-auto mt-1 mt-md-0">
+                          <div className="d-flex align-items-center justify-content-start justify-content-md-end gap-2 mb-1 flex-wrap">
+                            {order.quotation_status === 'Pending Client Approval' && (
+                              <span 
+                                className="badge rounded-pill bg-warning text-dark d-inline-flex align-items-center gap-1 shadow-sm px-2 py-1"
+                                style={{ fontSize: '0.78rem', border: '1px solid #f59e0b' }}
+                              >
+                                <i className="fas fa-exclamation-circle text-danger"></i> Action Needed: Review Quotation
+                              </span>
+                            )}
+                            {order.status === 'Pending' && (
+                              <span 
+                                className="badge rounded-pill bg-warning text-dark d-inline-flex align-items-center gap-1 shadow-sm px-2 py-1"
+                                style={{ fontSize: '0.78rem', border: '1px solid #f59e0b' }}
+                              >
+                                <i className="fas fa-wallet text-warning-emphasis"></i> Action Needed: Pay Reservation
+                              </span>
+                            )}
+                            <span 
+                              className={`fw-bold ${getStatusClass(order.status)}`} 
+                              style={{ fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+                            >
+                              {order.status}
+                            </span>
+                          </div>
+                          <span className="text-muted small fw-medium d-block">{formatDate(order.date)}</span>
                         </div>
                       </div>
                     </button>
@@ -477,7 +493,7 @@ function OngoingOrders() {
                     aria-labelledby={`heading${order.id}`}
                     data-bs-parent="#ordersAccordion"
                   >
-                  <div className="accordion-body p-4 bg-light">
+                  <div className="accordion-body p-3 p-sm-4 bg-light">
 
                     {/* Progress Tracker */}
                     {(() => {
@@ -508,49 +524,49 @@ function OngoingOrders() {
                               : '0%';
 
                       return (
-                        <div className="position-relative mx-2 my-4">
-                          <div className="progress" style={{ height: '4px', position: 'absolute', top: '20px', left: '10%', right: '10%', zIndex: 1, backgroundColor: '#e9ecef' }}>
+                        <div className="position-relative mx-1 mx-sm-2 my-3 my-sm-4">
+                          <div className="progress progress-tracker-line" style={{ height: '4px', position: 'absolute', top: '20px', left: '10%', right: '10%', zIndex: 1, backgroundColor: '#e9ecef' }}>
                             <div className="progress-bar bg-success" role="progressbar" style={{ width: progressWidth, transition: 'width 0.4s ease' }}></div>
                           </div>
                           <div className="d-flex justify-content-between position-relative text-center" style={{ zIndex: 2 }}>
                             {/* 1. Reserved */}
                             <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                              <div className="rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 bg-success text-white shadow-sm" style={{ width: '40px', height: '40px' }}>
+                              <div className="rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 bg-success text-white shadow-sm progress-tracker-circle" style={{ width: '40px', height: '40px' }}>
                                 <i className="fas fa-check"></i>
                               </div>
-                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Reserved</small>
+                              <small className="fw-bold px-1 progress-tracker-label" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Reserved</small>
                             </div>
 
                             {/* 2. For Inspection */}
                             <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${isInspection ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 progress-tracker-circle ${isInspection ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
                                 <i className="fas fa-search"></i>
                               </div>
-                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Inspection</small>
+                              <small className="fw-bold px-1 progress-tracker-label" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Inspection</small>
                             </div>
 
                             {/* 3. Quoted */}
                             <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${isQuoted ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 progress-tracker-circle ${isQuoted ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
                                 <i className="fas fa-file-invoice-dollar"></i>
                               </div>
-                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Quoted</small>
+                              <small className="fw-bold px-1 progress-tracker-label" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Quoted</small>
                             </div>
 
                             {/* 4. For Service Execution */}
                             <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${isServiceExecution ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 progress-tracker-circle ${isServiceExecution ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
                                 <i className="fas fa-truck"></i>
                               </div>
-                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Service Execution</small>
+                              <small className="fw-bold px-1 progress-tracker-label" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>For Service Execution</small>
                             </div>
 
                             {/* 5. Completed */}
                             <div className="d-flex flex-column align-items-center" style={{ flex: '1' }}>
-                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 ${isCompleted ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center mb-2 flex-shrink-0 progress-tracker-circle ${isCompleted ? 'bg-success text-white shadow-sm' : 'bg-white border text-muted'}`} style={{ width: '40px', height: '40px' }}>
                                 <i className="fas fa-flag-checkered"></i>
                               </div>
-                              <small className="fw-bold px-1" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Completed</small>
+                              <small className="fw-bold px-1 progress-tracker-label" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>Completed</small>
                             </div>
                           </div>
                         </div>
@@ -564,13 +580,35 @@ function OngoingOrders() {
                         <p className="mb-0 fw-medium">{formatDate(order.date)} <br /> {order.time_slot}</p>
                       </div>
                       <div className="col-md-6">
-                        <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">Final Price Breakdown</p>
+                        <p className="mb-1 text-muted small fw-bold text-uppercase tracking-wider">
+                          {order.status === 'Completed' || order.quotation_status === 'Approved' ? 'Final Price Breakdown' : 'Quotation & Pricing'}
+                        </p>
                         {order.has_final_price ? (() => {
                           const basePrice = parseFloat(order.final_price) || 0;
                           const taxAmount = basePrice * 0.10;
                           const totalWithTax = basePrice * 1.10;
                           const reservationFee = 1100;
                           const remainingBalance = Math.max(0, totalWithTax - reservationFee);
+
+                          if (order.quotation_status === 'Pending Client Approval') {
+                            return (
+                              <div className="mt-2 bg-white p-3 rounded shadow-sm border border-warning">
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                  <span className="badge bg-warning text-dark fw-bold">
+                                    <i className="fas fa-file-invoice me-1"></i>Quotation Pending Approval
+                                  </span>
+                                  <span className="fw-bold text-success fs-5">{formatCurrency(remainingBalance)}</span>
+                                </div>
+                                <p className="small text-muted mb-2">
+                                  Our team completed the on-site inspection. Please review the itemized quotation breakdown below and approve it to schedule service execution.
+                                </p>
+                                <div className="d-flex justify-content-between small text-muted border-top pt-2">
+                                  <span>Estimated Balance Due (after ₱1,100 reservation credit):</span>
+                                  <span className="fw-bold text-success fs-6">{formatCurrency(remainingBalance)}</span>
+                                </div>
+                              </div>
+                            );
+                          }
 
                           return (
                             <div>
@@ -584,7 +622,7 @@ function OngoingOrders() {
                                   <span className="fw-semibold text-dark">{formatCurrency(basePrice)}</span>
                                 </div>
                                 <div className="d-flex justify-content-between mb-1 small text-muted">
-                                  <span>Value-Added Tax (10%):</span>
+                                  <span>Service Tax (10%):</span>
                                   <span className="fw-semibold text-dark">+{formatCurrency(taxAmount)}</span>
                                 </div>
                                 <div className="d-flex justify-content-between mb-1 small text-muted">
@@ -658,7 +696,7 @@ function OngoingOrders() {
                               disabled={isSubmittingPayment}
                             >
                               <i className="fas fa-wallet me-2"></i>
-                              {isSubmittingPayment ? 'Processing...' : 'Pay ₱1100.00 Reservation'}
+                              {isSubmittingPayment ? 'Processing...' : 'Pay ₱1,100.00 Reservation'}
                             </button>
                           </div>
                         )}
@@ -681,7 +719,7 @@ function OngoingOrders() {
                           style={{ 
                             borderRadius: '8px', 
                             border: '1px solid #dee2e6', 
-                            overflow: 'hidden' 
+                            overflowX: 'auto' 
                           }}
                         >
                           <table 
@@ -690,6 +728,7 @@ function OngoingOrders() {
                               borderCollapse: 'separate', 
                               borderSpacing: 0, 
                               width: '100%',
+                              minWidth: '460px',
                               marginBottom: 0
                             }}
                           >
@@ -836,7 +875,7 @@ function OngoingOrders() {
                                   </div>
                                 )}
                                 <div className="d-flex justify-content-between mb-1 small">
-                                  <span className="fw-semibold text-secondary">Value-Added Tax (10%):</span>
+                                  <span className="fw-semibold text-secondary">Service Tax (10%):</span>
                                   <span className="fw-bold text-dark">+{formatCurrency(taxAmount)}</span>
                                 </div>
                                 <div className="d-flex justify-content-between mb-1 small">
@@ -849,7 +888,11 @@ function OngoingOrders() {
                                 </div>
                                 <div className="d-flex justify-content-between align-items-center pt-1">
                                   <div>
-                                    <span className="fw-bold text-dark fs-6 d-block">Actual Final Balance Payable:</span>
+                                    <span className="fw-bold text-dark fs-6 d-block">
+                                      {order.quotation_status === 'Approved' || order.status === 'Completed'
+                                        ? 'Actual Final Balance Payable:'
+                                        : 'Estimated Balance Payable (Upon Approval):'}
+                                    </span>
                                     <span className="text-muted small" style={{ fontSize: '0.78rem' }}>(Net amount after 10% tax and reservation credit)</span>
                                   </div>
                                   <span className="fw-bold" style={{ color: '#166534', fontSize: '1.25rem' }}>
@@ -912,7 +955,7 @@ function OngoingOrders() {
                             </div>
                             {order.status !== 'Completed' && order.status !== 'Cancelled' && (
                               <button 
-                                className="btn btn-sm btn-outline-cleaneco fw-bold shadow-sm rounded-pill px-3" 
+                                className="btn btn-sm btn-solid-brand fw-bold shadow-sm rounded-pill px-3" 
                                 onClick={() => triggerRequest(order.id, 'Reschedule Requested', 'execution')} 
                                 disabled={!!order.request_type}
                               >
@@ -946,11 +989,16 @@ function OngoingOrders() {
                           <div className="d-flex justify-content-between align-items-center text-primary mt-2 flex-wrap gap-2">
                             <div className="d-flex align-items-center">
                               <i className="far fa-calendar-check me-2" style={{ width: '20px' }}></i>
-                              <span className="fw-bold">Confirmed Inspection Schedule: {formatDate(order.confirmed_date)} ({order.confirmed_time_slot})</span>
+                              <span className="fw-bold">
+                                {order.status === 'Pending'
+                                  ? `Requested Inspection Schedule: ${formatDate(order.confirmed_date)} (${order.confirmed_time_slot}) (Pending Payment)`
+                                  : `Confirmed Inspection Schedule: ${formatDate(order.confirmed_date)} (${order.confirmed_time_slot})`
+                                }
+                              </span>
                             </div>
                             {!order.has_final_price && order.status !== 'Completed' && order.status !== 'Cancelled' && (
                               <button 
-                                className="btn btn-sm btn-outline-warning text-dark fw-bold shadow-sm rounded-pill px-3" 
+                                className="btn btn-sm btn-solid-warning fw-bold shadow-sm rounded-pill px-3" 
                                 onClick={() => triggerRequest(order.id, 'Reschedule Requested', 'inspection')} 
                                 disabled={!!order.request_type}
                               >
@@ -987,7 +1035,7 @@ function OngoingOrders() {
 
                     <div className="d-flex justify-content-end gap-2 border-top pt-3 flex-wrap">
                       <button 
-                        className="btn btn-outline-cleaneco rounded-pill fw-bold shadow-sm" 
+                        className="btn btn-solid-brand rounded-pill fw-bold shadow-sm" 
                         onClick={() => navigate(`/client/messages?orderId=${order.order_id || order.id}`)}
                       >
                         <i className="fas fa-comment-dots me-1"></i> Message Support

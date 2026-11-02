@@ -12,7 +12,6 @@ if (!sessionStorage.getItem("loggedInUser") && localStorage.getItem("loggedInUse
   if (localStorage.getItem("userRole")) sessionStorage.setItem("userRole", localStorage.getItem("userRole"));
   if (localStorage.getItem("userEmail")) sessionStorage.setItem("userEmail", localStorage.getItem("userEmail"));
   if (localStorage.getItem("userName")) sessionStorage.setItem("userName", localStorage.getItem("userName"));
-  if (localStorage.getItem("token")) sessionStorage.setItem("token", localStorage.getItem("token"));
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

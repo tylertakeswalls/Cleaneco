@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import '../assets/styles/homepage.css';
-import updated_carousel1 from '../assets/styles/images/updated_carousel1.jpg';
-import updated_carousel2 from '../assets/styles/images/updated_carousel2.jpg';
-import updated_carousel3 from '../assets/styles/images/updated_carousel3.jpg';
+import updated_carousel1 from '../assets/styles/images/updated_carousel1.webp';
+import updated_carousel2 from '../assets/styles/images/updated_carousel2.webp';
+import updated_carousel3 from '../assets/styles/images/updated_carousel3.webp';
 import image2 from '../assets/styles/images/2.png';
 import image3 from '../assets/styles/images/3.png';
 import image4 from '../assets/styles/images/4.png';
@@ -72,7 +72,7 @@ function HomePage() {
         <div className="d-flex justify-content-center align-items-stretch flex-wrap gap-4 mt-5 mb-4">
           {[
             {
-              title: "Siphoning/Desludging",
+              title: "Siphoning & Desludging",
               image: updated_carousel1,
               description: "Siphoning of accumulated sludge and wastewater from the septic tanks, grease traps, and STP's to ensure proper sanitation, prevent overflow, and maintain the efficiency of the wastewater treatment system.",
               link: `${servicePrefix}/siphoning-desludging`
@@ -91,7 +91,7 @@ function HomePage() {
             }
           ].map((service, index) => (
             <div className="card" style={{ width: '18rem' }} key={index}>
-              <img className="card-img-top" src={service.image} alt={service.title} style={{ width: '100%', height: '250px', objectFit: 'cover' }} />
+              <img className="card-img-top" src={service.image} alt={service.title} style={{ width: '100%', height: '250px', objectFit: 'cover' }} loading="lazy" />
               <div className="card-body">
                 <h5 className="card-title">{service.title}</h5>
                 <p className="card-text">{service.description}</p>

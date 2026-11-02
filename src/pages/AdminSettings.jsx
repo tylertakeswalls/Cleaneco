@@ -262,7 +262,7 @@ function AdminSettings() {
                         <div className="d-flex align-items-center gap-2">
                           <button 
                             type="button"
-                            className={`btn btn-sm fw-bold ${isAvailable ? 'btn-outline-danger' : 'btn-outline-success'}`}
+                            className={`btn btn-sm fw-bold ${isAvailable ? 'btn-solid-danger' : 'btn-solid-brand'}`}
                             onClick={() => toggleTruckStatus(index)}
                             title={isAvailable ? "Mark Unavailable" : "Mark Available"}
                           >
@@ -274,7 +274,7 @@ function AdminSettings() {
                           </button>
                           <button 
                             type="button"
-                            className="btn btn-sm btn-outline-secondary" 
+                            className="btn btn-sm btn-solid-secondary" 
                             onClick={() => removeTruckTeam(index)}
                             title="Remove Team"
                           >
@@ -326,7 +326,7 @@ function AdminSettings() {
                         {item.reason && <span className="text-muted ms-2">- {item.reason}</span>}
                       </div>
                       <button 
-                        className="btn btn-sm btn-outline-danger" 
+                        className="btn btn-sm btn-solid-danger" 
                         onClick={() => removeUnavailableDate(item._id)}
                       >
                         <i className="fas fa-unlock me-1"></i> Unblock

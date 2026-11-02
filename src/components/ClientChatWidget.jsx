@@ -1,3 +1,4 @@
+import { formatOrderReference } from '../utils/helpers';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
@@ -289,7 +290,7 @@ export default function ClientChatWidget() {
   }
 
   return (
-    <div style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 1050 }}>
+    <div className="cleaneco-chat-container" style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 1050 }}>
       <ChatImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
       
       {/* Widget Animation & Element Styles */}
@@ -302,6 +303,25 @@ export default function ClientChatWidget() {
           to {
             opacity: 1;
             transform: translateY(0) scale(1);
+          }
+        }
+        @media (max-width: 576px) {
+          .cleaneco-chat-container {
+            bottom: 16px !important;
+            right: 16px !important;
+          }
+          .cleaneco-launcher-btn {
+            width: 48px !important;
+            height: 48px !important;
+          }
+          .cleaneco-launcher-btn i {
+            font-size: 1.25rem !important;
+          }
+          .cleaneco-chat-popup {
+            width: calc(100vw - 24px) !important;
+            height: calc(100vh - 80px) !important;
+            max-width: calc(100vw - 24px) !important;
+            border-radius: 1rem !important;
           }
         }
         .cleaneco-chat-popup {
@@ -445,6 +465,7 @@ export default function ClientChatWidget() {
                 type="button"
                 className="btn btn-sm btn-link text-white p-1 opacity-75 hover-opacity-100"
                 title="Expand to Full Page"
+                aria-label="Expand chat to full page"
                 onClick={() => {
                   setIsOpen(false);
                   navigate('/client/messages');
@@ -459,6 +480,7 @@ export default function ClientChatWidget() {
                 className="btn btn-sm btn-link text-white p-1 opacity-75 hover-opacity-100"
                 onClick={() => setIsOpen(false)}
                 title="Close Chat"
+                aria-label="Close chat"
               >
                 <i className="fas fa-times" style={{ fontSize: '1rem' }}></i>
               </button>
@@ -468,7 +490,7 @@ export default function ClientChatWidget() {
           {/* Context Banner if order linked */}
           {conversation?.order_id && (
             <div className="bg-light px-3 py-1 border-bottom text-muted d-flex align-items-center justify-content-between" style={{ fontSize: '0.75rem' }}>
-              <span><i className="fas fa-tag text-success me-1"></i> Order #{conversation.order_id}</span>
+              <span><i className="fas fa-tag text-success me-1"></i> Order #{formatOrderReference(conversation.order_id)}</span>
               <span className="badge bg-white text-secondary border">Active Inquiry</span>
             </div>
           )}
@@ -595,9 +617,10 @@ export default function ClientChatWidget() {
                 <button
                   type="button"
                   onClick={clearSelectedImage}
-                  className="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 ms-1"
-                  style={{ width: '24px', height: '24px', padding: 0 }}
+                  className="btn btn-sm btn-solid-light rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 ms-1"
+                  style={{ width: '24px', height: '24px', padding: 0, border: 'none' }}
                   title="Remove attached image"
+                  aria-label="Remove attached image"
                 >
                   <i className="fas fa-times" style={{ fontSize: '0.68rem' }}></i>
                 </button>
@@ -623,6 +646,7 @@ export default function ClientChatWidget() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={sending}
                 title="Attach image (up to 5 MB)"
+                aria-label="Attach image"
               >
                 <i className="fas fa-paperclip" style={{ fontSize: '0.88rem' }}></i>
               </button>
@@ -631,6 +655,7 @@ export default function ClientChatWidget() {
                 className="cleaneco-chat-send-btn flex-shrink-0"
                 disabled={(!inputText.trim() && !selectedImage) || sending}
                 title="Send Message"
+                aria-label="Send message"
               >
                 {sending ? (
                   <div className="spinner-border spinner-border-sm text-white" style={{ width: '15px', height: '15px' }}></div>
@@ -659,6 +684,7 @@ export default function ClientChatWidget() {
               cursor: 'pointer'
             }}
             title="Chat with Cleaneco Support"
+            aria-label="Open chat with Cleaneco support"
           >
             <i className="fas fa-comment-dots fs-3"></i>
             {unreadCount > 0 && (

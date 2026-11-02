@@ -21,9 +21,20 @@ router.put('/:id', async (req, res) => {
 
     const updateData = { ...req.body };
 
+    if (!updateData.address && (updateData.addressLine1 || updateData.province || updateData.city)) {
+      const parts = [];
+      if (updateData.addressLine1) parts.push(updateData.addressLine1);
+      if (updateData.addressLine2) parts.push(updateData.addressLine2);
+      if (updateData.barangay) parts.push(`Barangay ${updateData.barangay.replace(/^barangay\s+/i, '')}`);
+      if (updateData.city) parts.push(updateData.city);
+      if (updateData.province) parts.push(updateData.province);
+      if (parts.length > 0) updateData.address = parts.join(', ');
+    }
+
     const hasProfileChanged =
       (updateData.phone && updateData.phone !== oldUser.phone) ||
       (updateData.address && updateData.address !== oldUser.address) ||
+      (updateData.province && updateData.province !== oldUser.province) ||
       (updateData.email && updateData.email !== oldUser.email);
 
     if (hasProfileChanged) {

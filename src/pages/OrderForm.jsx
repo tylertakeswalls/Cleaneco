@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/orderform.css';
-import carousel4 from '../assets/styles/images/carousel4.png';
+import carousel4 from '../assets/styles/images/carousel4.webp';
 import paymongoLogo from '../assets/styles/images/paymongo.png';
 import ClientCalendar from '../components/ClientCalendar';
 import AlertModal from '../components/AlertModal';
 import ServicePricingFields from '../components/ServicePricingFields';
 import { calculateOrderTotals } from '../utils/pricing';
+import { formatPhoneNumber } from '../utils/helpers';
+import { detectRegionFromAddress, formatFullAddress } from '../data/psgcData';
 
 function OrderForm() {
     const [formData, setFormData] = useState({
@@ -102,13 +104,19 @@ function OrderForm() {
                 try {
                     const response = await api.get(`/users/${userId}`);
                     if (response.data) {
+                        const userAddress = response.data.address || '';
+                        const userProvince = response.data.province || '';
+                        const resolvedAddress = userAddress || formatFullAddress(response.data);
+                        const detectedRegion = detectRegionFromAddress(resolvedAddress, userProvince);
+
                         setFormData(prev => ({
                             ...prev,
                             firstName: response.data.first_name || '',
                             lastName: response.data.last_name || '',
                             email: response.data.email || userEmail,
-                            phone: response.data.phone || '',
-                            address: response.data.address || '',
+                            phone: formatPhoneNumber(response.data.phone || ''),
+                            address: resolvedAddress,
+                            region: detectedRegion,
                             clientType: response.data.clientType || 'residential'
                         }));
                         return;
@@ -132,10 +140,102 @@ function OrderForm() {
 
         fetchServices();
         fetchUserData();
+
+        // Restore unsubmitted booking draft from sessionStorage if available
+        try {
+            const savedDraft = sessionStorage.getItem('cleaneco_booking_draft_v1');
+            if (savedDraft) {
+                const parsed = JSON.parse(savedDraft);
+                if (parsed.formData) {
+                    const draftAddress = parsed.formData.address || '';
+                    const draftRegion = parsed.formData.region || '';
+                    const detectedFromDraft = detectRegionFromAddress(draftAddress);
+                    const finalRegion = (detectedFromDraft === 'CALABARZON' && draftRegion === 'NCR') ? 'CALABARZON' : (draftRegion || detectedFromDraft);
+
+                    setFormData(prev => ({
+                        ...prev,
+                        ...parsed.formData,
+                        region: finalRegion || prev.region
+                    }));
+                }
+                if (parsed.estimateInputs) {
+                    setEstimateInputs(parsed.estimateInputs);
+                }
+                if (parsed.households && Array.isArray(parsed.households) && parsed.households.length > 0) {
+                    setHouseholds(parsed.households);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to restore booking draft:', err);
+        }
     }, [loggedInUser, navigate, userId, userDob]);
+
+    // Autosave booking draft in sessionStorage
+    useEffect(() => {
+        const hasDataToSave = (formData.service_ids && formData.service_ids.length > 0) ||
+            Boolean(formData.date) ||
+            Boolean(formData.timeSlot) ||
+            Boolean(formData.landmark) ||
+            Boolean(formData.notes) ||
+            (households && households.length > 1);
+
+        if (hasDataToSave && !isSubmitting) {
+            try {
+                const draft = {
+                    formData: {
+                        region: formData.region,
+                        address: formData.address,
+                        landmark: formData.landmark,
+                        date: formData.date,
+                        timeSlot: formData.timeSlot,
+                        notes: formData.notes,
+                        service_ids: formData.service_ids
+                    },
+                    estimateInputs,
+                    households
+                };
+                sessionStorage.setItem('cleaneco_booking_draft_v1', JSON.stringify(draft));
+            } catch (err) {
+                console.error('Failed to autosave booking draft:', err);
+            }
+        }
+    }, [formData.service_ids, formData.region, formData.address, formData.landmark, formData.date, formData.timeSlot, formData.notes, estimateInputs, households, isSubmitting]);
+
+    // Warn before leaving if unsaved changes exist
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            const hasDataToSave = (formData.service_ids && formData.service_ids.length > 0) ||
+                Boolean(formData.date) ||
+                Boolean(formData.landmark) ||
+                Boolean(formData.notes);
+
+            if (hasDataToSave && !isSubmitting) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [formData.service_ids, formData.date, formData.landmark, formData.notes, isSubmitting]);
 
     const handleChange = (e) => {
         const { id, value, type, checked } = e.target;
+        if (id === 'address') {
+            const detected = detectRegionFromAddress(value);
+            setFormData(prev => ({
+                ...prev,
+                address: value,
+                region: detected || prev.region
+            }));
+            return;
+        }
+        if (id === 'phone') {
+            setFormData(prev => ({
+                ...prev,
+                phone: formatPhoneNumber(value)
+            }));
+            return;
+        }
         setFormData(prev => ({
             ...prev,
             [id]: type === 'checkbox' ? checked : value
@@ -344,6 +444,7 @@ function OrderForm() {
             const response = await api.post('/orders/submit', submitData);
             
             if (response.data.success) {
+                sessionStorage.removeItem('cleaneco_booking_draft_v1');
                 if (paymentMethod === 'cheque') {
                     showAlert("Success", "Order and Cheque details submitted for verification.", "success");
                     setShowPaymentModal(false);
@@ -492,26 +593,26 @@ function OrderForm() {
 
                 <form onSubmit={handleInitialSubmit}>
                     <div className="name-row">
-                        <div className="form-group">
-                            <label className="form-label">Name</label>
+                        <div className="form-group flex-fill">
+                            <label htmlFor="firstName" className="form-label fw-semibold small text-dark mb-1">First Name <span className="text-danger">*</span></label>
                             <input 
                                 type="text"
                                 className="form-control"
                                 id="firstName"
-                                placeholder="John"
+                                placeholder="e.g. Juan"
                                 value={formData.firstName}
                                 onChange={handleChange}
                                 required
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label className="form-label" style={{ visibility: 'hidden' }}>Last</label>
+                        <div className="form-group flex-fill">
+                            <label htmlFor="lastName" className="form-label fw-semibold small text-dark mb-1">Last Name <span className="text-danger">*</span></label>
                             <input 
                                 type="text"
                                 className="form-control"
                                 id="lastName"
-                                placeholder="Doe"
+                                placeholder="e.g. Dela Cruz"
                                 value={formData.lastName}
                                 onChange={handleChange}
                                 required
@@ -519,26 +620,28 @@ function OrderForm() {
                         </div>
                     </div>
 
-                    <label className="form-label">Contact Details</label>
                     <div className="contact-row">
-                        <div className="form-group">
+                        <div className="form-group flex-fill">
+                            <label htmlFor="email" className="form-label fw-semibold small text-dark mb-1">Email Address <span className="text-danger">*</span></label>
                             <input 
                                 type="email"
                                 className="form-control"
                                 id="email"
-                                placeholder="john.doe@example.com"
+                                placeholder="e.g. juan.delacruz@example.com"
                                 value={formData.email}
                                 onChange={handleChange}
                                 required
                             />
                         </div>
 
-                        <div className="form-group">
+                        <div className="form-group flex-fill">
+                            <label htmlFor="phone" className="form-label fw-semibold small text-dark mb-1">Phone Number <span className="text-danger">*</span></label>
                             <input 
                                 type="tel"
                                 className="form-control"
                                 id="phone"
-                                placeholder="+63 9216214712"
+                                placeholder="e.g. (+63) 921-621-4712"
+                                maxLength={18}
                                 value={formData.phone}
                                 onChange={handleChange}
                                 required
@@ -547,8 +650,8 @@ function OrderForm() {
                     </div>
 
                     <div className="contact-row">
-                        <div className="form-group">
-                            <label className="form-label">Region</label>
+                        <div className="form-group" style={{ minWidth: '180px' }}>
+                            <label className="form-label fw-semibold small text-dark mb-1">Region <span className="text-danger">*</span></label>
                             <select 
                                 className="form-select"
                                 id="region"
@@ -559,18 +662,20 @@ function OrderForm() {
                                 <option value="NCR">NCR</option>
                                 <option value="CALABARZON">CALABARZON</option>
                             </select>
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>Auto-selected from province</small>
                         </div>
-                        <div className="form-group">
-                            <label className="form-label">Full Address</label>
+                        <div className="form-group flex-fill">
+                            <label className="form-label fw-semibold small text-dark mb-1">Full Service Address <span className="text-danger">*</span></label>
                             <input 
                                 type="text"
                                 className="form-control"
                                 id="address"
-                                placeholder="Full Address"
+                                placeholder="House/Unit No., Street, Barangay, City, Province"
                                 value={formData.address}
                                 onChange={handleChange}
                                 required
                             />
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>Pre-filled from profile. Edit if this service order is for another address.</small>
                         </div>
                     </div>
 
@@ -684,7 +789,7 @@ function OrderForm() {
                                             {index > 0 && (
                                                 <button
                                                     type="button"
-                                                    className="btn btn-outline-danger btn-sm py-0 px-2 border-0"
+                                                    className="btn btn-sm btn-solid-danger py-0 px-2"
                                                     onClick={() => removeHousehold(index)}
                                                     title="Remove neighbor household"
                                                     style={{ fontSize: '0.78rem' }}
@@ -773,13 +878,16 @@ function OrderForm() {
                                             }}
                                         >
                                             <div className="d-flex justify-content-between align-items-start mb-2">
-                                                <h6 className="fw-bold text-dark mb-0">{service.name}</h6>
+                                                <h6 id={`service-title-${service.id || service._id}`} className="fw-bold text-dark mb-0">{service.name}</h6>
                                                 <input 
+                                                    id={`service-checkbox-${service.id || service._id}`}
                                                     type="checkbox" 
                                                     className="form-check-input"
                                                     checked={isSelected}
                                                     onChange={() => {}} // click is handled by the card container
                                                     style={{ cursor: 'pointer', accentColor: '#0D8D1E' }}
+                                                    aria-labelledby={`service-title-${service.id || service._id}`}
+                                                    aria-label={`Select ${service.name}`}
                                                 />
                                             </div>
                                             <p className="text-secondary small mb-3" style={{ flexGrow: 1, minHeight: '40px' }}>
@@ -841,13 +949,13 @@ function OrderForm() {
                             <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                                 <span className="fw-bolder fs-5 text-dark">Total Amount Due Now:</span>
                                 <span className="fw-bolder fs-5 text-success" style={{ color: '#0D8D1E' }}>
-                                    ₱1100.00
+                                    ₱1,100.00
                                 </span>
                             </div>
                             <div className="alert alert-warning mt-3 mb-0 small py-2">
                                 <div className="mb-1">
                                     <i className="fas fa-exclamation-triangle me-2"></i>
-                                    Note: The Estimated Base Cost is subject to change upon physical inspection. The ₱1100 payment today secures your booking and is deducted from the final bill.
+                                    Note: The Estimated Base Cost is subject to change upon physical inspection. The ₱1,100.00 payment today secures your booking and is deducted from the final bill.
                                 </div>
                                 <div>
                                     <i className="fas fa-info-circle me-2"></i>

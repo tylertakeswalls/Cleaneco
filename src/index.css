@@ -56,17 +56,17 @@ body {
 }
 
 .btn-outline-cleaneco {
-  background-color: #ffffff !important;
+  background-color: #0D8D1E !important;
   background-image: none !important;
   border: 1.5px solid #0D8D1E !important;
-  color: #0D8D1E !important;
+  color: #ffffff !important;
   cursor: pointer !important;
   transition: all 0.2s ease-in-out !important;
 }
 
 .btn-outline-cleaneco:hover {
-  background-color: #0D8D1E !important;
-  border-color: #0D8D1E !important;
+  background-color: #0A6F17 !important;
+  border-color: #0A6F17 !important;
   color: #ffffff !important;
   box-shadow: 0 4px 12px rgba(13, 141, 30, 0.22) !important;
 }
@@ -418,9 +418,151 @@ div[style*="background-color: #F2F2F2"] {
 .contact-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   margin-bottom: 0.5rem;
   color: rgba(255, 255, 255, 0.9);
+}
+.contact-item svg,
+.footer-list li svg {
+  flex-shrink: 0;
+}
+
+/* Solid brand button (no gradient): payment result pages & Ongoing Orders actions */
+.btn-solid-brand {
+  background: #0D8D1E !important;
+  background-image: none !important;
+  border: 1px solid #0D8D1E !important;
+  color: #ffffff !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.btn-solid-brand:hover,
+.btn-solid-brand:focus {
+  background: #0A6F17 !important;
+  border-color: #0A6F17 !important;
+  color: #ffffff !important;
+}
+.btn-solid-brand:active {
+  transform: scale(0.98);
+}
+.btn-solid-brand:disabled,
+.btn-solid-brand.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Solid warning button (no gradient): reschedule actions on Ongoing Orders */
+.btn-solid-warning {
+  background: #ffc107 !important;
+  background-image: none !important;
+  border: 1px solid #ffc107 !important;
+  color: #212529 !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.btn-solid-warning:hover,
+.btn-solid-warning:focus {
+  background: #e0a800 !important;
+  border-color: #e0a800 !important;
+  color: #212529 !important;
+}
+.btn-solid-warning:active {
+  transform: scale(0.98);
+}
+.btn-solid-warning:disabled,
+.btn-solid-warning.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Solid danger button (no gradient) */
+.btn-solid-danger {
+  background: #dc3545 !important;
+  background-image: none !important;
+  border: 1px solid #dc3545 !important;
+  color: #ffffff !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.btn-solid-danger:hover,
+.btn-solid-danger:focus {
+  background: #c82333 !important;
+  border-color: #c82333 !important;
+  color: #ffffff !important;
+}
+.btn-solid-danger:active {
+  transform: scale(0.98);
+}
+.btn-solid-danger:disabled,
+.btn-solid-danger.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Solid secondary button (no gradient) */
+.btn-solid-secondary {
+  background: #6c757d !important;
+  background-image: none !important;
+  border: 1px solid #6c757d !important;
+  color: #ffffff !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.btn-solid-secondary:hover,
+.btn-solid-secondary:focus {
+  background: #5a6268 !important;
+  border-color: #545b62 !important;
+  color: #ffffff !important;
+}
+.btn-solid-secondary:active {
+  transform: scale(0.98);
+}
+.btn-solid-secondary:disabled,
+.btn-solid-secondary.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Solid primary button (no gradient) */
+.btn-solid-primary {
+  background: #0d6efd !important;
+  background-image: none !important;
+  border: 1px solid #0d6efd !important;
+  color: #ffffff !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.btn-solid-primary:hover,
+.btn-solid-primary:focus {
+  background: #0b5ed7 !important;
+  border-color: #0a58ca !important;
+  color: #ffffff !important;
+}
+.btn-solid-primary:active {
+  transform: scale(0.98);
+}
+.btn-solid-primary:disabled,
+.btn-solid-primary.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Solid light button (no gradient, no outline) for inactive toggles / subtle action pills */
+.btn-solid-light {
+  background: #f1f5f9 !important;
+  background-image: none !important;
+  border: 1px solid #f1f5f9 !important;
+  color: #334155 !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.btn-solid-light:hover,
+.btn-solid-light:focus {
+  background: #e2e8f0 !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+.btn-solid-light:active {
+  transform: scale(0.98);
+}
+.btn-solid-light:disabled,
+.btn-solid-light.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 footer a, .footer-custom a, .footer-bottom {
   color: rgba(255, 255, 255, 0.8) !important;

@@ -14,10 +14,10 @@ function PaymentSuccess() {
                     Your order is now being processed.
                 </p>
                 <div className="d-flex flex-column flex-sm-row gap-2 justify-content-center">
-                    <Link to="/orders" className="btn btn-success rounded-pill px-4 py-2 fw-bold" style={{ backgroundColor: '#0D8D1E' }}>
+                    <Link to="/orders" className="btn btn-solid-brand rounded-pill px-4 py-2 fw-bold">
                         View My Orders
                     </Link>
-                    <Link to="/order" className="btn btn-outline-success rounded-pill px-4 py-2 fw-bold">
+                    <Link to="/order" className="btn btn-solid-brand rounded-pill px-4 py-2 fw-bold">
                         Book Another Service
                     </Link>
                 </div>

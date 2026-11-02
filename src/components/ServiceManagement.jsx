@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import api from '../api/api';
 import '../assets/styles/servicemanagement.css';
 import '../assets/styles/orderdatabase.css';
-import carousel7 from '../assets/styles/images/carousell7.png';
+import carousel7 from '../assets/styles/images/carousell7.webp';
 import AlertModal from './AlertModal';
 import { useConfirm } from '../context/ConfirmContext';
 import { calculateStartingPrice } from '../utils/pricing';
@@ -330,6 +330,11 @@ function ServiceManagement() {
         return matchName && matchStatus;
     });
 
+    const totalServicesCount = services.length;
+    const availableServicesCount = services.filter(s => s.status === 'available').length;
+    const totalFactorsCount = services.reduce((sum, s) => sum + (Array.isArray(s.fields) ? s.fields.length : 0), 0);
+    const unavailableServicesCount = services.filter(s => s.status !== 'available').length;
+
     const currentStartingPrice = calculateStartingPrice(formService);
 
     return (
@@ -347,62 +352,133 @@ function ServiceManagement() {
 
                 <section className="section-bg">
                     <div className="table-box">
-                        <div className="d-flex justify-content-between align-items-center mb-4">
-                            <h3 className="mb-0 fw-bold">Service Management</h3>
-                            <button className="btn btn-success" onClick={openAddModal}>
-                                <i className="fas fa-plus me-2"></i>Add New Service
+                        <div className="text-center mb-4">
+                            <h3 className="fw-bold text-dark mb-1">Service Management</h3>
+                            <p className="text-muted small mb-0">Configure operational services, dynamic formula factors, rates, and active catalog availability</p>
+                        </div>
+
+                        {/* Executive KPI Metric Cards */}
+                        <div className="row g-3 mb-4">
+                            <div className="col-12 col-sm-6 col-xl-3">
+                                <div className="db-kpi-card">
+                                    <div className="d-flex align-items-center justify-content-between">
+                                        <span className="db-kpi-label">Total Services</span>
+                                        <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(13, 141, 30, 0.12)', color: '#0D8D1E' }}>
+                                            <i className="fas fa-concierge-bell"></i>
+                                        </div>
+                                    </div>
+                                    <div className="db-kpi-value text-dark">
+                                        {totalServicesCount}
+                                    </div>
+                                    <p className="db-kpi-subtext">
+                                        Active Catalog Offerings
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="col-12 col-sm-6 col-xl-3">
+                                <div className="db-kpi-card">
+                                    <div className="d-flex align-items-center justify-content-between">
+                                        <span className="db-kpi-label">Available for Booking</span>
+                                        <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(22, 163, 74, 0.12)', color: '#16a34a' }}>
+                                            <i className="fas fa-check-circle"></i>
+                                        </div>
+                                    </div>
+                                    <div className="db-kpi-value text-success">
+                                        {availableServicesCount}
+                                    </div>
+                                    <p className="db-kpi-subtext">
+                                        Open for Client Selection
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="col-12 col-sm-6 col-xl-3">
+                                <div className="db-kpi-card">
+                                    <div className="d-flex align-items-center justify-content-between">
+                                        <span className="db-kpi-label">Dynamic Factors</span>
+                                        <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', color: '#2563eb' }}>
+                                            <i className="fas fa-calculator"></i>
+                                        </div>
+                                    </div>
+                                    <div className="db-kpi-value text-dark">
+                                        {totalFactorsCount}
+                                    </div>
+                                    <p className="db-kpi-subtext">
+                                        Formula Variables Configured
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="col-12 col-sm-6 col-xl-3">
+                                <div className="db-kpi-card">
+                                    <div className="d-flex align-items-center justify-content-between">
+                                        <span className="db-kpi-label">Unavailable / Suspended</span>
+                                        <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(217, 119, 6, 0.12)', color: '#d97706' }}>
+                                            <i className="fas fa-tools"></i>
+                                        </div>
+                                    </div>
+                                    <div className="db-kpi-value text-dark">
+                                        {unavailableServicesCount}
+                                    </div>
+                                    <p className="db-kpi-subtext">
+                                        Temporarily Hidden from Booking
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="filters-container mb-3 d-flex gap-3 align-items-center flex-wrap">
+                            <select
+                                className="form-select m-0"
+                                style={{ width: '250px', height: '52px' }}
+                                value={filterName}
+                                onChange={(e) => setFilterName(e.target.value)}
+                            >
+                                <option value="">Filter by Service Name</option>
+                                {uniqueServiceNames.map(name => (
+                                    <option key={name} value={name}>{name}</option>
+                                ))}
+                            </select>
+                            <select
+                                className="form-select m-0"
+                                style={{ width: '200px', height: '52px' }}
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                            >
+                                <option value="">All Statuses</option>
+                                <option value="available">Available</option>
+                                <option value="unavailable">Unavailable</option>
+                            </select>
+                            <button
+                                className="btn btn-secondary m-0 d-flex align-items-center justify-content-center"
+                                style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }}
+                                onClick={() => { setFilterName(''); setFilterStatus(''); }}
+                            >
+                                Clear Filters
+                            </button>
+                            <button 
+                                className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" 
+                                style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
+                                onClick={openAddModal}
+                            >
+                                <i className="fas fa-plus me-2"></i> Add New Service
                             </button>
                         </div>
 
-                        {/* Services List Table */}
-                        <div className="card shadow-sm border-0">
-                            <div className="card-header bg-success text-white py-3">
-                                <h4 className="mb-0 text-white">Services List</h4>
-                            </div>
-                            <div className="card-body">
-                                <div className="filters-container mb-3 d-flex gap-3 align-items-center flex-wrap">
-                                    <select
-                                        className="form-select"
-                                        style={{ width: '250px' }}
-                                        value={filterName}
-                                        onChange={(e) => setFilterName(e.target.value)}
-                                    >
-                                        <option value="">Filter by Service Name</option>
-                                        {uniqueServiceNames.map(name => (
-                                            <option key={name} value={name}>{name}</option>
-                                        ))}
-                                    </select>
-                                    <select
-                                        className="form-select"
-                                        style={{ width: '200px' }}
-                                        value={filterStatus}
-                                        onChange={(e) => setFilterStatus(e.target.value)}
-                                    >
-                                        <option value="">All Statuses</option>
-                                        <option value="available">Available</option>
-                                        <option value="unavailable">Unavailable</option>
-                                    </select>
-                                    <button
-                                        className="btn btn-secondary m-0 d-flex align-items-center justify-content-center"
-                                        style={{ borderRadius: '10px', padding: '0 20px', height: '38px' }}
-                                        onClick={() => { setFilterName(''); setFilterStatus(''); }}
-                                    >
-                                        Clear Filters
-                                    </button>
-                                </div>
-                                <div className="table-responsive">
-                                    <table className="table table-hover align-middle">
-                                        <thead className="table-light">
-                                            <tr>
-                                                <th>ID</th>
-                                                <th>Name</th>
-                                                <th>Description</th>
-                                                <th>Pricing Setup</th>
-                                                <th>Starting At</th>
-                                                <th>Status</th>
-                                                <th className="text-center">Actions</th>
-                                            </tr>
-                                        </thead>
+                        <div className="table-container">
+                            <table className="table table-bordered text-center align-middle mb-0">
+                                <thead className="thead-light">
+                                    <tr>
+                                        <th style={{ whiteSpace: 'nowrap' }}>ID</th>
+                                        <th style={{ whiteSpace: 'nowrap' }}>Name</th>
+                                        <th style={{ whiteSpace: 'nowrap' }}>Description</th>
+                                        <th style={{ whiteSpace: 'nowrap' }}>Pricing Setup</th>
+                                        <th style={{ whiteSpace: 'nowrap' }}>Starting At</th>
+                                        <th style={{ whiteSpace: 'nowrap' }}>Status</th>
+                                        <th style={{ whiteSpace: 'nowrap' }}>Actions</th>
+                                    </tr>
+                                </thead>
                                         <tbody>
                                             {filteredServices.length === 0 ? (
                                                 <tr>
@@ -472,10 +548,8 @@ function ServiceManagement() {
                                     </table>
                                 </div>
                             </div>
-                        </div>
+                        </section>
                     </div>
-                </section>
-            </div>
 
             {/* Service & Pricing Configuration Modal */}
             {/* Service & Pricing Configuration Modal */}
@@ -640,7 +714,7 @@ function ServiceManagement() {
                                                     </div>
                                                     <button
                                                         type="button"
-                                                        className="btn btn-sm btn-outline-cleaneco rounded-pill px-3 fw-bold shadow-sm"
+                                                        className="btn btn-sm btn-solid-brand rounded-pill px-3 fw-bold shadow-sm"
                                                         onClick={addField}
                                                     >
                                                         <i className="fas fa-plus me-1"></i>Add Factor Field
@@ -752,7 +826,7 @@ function ServiceManagement() {
                                                                             </span>
                                                                             <button
                                                                                 type="button"
-                                                                                className="btn btn-sm btn-outline-cleaneco rounded-pill px-2 py-0 fw-bold"
+                                                                                className="btn btn-sm btn-solid-brand rounded-pill px-2 py-0 fw-bold"
                                                                                 style={{ fontSize: '0.75rem' }}
                                                                                 onClick={() => addOption(fIdx)}
                                                                             >
@@ -824,7 +898,7 @@ function ServiceManagement() {
 
                                                                                 <button
                                                                                     type="button"
-                                                                                    className="btn btn-sm btn-outline-danger border-0 d-inline-flex align-items-center justify-content-center p-0"
+                                                                                    className="btn btn-sm btn-solid-danger border-0 d-inline-flex align-items-center justify-content-center p-0"
                                                                                     style={{ width: '34px', height: '34px', borderRadius: '6px' }}
                                                                                     onClick={() => removeOption(fIdx, oIdx)}
                                                                                     disabled={(field.options || []).length <= 1}

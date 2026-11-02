@@ -29,7 +29,7 @@ const loginLimiter = rateLimit({
 
 router.post('/register', async (req, res) => {
   try {
-    const { password, email, firstName, middleName, lastName, phone, address, gender, dateOfBirth, clientType, companyName } = req.body;
+    const { password, email, firstName, middleName, lastName, phone, address, addressLine1, addressLine2, province, city, barangay, gender, dateOfBirth, clientType, companyName } = req.body;
     let username = req.body.username || email; // Fallback to email if no username
 
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
@@ -55,6 +55,11 @@ router.post('/register', async (req, res) => {
       last_name: lastName,
       phone,
       address,
+      addressLine1,
+      addressLine2,
+      province,
+      city,
+      barangay,
       gender,
       date_of_birth: dateOfBirth ? new Date(dateOfBirth) : undefined,
       clientType: clientType || 'residential',

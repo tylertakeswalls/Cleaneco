@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/orderdatabase.css';
-import carousel7 from '../assets/styles/images/carousell7.png';
+import carousel7 from '../assets/styles/images/carousell7.webp';
 import AlertModal from '../components/AlertModal';
-import { formatDate, getStatusClass, toISODateKey, resolveOrderSchedule, parseAssignedTrucks, getBookedTruckMapForOrder } from '../utils/helpers';
+import { formatDate, getStatusClass, toISODateKey, resolveOrderSchedule, parseAssignedTrucks, getBookedTruckMapForOrder, formatOrderReference } from '../utils/helpers';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
 import jsPDF from 'jspdf';
@@ -42,6 +42,7 @@ function OrderDatabase() {
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [services, setServices] = useState([]);
   const [truckTeams, setTruckTeams] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,9 +66,13 @@ function OrderDatabase() {
   };
   
   const requestDeleteOrder = async (id) => {
+    const targetOrder = orders.find(o => o.id === id);
+    const orderRef = targetOrder ? `order #${targetOrder.order_id}` : 'this order';
+
     const isConfirmed = await confirm({
       title: "Confirm Deletion",
-      text: "⚠️ Are you sure you want to delete this order?",
+      text: `Are you sure you want to delete ${orderRef}?`,
+      description: "This action cannot be undone. All associated records and details will be permanently removed.",
       confirmLabel: "Delete",
       confirmVariant: "danger"
     });
@@ -135,7 +140,7 @@ function OrderDatabase() {
     const params = new URLSearchParams(location.search);
     const targetOrderId = params.get('orderId');
     if (targetOrderId && orders.length > 0) {
-      const match = orders.find(o => String(o.order_id).toLowerCase() === targetOrderId.toLowerCase());
+      const match = orders.find(o => String(o.order_id).toLowerCase() === targetOrderId.toLowerCase() || formatOrderReference(o.order_id).toLowerCase() === targetOrderId.toLowerCase());
       if (match) {
         openEditModal(match);
       }
@@ -548,26 +553,11 @@ function OrderDatabase() {
         <img className="img-fluid banner-img" src={carousel7} alt="Banner" />
         <section className="section-bg">
           <div className="table-box">
-            <h3 className="text-center mb-4">Order Database</h3>
-            <div className="table-container">
-              <table className="table table-bordered text-center mb-0">
-                <thead className="thead-light">
-                  <tr>
-                    <th>Order ID</th>
-                    <th>Customer</th>
-                    <th>Service</th>
-                    <th>Schedule</th>
-
-                    <th>Status</th>
-                    <th>Truck Team</th>
-                    <th>Final Price (₱)</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td colSpan="8" className="text-center">Loading orders...</td></tr>
-                </tbody>
-              </table>
+            <h3 className="text-center fw-bold text-dark mb-4">Order Database</h3>
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
+              <div className="spinner-border text-success" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
             </div>
           </div>
         </section>
@@ -578,11 +568,45 @@ function OrderDatabase() {
   const uniqueServices = [...new Set(orders.flatMap(o => (Array.isArray(o.service_names) && o.service_names.length > 0) ? o.service_names : [o.service_name || o.service_type]).filter(Boolean))].sort();
 
   const filteredOrders = orders.filter(order => {
+    const query = searchQuery.toLowerCase().trim();
+    const queryWithoutHash = query.startsWith('#') ? query.slice(1) : query;
+    const matchesSearch = query === '' || (() => {
+      const formattedRef = formatOrderReference(order.order_id).toLowerCase();
+      const rawId = String(order.order_id || '').toLowerCase();
+      const customerName = `${order.first_name || ''} ${order.last_name || ''}`.toLowerCase();
+      const email = String(order.email || '').toLowerCase();
+      const phone = String(order.phone || '');
+      const address = String(order.address || '').toLowerCase();
+      const service = String(order.service_name || order.service_type || '').toLowerCase();
+      const team = String(order.truck_team || '').toLowerCase();
+
+      return formattedRef.includes(query) ||
+             formattedRef.includes(queryWithoutHash) ||
+             rawId.includes(query) ||
+             rawId.includes(queryWithoutHash) ||
+             customerName.includes(query) ||
+             email.includes(query) ||
+             phone.includes(query) ||
+             address.includes(query) ||
+             service.includes(query) ||
+             team.includes(query);
+    })();
+
     const matchType = filterType === '' || (Array.isArray(order.service_names) && order.service_names.includes(filterType)) || order.service_name === filterType;
     const matchStatus = filterStatus === '' || order.status === filterStatus;
     const matchDate = filterDate === '' || resolveOrderSchedule(order).filterDateKey === filterDate;
-    return matchType && matchStatus && matchDate;
+    return matchesSearch && matchType && matchStatus && matchDate;
   });
+
+  const isFiltered = Boolean(searchQuery.trim() || filterType || filterStatus || filterDate);
+  const currentGrossSales = isFiltered
+    ? filteredOrders.reduce((sum, order) => sum + calculateOrderCollectedRevenue(order), 0)
+    : totalRevenue;
+  const totalBookingsCount = orders.length;
+  const completedOrdersCount = orders.filter(o => o.status === 'Completed').length;
+  const pendingOrdersCount = orders.filter(o => o.status === 'Pending').length;
+  const inProgressOrdersCount = orders.filter(o => o.status === 'In Progress').length;
+  const activeOrdersCount = pendingOrdersCount + inProgressOrdersCount;
 
   const handleDownloadReport = async () => {
     const doc = new jsPDF('portrait', 'mm', 'a4');
@@ -647,9 +671,91 @@ function OrderDatabase() {
     
       <section className="section-bg">
         <div className="table-box">
-          <h3 className="text-center mb-4">Order Database</h3>
+          <div className="text-center mb-4">
+            <h3 className="fw-bold text-dark mb-1">Order Database</h3>
+            <p className="text-muted small mb-0">Overview of all client bookings, operational execution, and financial performance</p>
+          </div>
+
+          {/* Executive KPI Metric Cards */}
+          <div className="row g-3 mb-4">
+            <div className="col-12 col-sm-6 col-xl-3">
+              <div className="db-kpi-card">
+                <div className="d-flex align-items-center justify-content-between">
+                  <span className="db-kpi-label">Gross Sales</span>
+                  <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(13, 141, 30, 0.12)', color: '#0D8D1E' }}>
+                    <i className="fas fa-coins"></i>
+                  </div>
+                </div>
+                <div className="db-kpi-value text-success">
+                  ₱{currentGrossSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <p className="db-kpi-subtext">
+                  {isFiltered ? 'Filtered Total Collected' : 'All-Time Total Collected'}
+                </p>
+              </div>
+            </div>
+
+            <div className="col-12 col-sm-6 col-xl-3">
+              <div className="db-kpi-card">
+                <div className="d-flex align-items-center justify-content-between">
+                  <span className="db-kpi-label">Total Bookings</span>
+                  <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', color: '#2563eb' }}>
+                    <i className="fas fa-clipboard-list"></i>
+                  </div>
+                </div>
+                <div className="db-kpi-value text-dark">
+                  {isFiltered ? `${filteredOrders.length} / ${totalBookingsCount}` : totalBookingsCount}
+                </div>
+                <p className="db-kpi-subtext">
+                  {isFiltered ? 'Matching Active Filters' : 'All Registered Bookings'}
+                </p>
+              </div>
+            </div>
+
+            <div className="col-12 col-sm-6 col-xl-3">
+              <div className="db-kpi-card">
+                <div className="d-flex align-items-center justify-content-between">
+                  <span className="db-kpi-label">Completed Services</span>
+                  <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(22, 163, 74, 0.12)', color: '#16a34a' }}>
+                    <i className="fas fa-check-circle"></i>
+                  </div>
+                </div>
+                <div className="db-kpi-value text-dark">
+                  {completedOrdersCount}
+                </div>
+                <p className="db-kpi-subtext">
+                  Successfully Executed
+                </p>
+              </div>
+            </div>
+
+            <div className="col-12 col-sm-6 col-xl-3">
+              <div className="db-kpi-card">
+                <div className="d-flex align-items-center justify-content-between">
+                  <span className="db-kpi-label">Active & Pending</span>
+                  <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(217, 119, 6, 0.12)', color: '#d97706' }}>
+                    <i className="fas fa-clock"></i>
+                  </div>
+                </div>
+                <div className="db-kpi-value text-dark">
+                  {activeOrdersCount}
+                </div>
+                <p className="db-kpi-subtext">
+                  {pendingOrdersCount} Pending • {inProgressOrdersCount} In Progress
+                </p>
+              </div>
+            </div>
+          </div>
           
           <div className="filters-container mb-3 d-flex gap-3 align-items-center flex-wrap">
+            <input 
+              type="text" 
+              className="form-control m-0" 
+              style={{ width: '260px', height: '52px' }}
+              placeholder="Search order #, customer, phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
             <select 
               className="form-select m-0" 
               style={{ width: '200px', height: '52px' }}
@@ -663,7 +769,7 @@ function OrderDatabase() {
             </select>
             <select 
               className="form-select m-0" 
-              style={{ width: '200px', height: '52px' }}
+              style={{ width: '180px', height: '52px' }}
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -676,12 +782,12 @@ function OrderDatabase() {
             <input 
               type="date" 
               className="form-control m-0" 
-              style={{ width: '200px', height: '52px' }}
+              style={{ width: '180px', height: '52px' }}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
               title="Filter by active schedule date (Inspection or Service Execution)"
             />
-            <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }} onClick={() => { setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
+            <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }} onClick={() => { setSearchQuery(''); setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
             <button className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} onClick={handleDownloadReport}>
               <i className="fas fa-file-pdf me-2"></i> Download Report
             </button>
@@ -691,14 +797,14 @@ function OrderDatabase() {
             <table className="table table-bordered text-center mb-0">
               <thead className="thead-light">
                 <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Service</th>
-                  <th>Schedule</th>
-                  <th>Status</th>
-                  <th>Truck Team</th>
-                  <th>Final Price (₱)</th>
-                  <th>Actions</th>
+                  <th style={{ minWidth: '160px', whiteSpace: 'nowrap' }}>Order ID</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Customer</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Service</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Schedule</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Truck Team</th>
+                  <th style={{ minWidth: '145px', whiteSpace: 'nowrap' }}>Final Price (₱)</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -717,7 +823,10 @@ function OrderDatabase() {
                 ) : (
                   filteredOrders.map((order) => (
                     <tr key={order.id}>
-                      <td>{order.order_id}</td>
+                      <td className="text-nowrap" style={{ minWidth: '160px', whiteSpace: 'nowrap' }}>
+                        <div className="fw-bold text-dark text-nowrap" style={{ whiteSpace: 'nowrap' }}>#{formatOrderReference(order.order_id)}</div>
+                        <div className="text-muted text-nowrap" style={{ fontSize: '0.72rem', whiteSpace: 'nowrap' }}>{order.order_id}</div>
+                      </td>
                       <td>{formatName(order)}</td>
                       <td>
                         {order.service_name || order.service_type}
@@ -796,7 +905,7 @@ function OrderDatabase() {
                           );
                         })()}
                       </td>
-                      <td>
+                      <td className="text-nowrap" style={{ whiteSpace: 'nowrap' }}>
                         {order.has_final_price
                           ? `₱${parseNumericAmount(order.final_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                           : (order.status === 'Completed' && parseNumericAmount(order.price) > 0
@@ -809,14 +918,9 @@ function OrderDatabase() {
                         onClick={() => openEditModal(order)}
                         disabled={order.status === 'Cancelled'}
                         style={order.status === 'Cancelled' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                        aria-label={`Manage order #${order.order_id}`}
                       >
                         Manage
-                      </button>
-                      <button 
-                        className="btn-delete" 
-                        onClick={() => requestDeleteOrder(order.id)}
-                      >
-                        Delete
                       </button>
                     </td>
 
@@ -828,10 +932,7 @@ function OrderDatabase() {
           </div>
         </div>
 
-        <div className="revenue-box">
-          <h4>Gross Sales</h4>
-          <div className="revenue-amount">₱{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-        </div>
+
         
         {editModal.show && createPortal(
         <div className={`side-drawer-overlay ${isEditDrawerClosing ? 'closing' : ''}`} onClick={closeEditModal}>
@@ -945,7 +1046,7 @@ function OrderDatabase() {
                           
                           {editModal.order.cheque_image_url && (
                             <div className="mb-3">
-                              <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editModal.order.cheque_image_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary fw-bold">
+                              <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editModal.order.cheque_image_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-solid-primary fw-bold">
                                 <i className="fas fa-image me-1"></i>View Cheque Image
                               </a>
                             </div>
@@ -1430,24 +1531,39 @@ function OrderDatabase() {
               </div>
             </div>
 
-            <div className="side-drawer-footer">
-              <button 
-                type="button" 
-                className="btn btn-light rounded-pill px-4 fw-bold shadow-sm" 
-                onClick={closeEditModal}
+            <div className="side-drawer-footer d-flex justify-content-between align-items-center">
+              <button
+                type="button"
+                className="btn btn-danger rounded-pill px-4 fw-bold shadow-sm"
+                onClick={() => {
+                  const idToDelete = editModal.order?.id;
+                  closeEditModal();
+                  if (idToDelete) requestDeleteOrder(idToDelete);
+                }}
                 disabled={isSaving}
+                aria-label="Delete this order"
               >
-                Cancel
+                <i className="fas fa-trash-alt me-1"></i> Delete Order
               </button>
-              <button 
-                type="button" 
-                className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
-                onClick={handleSaveChangesClick}
-                disabled={isSaving}
-                style={{ display: activeTab === 'quotation' ? 'none' : 'block' }}
-              >
-                {isSaving ? 'Saving...' : 'Save Changes'}
-              </button>
+              <div className="d-flex gap-2">
+                <button 
+                  type="button" 
+                  className="btn btn-light rounded-pill px-4 fw-bold shadow-sm" 
+                  onClick={closeEditModal}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
+                  onClick={handleSaveChangesClick}
+                  disabled={isSaving}
+                  style={{ display: activeTab === 'quotation' ? 'none' : 'block' }}
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

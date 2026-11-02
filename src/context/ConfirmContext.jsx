@@ -11,6 +11,7 @@ export const ConfirmProvider = ({ children }) => {
         isOpen: false,
         title: '',
         text: '',
+        description: '',
         onConfirm: null,
         onCancel: null,
         confirmLabel: 'Confirm',
@@ -24,6 +25,7 @@ export const ConfirmProvider = ({ children }) => {
                 isOpen: true,
                 title: options.title || 'Are you sure?',
                 text: options.text || '',
+                description: options.description || '',
                 confirmLabel: options.confirmLabel || 'Confirm',
                 cancelLabel: options.cancelLabel || 'Cancel',
                 confirmVariant: options.confirmVariant || 'danger',
@@ -61,8 +63,11 @@ export const ConfirmProvider = ({ children }) => {
                                 <h5 className="modal-title text-white">{confirmState.title}</h5>
                                 <button type="button" className="btn-close btn-close-white" onClick={confirmState.onCancel}></button>
                             </div>
-                            <div className="modal-body text-start mt-3 mb-3">
-                                <h6 className="fw-normal">{confirmState.text}</h6>
+                            <div className="modal-body text-start py-3">
+                                <h6 className="fw-semibold text-dark mb-1">{confirmState.text}</h6>
+                                {confirmState.description && (
+                                    <p className="small text-muted mb-0">{confirmState.description}</p>
+                                )}
                             </div>
                             <div className="modal-footer">
                                 <button 

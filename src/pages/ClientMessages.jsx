@@ -1,3 +1,4 @@
+import { formatOrderReference } from '../utils/helpers';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../api/api';
@@ -430,18 +431,6 @@ export default function ClientMessages() {
             box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
           }
         }
-        .btn-brand-outline {
-          border: 1.5px solid #0D8D1E !important;
-          color: #0D8D1E !important;
-          background-color: #ffffff !important;
-          transition: all 0.2s ease !important;
-        }
-        .btn-brand-outline:hover, .btn-brand-outline:focus, .btn-brand-outline:active {
-          background-color: #0D8D1E !important;
-          border-color: #0D8D1E !important;
-          color: #ffffff !important;
-          box-shadow: 0 4px 12px rgba(13, 141, 30, 0.22) !important;
-        }
         .btn-brand-primary {
           background-color: #0D8D1E !important;
           border: 1.5px solid #0D8D1E !important;
@@ -471,7 +460,7 @@ export default function ClientMessages() {
         </div>
 
         <div className="d-flex align-items-center gap-2 mt-2 mt-md-0">
-          <Link to="/orders" className="btn btn-brand-outline btn-sm rounded-pill px-3 shadow-sm fw-medium">
+          <Link to="/orders" className="btn btn-solid-light btn-sm rounded-pill px-3 shadow-sm fw-medium">
             <i className="fas fa-list-alt me-1"></i> Ongoing Orders
           </Link>
           <Link to="/order" className="btn btn-brand-primary btn-sm rounded-pill px-3 shadow-sm fw-medium">
@@ -519,8 +508,9 @@ export default function ClientMessages() {
                     View in Orders →
                   </Link>
                 </div>
-                <h6 className="fw-bold text-dark mb-1">
-                  Order #{conversation.order_id}
+                <h6 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2 flex-wrap">
+                  <span>Order #{formatOrderReference(conversation.order_id)}</span>
+                  <span className="text-secondary small fw-normal opacity-75">({conversation.order_id})</span>
                 </h6>
                 <p className="text-muted small mb-0" style={{ fontSize: '0.8rem' }}>
                   Messages in this channel are tagged with this order for quick staff reference.
@@ -587,20 +577,6 @@ export default function ClientMessages() {
               <div>
                 <div className="d-flex align-items-center gap-2 flex-wrap">
                   <h5 className="mb-0 fw-bold text-dark">Cleaneco Support</h5>
-                  <span 
-                    className="badge rounded-pill fw-semibold d-inline-flex align-items-center"
-                    style={{
-                      fontSize: '0.72rem',
-                      padding: '4px 10px',
-                      backgroundColor: '#E8F5E9',
-                      color: '#0D8D1E',
-                      border: '1px solid #C8E6C9',
-                      gap: '4px',
-                      lineHeight: 1.2
-                    }}
-                  >
-                    <i className="fas fa-check-circle" style={{ fontSize: '0.68rem' }}></i> Official Team
-                  </span>
                   {conversation?.order_id && (
                     <span 
                       className="badge rounded-pill fw-semibold d-inline-flex align-items-center"
@@ -614,7 +590,7 @@ export default function ClientMessages() {
                         lineHeight: 1.2
                       }}
                     >
-                      <i className="fas fa-tag" style={{ color: '#0D8D1E', fontSize: '0.68rem' }}></i> Order #{conversation.order_id}
+                      <i className="fas fa-tag" style={{ color: '#0D8D1E', fontSize: '0.68rem' }}></i> Order #{formatOrderReference(conversation.order_id)}
                     </span>
                   )}
                 </div>
@@ -800,8 +776,8 @@ export default function ClientMessages() {
                     <button
                       type="button"
                       onClick={clearSelectedImage}
-                      className="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 ms-2"
-                      style={{ width: '28px', height: '28px', padding: 0 }}
+                      className="btn btn-sm btn-solid-light rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 ms-2"
+                      style={{ width: '28px', height: '28px', padding: 0, border: 'none' }}
                       title="Remove attached image"
                     >
                       <i className="fas fa-times" style={{ fontSize: '0.75rem' }}></i>

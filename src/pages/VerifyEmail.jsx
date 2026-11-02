@@ -62,7 +62,7 @@ function VerifyEmail() {
             <i className="fas fa-exclamation-circle text-danger mb-3" style={{ fontSize: '4rem' }}></i>
             <h3 className="fw-bold text-dark mb-3">Verification Failed</h3>
             <p className="text-muted mb-4">{message}</p>
-            <Link to="/login" className="btn btn-outline-success px-5 py-2 fw-bold" style={{ borderRadius: '0.5rem' }}>
+            <Link to="/login" className="btn btn-solid-brand px-5 py-2 fw-bold" style={{ borderRadius: '0.5rem' }}>
               Back to Login
             </Link>
           </div>
