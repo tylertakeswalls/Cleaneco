@@ -381,6 +381,35 @@ This document summarizes the recent features and structural updates implemented 
 - **Completed Orders KPI Icon Modernization (`AdminLanding.jsx`)**:
   - Replaced the diamond icon (`fas fa-gem`) with a clean checkmark (`fas fa-check`) inside the soft-green circular badge beneath the **Completed Orders** counter, reinforcing clarity and contextual relevance.
 
+## 46. DLSU-D Capstone UI/UX Hardening, Profile Redesign & System-Wide Phone Validation
+- **Official PSGC Address Hierarchy & Region Auto-Detection (`psgcData.js`)**:
+  - Integrated standardized Philippine Standard Geographic Code (PSGC) dataset (`src/data/psgcData.js`) covering provinces, cities, municipalities, and regions.
+  - Implemented dynamic region detection between CALABARZON (Cavite, Laguna, Batangas, Rizal, Quezon) and NCR (Metro Manila) based on selected province and address text.
+  - Updated `backend/models/User.js`, `backend/routes/auth.js`, and `backend/routes/users.js` to store structured address fields (`province`, `city`, `barangay`, `addressLine1`, `addressLine2`) while maintaining backward-compatible single-line address synthesis.
+- **Client Profile Modernization (`ClientProfile.jsx`)**:
+  - Transformed the client profile into an expansive two-column responsive interface featuring a full-height sticky Left Drawer (avatar with camera overlay, role pill, contact summary, account shortcuts) and a modular Right Information Panel.
+  - Replaced cluttered containers with clean, dedicated cards for Account Type, Personal Details, and Service Address with real-time combined address preview pills.
+  - Removed redundant buttons ("Book a Service") beside header labels to maintain clean visual hierarchy.
+- **Admin Profile Redesign (`AdminProfile.jsx`)**:
+  - Implemented a unified Hero Identity Banner with a green brand accent border (`#0D8D1E`), avatar camera overlay, and clean typography, avoiding secondary sidebar conflicts alongside the permanent admin navigation.
+  - Removed cluttered privilege pills ("System Administrator", "Full Access") and eliminated redundant permission tables.
+- **System-Wide Real-Time Phone Number Formatting (`formatPhoneNumber`)**:
+  - Centralized `formatPhoneNumber(value)` in `src/utils/helpers.js` to enforce Philippine mobile format `(+63) 9xx-xxx-xxxx` in real time as users type.
+  - Enforced across `ClientProfile.jsx`, `AdminProfile.jsx`, `Register.jsx`, and `OrderForm.jsx` with input limits (`maxLength={18}`) and automatic formatting on initial profile load.
+- **Quotation Price Breakdown Usability & De-duplication (Audit Item #15, `OngoingOrders.jsx`)**:
+  - Implemented dynamic stage-aware section labeling: orders display `"Quotation & Pricing"` and `"Estimated Balance Payable (Upon Approval)"` while pending review, only transitioning to `"Final Price Breakdown"` and `"Actual Final Balance Payable"` after client approval.
+  - Removed the duplicate breakdown calculation table in the top summary card during review, consolidating the complete itemized breakdown exclusively under `"Inspection Findings & Quotation"`.
+- **Client Messaging Window Header Polish (`ClientMessages.jsx`)**:
+  - Removed the unnecessary `"Official Team"` pill from the support chat header for a cleaner, modern conversation header.
+- **Button Palette & Style Consistency**:
+  - Standardized interactive buttons across the application to solid brand green (`#0D8D1E`) and neutral tones, eliminating outdated gradients and outlines.
+- **Automated Lifecycle, Security & Address Test Suite (`backend/tests/`)**:
+  - Added automated test suites:
+    - `orderLifecycle.test.js`: Verifies base rates, trip calculations, accessibility surcharges, 10% service tax, 5-stage state transitions, and fleet slot rules (5/5 tests).
+    - `securityAudit.test.js`: Verifies JWT integrity, RBAC route protection, client tenant query isolation, and spoofed token rejection (4/4 tests).
+    - `addressHandling.test.js`: Verifies PSGC province/city resolution, auto-region detection, and database schema sync (5/5 tests).
+  - Wired all suites into `npm test --prefix backend` (14/14 tests passing).
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
