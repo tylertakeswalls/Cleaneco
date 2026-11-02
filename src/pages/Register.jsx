@@ -192,7 +192,7 @@ function Register() {
     }
 
     if (!isTosAccepted) {
-      setMessage("You must read and accept the Terms and Conditions.");
+      setMessage("You must read and accept the Terms of Service.");
       setLoading(false);
       return;
     }
@@ -788,14 +788,15 @@ function Register() {
         <div className="form-group text-center mb-3">
           <button
             type="button"
-            className="btn rounded-pill fw-bold"
+            className="btn rounded-pill fw-bold text-white shadow-sm"
             onClick={() => { setIsTosModalOpen(true); }}
             style={{
               transition: 'all 0.3s ease',
               minWidth: '250px',
-              backgroundColor: isTosAccepted ? '#0D8D1E' : 'transparent',
-              color: isTosAccepted ? 'white' : '#0D8D1E',
-              border: '2px solid #0D8D1E'
+              backgroundColor: isTosAccepted ? '#0A6F17' : '#0D8D1E',
+              border: 'none',
+              padding: '10px 24px',
+              boxShadow: '0 2px 6px rgba(13, 141, 30, 0.25)'
             }}
           >
             {isTosAccepted ? <><i className="fas fa-check-circle me-2"></i>Terms of Service Accepted</> : <><i className="fas fa-file-contract me-2"></i>Review & Accept Terms of Service</>}
@@ -830,24 +831,24 @@ function Register() {
         tabIndex="-1"
         role="dialog"
       >
-        <div className="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '680px', width: '92%' }} role="document">
           <div className="modal-content shadow-lg" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
             <div className="modal-header" style={{ backgroundColor: '#0D8D1E', borderBottom: 'none' }}>
-              <h5 className="modal-title fw-bold text-white">Terms and Conditions</h5>
+              <h5 className="modal-title fw-bold text-white">Terms of Service</h5>
               <button type="button" className="btn-close btn-close-white" onClick={() => setIsTosModalOpen(false)} aria-label="Close"></button>
             </div>
-            <div className="modal-body p-0 bg-light" style={{ height: '60vh' }}>
+            <div className="modal-body p-0 bg-light" style={{ height: '74vh', maxHeight: '720px' }}>
               <iframe
-                src={`${api.defaults.baseURL}/settings/tos/pdf`}
-                title="Terms and Conditions"
+                src={`${api.defaults.baseURL}/settings/tos/pdf#view=FitH&toolbar=0&navpanes=0`}
+                title="Terms of Service"
                 width="100%"
                 height="100%"
-                style={{ border: 'none' }}
+                style={{ border: 'none', display: 'block' }}
               >
                 <div className="p-5 text-center">
                   <p>Your browser does not support inline PDFs.</p>
                   <a href={`${api.defaults.baseURL}/settings/tos/pdf`} target="_blank" rel="noreferrer" className="btn-custom">
-                    Click here to view the Terms and Conditions
+                    Click here to view the Terms of Service
                   </a>
                 </div>
               </iframe>
