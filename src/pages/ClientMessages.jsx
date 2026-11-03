@@ -788,9 +788,10 @@ export default function ClientMessages() {
                 <textarea
                   ref={textareaRef}
                   className="chat-composer-textarea"
+                  maxLength={1000}
                   placeholder={selectedImage ? "Add an optional caption to your image..." : "Type your message or inquiry here..."}
                   value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
+                  onChange={(e) => setMessageText(e.target.value.slice(0, 1000))}
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
                   disabled={sending}

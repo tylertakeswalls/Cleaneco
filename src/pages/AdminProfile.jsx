@@ -64,7 +64,16 @@ function AdminProfile() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const finalVal = name === 'phone' ? formatPhoneNumber(value) : value;
+    let finalVal = name === 'phone' ? formatPhoneNumber(value) : value;
+    const maxLimits = {
+      username: 30,
+      first_name: 50,
+      middle_name: 50,
+      last_name: 50
+    };
+    if (maxLimits[name] && typeof finalVal === 'string') {
+      finalVal = finalVal.slice(0, maxLimits[name]);
+    }
     setProfile(prev => ({ ...prev, [name]: finalVal }));
   };
 
@@ -220,6 +229,7 @@ function AdminProfile() {
                     type="text" 
                     className="form-control" 
                     name="first_name" 
+                    maxLength={50}
                     value={profile.first_name || ''} 
                     onChange={handleChange} 
                     required 
@@ -233,6 +243,7 @@ function AdminProfile() {
                     type="text" 
                     className="form-control" 
                     name="middle_name" 
+                    maxLength={50}
                     value={profile.middle_name || ''} 
                     onChange={handleChange} 
                   />
@@ -245,6 +256,7 @@ function AdminProfile() {
                     type="text" 
                     className="form-control" 
                     name="last_name" 
+                    maxLength={50}
                     value={profile.last_name || ''} 
                     onChange={handleChange} 
                     required 
@@ -261,6 +273,7 @@ function AdminProfile() {
                     type="text" 
                     className="form-control" 
                     name="username" 
+                    maxLength={30}
                     value={profile.username || ''} 
                     onChange={handleChange} 
                     required 

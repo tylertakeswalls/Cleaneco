@@ -1120,8 +1120,9 @@ function OngoingOrders() {
                       <input
                         type="text"
                         className="form-control bg-light"
+                        maxLength={500}
                         value={rescheduleReason}
-                        onChange={(e) => setRescheduleReason(e.target.value)}
+                        onChange={(e) => setRescheduleReason(e.target.value.slice(0, 500))}
                         placeholder="Please briefly explain why you need to reschedule..."
                       />
                     </div>
@@ -1240,15 +1241,15 @@ function OngoingOrders() {
                     </div>
                     <div className="form-group mb-2">
                       <label className="form-label small fw-bold">Bank Name</label>
-                      <input type="text" className="form-control form-control-sm" placeholder="e.g. BDO, BPI" value={chequeDetails.bankName} onChange={(e) => setChequeDetails({ ...chequeDetails, bankName: e.target.value })} required />
+                      <input type="text" className="form-control form-control-sm" maxLength={80} placeholder="e.g. BDO, BPI" value={chequeDetails.bankName} onChange={(e) => setChequeDetails({ ...chequeDetails, bankName: e.target.value.slice(0, 80) })} required />
                     </div>
                     <div className="form-group mb-2">
                       <label className="form-label small fw-bold">Cheque Number</label>
-                      <input type="text" className="form-control form-control-sm" value={chequeDetails.chequeNumber} onChange={(e) => setChequeDetails({ ...chequeDetails, chequeNumber: e.target.value })} required />
+                      <input type="text" className="form-control form-control-sm" maxLength={50} value={chequeDetails.chequeNumber} onChange={(e) => setChequeDetails({ ...chequeDetails, chequeNumber: e.target.value.slice(0, 50) })} required />
                     </div>
                     <div className="form-group mb-2">
                       <label className="form-label small fw-bold">Account Name</label>
-                      <input type="text" className="form-control form-control-sm" value={chequeDetails.accountName} onChange={(e) => setChequeDetails({ ...chequeDetails, accountName: e.target.value })} required />
+                      <input type="text" className="form-control form-control-sm" maxLength={100} value={chequeDetails.accountName} onChange={(e) => setChequeDetails({ ...chequeDetails, accountName: e.target.value.slice(0, 100) })} required />
                     </div>
                     <div className="form-group mb-2">
                       <label className="form-label small fw-bold text-success"><i className="fas fa-camera me-1"></i>Upload Cheque Image</label>
@@ -1338,15 +1339,15 @@ function OngoingOrders() {
                     </div>
                     <div className="form-group mb-2">
                       <label className="form-label small fw-bold">Bank Name</label>
-                      <input type="text" className="form-control form-control-sm" placeholder="e.g. BDO, BPI" value={chequeDetails.bankName} onChange={(e) => setChequeDetails({ ...chequeDetails, bankName: e.target.value })} required />
+                      <input type="text" className="form-control form-control-sm" maxLength={80} placeholder="e.g. BDO, BPI" value={chequeDetails.bankName} onChange={(e) => setChequeDetails({ ...chequeDetails, bankName: e.target.value.slice(0, 80) })} required />
                     </div>
                     <div className="form-group mb-2">
                       <label className="form-label small fw-bold">Cheque Number</label>
-                      <input type="text" className="form-control form-control-sm" value={chequeDetails.chequeNumber} onChange={(e) => setChequeDetails({ ...chequeDetails, chequeNumber: e.target.value })} required />
+                      <input type="text" className="form-control form-control-sm" maxLength={50} value={chequeDetails.chequeNumber} onChange={(e) => setChequeDetails({ ...chequeDetails, chequeNumber: e.target.value.slice(0, 50) })} required />
                     </div>
                     <div className="form-group mb-2">
                       <label className="form-label small fw-bold">Account Name</label>
-                      <input type="text" className="form-control form-control-sm" value={chequeDetails.accountName} onChange={(e) => setChequeDetails({ ...chequeDetails, accountName: e.target.value })} required />
+                      <input type="text" className="form-control form-control-sm" maxLength={100} value={chequeDetails.accountName} onChange={(e) => setChequeDetails({ ...chequeDetails, accountName: e.target.value.slice(0, 100) })} required />
                     </div>
                     <div className="form-group mb-2">
                       <label className="form-label small fw-bold text-success"><i className="fas fa-camera me-1"></i>Upload Cheque Image</label>

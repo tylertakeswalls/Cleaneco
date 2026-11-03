@@ -138,9 +138,10 @@ function Resources() {
                 <input
                   type="text"
                   className="form-control search-bar-custom"
+                  maxLength={100}
                   placeholder="Search question here"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value.slice(0, 100))}
                   onKeyPress={handleKeyPress}
                 />
                 <button className="search-button" onClick={handleSearch}>

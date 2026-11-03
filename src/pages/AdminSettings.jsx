@@ -293,9 +293,10 @@ function AdminSettings() {
                   <input 
                     type="text" 
                     className="form-control m-0" 
+                    maxLength={50}
                     placeholder="New Truck Team Name" 
                     value={newTeamName}
-                    onChange={(e) => setNewTeamName(e.target.value)}
+                    onChange={(e) => setNewTeamName(e.target.value.slice(0, 50))}
                     onKeyPress={(e) => e.key === 'Enter' && addTruckTeam()}
                   />
                   <button className="btn btn-success fw-bold m-0 d-flex align-items-center justify-content-center text-nowrap" type="button" onClick={addTruckTeam} style={{ background: '#0D8D1E', borderRadius: '0.5rem', minWidth: '130px', padding: '0 20px', border: 'none' }}>
@@ -350,9 +351,10 @@ function AdminSettings() {
                     type="text" 
                     className="form-control m-0" 
                     style={{ flex: '1 1 auto' }}
+                    maxLength={100}
                     placeholder="Reason (Optional, e.g. Teambuilding)" 
                     value={newUnavailDate.reason}
-                    onChange={(e) => setNewUnavailDate({ ...newUnavailDate, reason: e.target.value })}
+                    onChange={(e) => setNewUnavailDate({ ...newUnavailDate, reason: e.target.value.slice(0, 100) })}
                     onKeyPress={(e) => e.key === 'Enter' && addUnavailableDate()}
                   />
                   <button className="btn btn-warning fw-bold m-0 d-flex align-items-center justify-content-center text-nowrap" type="button" onClick={addUnavailableDate} style={{ borderRadius: '0.5rem', border: 'none', minWidth: '130px', padding: '0 20px' }}>

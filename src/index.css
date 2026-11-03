@@ -24,6 +24,14 @@ body {
   background-color: var(--cleaneco-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Defensive UI layout armor: prevent unbroken strings from blowing out tables, cards, and modal containers */
+table, td, th, .card, .modal-content, .chat-message, .order-card, .table-responsive {
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Notification Tray adjustments */

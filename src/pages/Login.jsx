@@ -213,6 +213,7 @@ function Login() {
               type="text" 
               className="form-control" 
               name="username"
+              maxLength={30}
               placeholder="Username" 
               value={formData.username}
               onChange={handleChange}
@@ -229,6 +230,7 @@ function Login() {
               type="password" 
               className="form-control" 
               name="password"
+              maxLength={64}
               placeholder="Password" 
               value={formData.password}
               onChange={handleChange}
@@ -399,9 +401,10 @@ function Login() {
                         <input
                           type="text"
                           className="form-control modal-reset-input"
+                          maxLength={30}
                           placeholder="Enter your username"
                           value={forgotUsername}
-                          onChange={(e) => setForgotUsername(e.target.value)}
+                          onChange={(e) => setForgotUsername(e.target.value.slice(0, 30))}
                           autoFocus
                           required
                         />

@@ -230,9 +230,12 @@ function OrderDatabase() {
   };
 
   const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    let val = value;
+    if (name === 'internal_notes') val = val.slice(0, 1000);
     setEditForm(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: val
     }));
   };
 
@@ -752,9 +755,10 @@ function OrderDatabase() {
               type="text" 
               className="form-control m-0" 
               style={{ width: '260px', height: '52px' }}
+              maxLength={100}
               placeholder="Search order #, customer, phone..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value.slice(0, 100))}
             />
             <select 
               className="form-select m-0" 
@@ -992,6 +996,7 @@ function OrderDatabase() {
                         <label className="form-label fw-bold small text-muted">Internal Notes</label>
                         <textarea 
                           name="internal_notes"
+                          maxLength={1000}
                           className="form-control bg-light border-0 shadow-sm" 
                           placeholder="Private notes (client will not see this)"
                           value={editForm.internal_notes}
@@ -1593,8 +1598,9 @@ function OrderDatabase() {
                 <textarea
                   className="form-control bg-light"
                   rows="3"
+                  maxLength={500}
                   value={rejectReasonText}
-                  onChange={(e) => setRejectReasonText(e.target.value)}
+                  onChange={(e) => setRejectReasonText(e.target.value.slice(0, 500))}
                   placeholder="Enter rejection reason..."
                   autoFocus
                 ></textarea>

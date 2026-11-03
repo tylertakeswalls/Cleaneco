@@ -605,9 +605,10 @@ function ServiceManagement() {
                                             <input
                                                 type="text"
                                                 className="form-control"
+                                                maxLength={80}
                                                 placeholder="e.g. Grease Trap Cleaning"
                                                 value={formService.name}
-                                                onChange={(e) => setFormService({ ...formService, name: e.target.value })}
+                                                onChange={(e) => setFormService({ ...formService, name: e.target.value.slice(0, 80) })}
                                                 required
                                             />
                                         </div>
@@ -630,9 +631,10 @@ function ServiceManagement() {
                                             <textarea
                                                 className="form-control"
                                                 rows="2"
+                                                maxLength={500}
                                                 placeholder="Briefly describe what this service includes..."
                                                 value={formService.description}
-                                                onChange={(e) => setFormService({ ...formService, description: e.target.value })}
+                                                onChange={(e) => setFormService({ ...formService, description: e.target.value.slice(0, 500) })}
                                             />
                                         </div>
                                     </div>
@@ -761,9 +763,10 @@ function ServiceManagement() {
                                                                         <input
                                                                             type="text"
                                                                             className="form-control form-control-sm"
+                                                                            maxLength={80}
                                                                             placeholder="e.g. Number of Septic Tanks"
                                                                             value={field.label}
-                                                                            onChange={(e) => updateField(fIdx, { label: e.target.value })}
+                                                                            onChange={(e) => updateField(fIdx, { label: e.target.value.slice(0, 80) })}
                                                                             required
                                                                         />
                                                                     </div>
@@ -838,10 +841,11 @@ function ServiceManagement() {
                                                                                 <input
                                                                                     type="text"
                                                                                     className="form-control form-control-sm"
+                                                                                    maxLength={60}
                                                                                     placeholder="Option Label"
                                                                                     style={{ flex: '3 1 180px', height: '34px' }}
                                                                                     value={opt.label}
-                                                                                    onChange={(e) => updateOption(fIdx, oIdx, { label: e.target.value })}
+                                                                                    onChange={(e) => updateOption(fIdx, oIdx, { label: e.target.value.slice(0, 60) })}
                                                                                     required
                                                                                 />
                                                                                 {field.type === 'multiplier' ? (

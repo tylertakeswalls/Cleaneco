@@ -455,6 +455,29 @@ Comprehensive resolution of all findings from the 13-page DLSU-D Capstone UI/UX 
     - `securityAudit.test.js` (4/4 tests): JWT signature integrity, `/api/admin/*` RBAC enforcement, client tenant order isolation, and spoofed token rejection.
     - `addressHandling.test.js` (5/5 tests): PSGC province/city resolution, auto-region detection, and database schema sync.
 
+---
+
+## 48. System-Wide Character Limit Enforcement, Layout Armor & Terms of Service Standardization
+- **3-Tier Character Limit Defense (Preventing Input Overflow & Layout Corruption)**:
+  - **Tier 1 - Frontend Input Boundaries**: Enforced strict `maxLength` attributes paired with real-time value slicing across every input and textarea in the system:
+    - Names (`first_name`, `last_name`, `middle_name`): 50 characters
+    - Usernames: 30 characters
+    - Emails: 100 characters
+    - Passwords: 64 characters
+    - Address Lines & Landmarks: 100–200 characters
+    - Reschedule & Rejection Reasons: 500 characters
+    - Messages & Internal Notes: 1000 characters
+    - Applied across `Register.jsx`, `Login.jsx`, `ClientProfile.jsx`, `AdminProfile.jsx`, `OrderForm.jsx`, `OngoingOrders.jsx`, `OrderDatabase.jsx`, `AdminUsers.jsx`, `AdminSettings.jsx`, `ContactUs.jsx`, `ResetPassword.jsx`, `Resources.jsx`, `ClientMessages.jsx`, `AdminMessages.jsx`, `ClientChatWidget.jsx`, `ServiceManagement.jsx`, and `ServicePricingFields.jsx`.
+  - **Tier 2 - Backend Schema & Endpoint Sanitization**:
+    - Added `maxlength` properties to Mongoose schemas in `backend/models/User.js`, `backend/models/Order.js`, and `backend/models/Message.js`.
+    - Sanitized and bounded request payloads in `backend/routes/messages.js` and `backend/routes/contact.js`.
+  - **Tier 3 - CSS Layout Armor (`src/index.css`)**:
+    - Applied `overflow-wrap: break-word` and `word-break: break-word` to tables, table cells (`td`, `th`), cards, modal dialogs, chat message bubbles, and order cards, permanently safeguarding UI containers against unbroken character strings.
+- **Terms of Service Modal & Action Consistency**:
+  - Replaced the registration outline button with a solid Cleaneco brand green button (`#0D8D1E`).
+  - Standardized modal header text to "Terms of Service".
+  - Configured PDF modal viewer sizing with `#view=FitH&toolbar=0&navpanes=0` to ensure the document fits seamlessly within the modal viewport on initial click without horizontal cutoff.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

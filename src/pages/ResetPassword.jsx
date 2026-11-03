@@ -130,9 +130,10 @@ export default function ResetPassword() {
                 <input 
                   type={showPassword ? 'text' : 'password'}
                   className="form-control"
+                  maxLength={64}
                   placeholder="At least 6 characters"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value.slice(0, 64))}
                   required
                 />
                 <button
@@ -155,9 +156,10 @@ export default function ResetPassword() {
                 <input 
                   type={showConfirmPassword ? 'text' : 'password'}
                   className="form-control"
+                  maxLength={64}
                   placeholder="Re-enter password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => setConfirmPassword(e.target.value.slice(0, 64))}
                   required
                 />
                 <button

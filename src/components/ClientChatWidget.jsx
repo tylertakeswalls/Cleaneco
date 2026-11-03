@@ -632,9 +632,10 @@ export default function ClientChatWidget() {
                 ref={inputRef}
                 type="text"
                 className="cleaneco-chat-input flex-grow-1"
+                maxLength={1000}
                 placeholder={selectedImage ? "Add a caption..." : "Type your message..."}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={(e) => setInputText(e.target.value.slice(0, 1000))}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 disabled={sending}

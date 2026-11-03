@@ -213,7 +213,7 @@ router.post('/conversations/:id/messages', handleChatImageUpload, async (req, re
   try {
     const conversationId = req.params.id;
     const { sender_id, sender_role, order_id } = req.body;
-    const rawText = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+    const rawText = typeof req.body.text === 'string' ? req.body.text.trim().slice(0, 1000) : '';
 
     if (!rawText && !req.file) {
       return res.status(400).json({ success: false, message: 'Message must contain text or an image attachment' });

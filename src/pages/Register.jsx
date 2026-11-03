@@ -43,13 +43,16 @@ function Register() {
     switch (name) {
       case 'firstName':
         if (!val) return 'First name is required.';
+        if (val.length > 50) return 'First name cannot exceed 50 characters.';
         if (!nameRegex.test(val)) return 'First name contains invalid characters.';
         return '';
       case 'middleName':
+        if (val && val.length > 50) return 'Middle name cannot exceed 50 characters.';
         if (val && !nameRegex.test(val)) return 'Middle name contains invalid characters.';
         return '';
       case 'lastName':
         if (!val) return 'Last name is required.';
+        if (val.length > 50) return 'Last name cannot exceed 50 characters.';
         if (!nameRegex.test(val)) return 'Last name contains invalid characters.';
         return '';
       case 'gender':
@@ -69,6 +72,7 @@ function Register() {
       }
       case 'email':
         if (!val) return 'Email address is required.';
+        if (val.length > 100) return 'Email cannot exceed 100 characters.';
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return 'Please enter a valid email address.';
         return '';
       case 'phone': {
@@ -79,9 +83,11 @@ function Register() {
       }
       case 'addressLine1':
         if (!val) return 'Street address / house number is required.';
+        if (val.length > 100) return 'Address cannot exceed 100 characters.';
         return '';
       case 'barangay':
         if (!val) return 'Barangay is required.';
+        if (val.length > 60) return 'Barangay cannot exceed 60 characters.';
         return '';
       case 'city':
         if (!val) return 'City or municipality is required.';
@@ -92,10 +98,12 @@ function Register() {
       case 'username':
         if (!val) return 'Username is required.';
         if (val.length < 3) return 'Username must be at least 3 characters.';
+        if (val.length > 30) return 'Username cannot exceed 30 characters.';
         return '';
       case 'password':
         if (!value) return 'Password is required.';
         if (value.length < 6) return 'Password must be at least 6 characters.';
+        if (value.length > 64) return 'Password cannot exceed 64 characters.';
         return '';
       case 'confirmPassword':
         if (!value) return 'Please confirm your password.';
@@ -105,6 +113,7 @@ function Register() {
         if ((allData.clientType === 'commercial' || allData.clientType === 'industrial') && !val) {
           return 'Company name is required for business accounts.';
         }
+        if (val && val.length > 100) return 'Company name cannot exceed 100 characters.';
         return '';
       default:
         return '';
@@ -124,6 +133,23 @@ function Register() {
 
   const handleChange = (e) => {
     let { name, value } = e.target;
+
+    const maxLimits = {
+      companyName: 100,
+      firstName: 50,
+      middleName: 50,
+      lastName: 50,
+      email: 100,
+      addressLine1: 100,
+      addressLine2: 100,
+      barangay: 60,
+      username: 30,
+      password: 64,
+      confirmPassword: 64
+    };
+    if (maxLimits[name] && typeof value === 'string') {
+      value = value.slice(0, maxLimits[name]);
+    }
 
     if (name === 'province') {
       const updated = {
@@ -323,6 +349,7 @@ function Register() {
                   id="reg-companyName"
                   type="text"
                   name="companyName"
+                  maxLength={100}
                   className={`form-control ${touched.companyName && errors.companyName ? 'is-invalid border-danger' : ''}`}
                   placeholder="e.g. Cleaneco Commercial Hub Inc."
                   value={formData.companyName}
@@ -354,6 +381,7 @@ function Register() {
                 id="reg-firstName"
                 type="text"
                 name="firstName"
+                maxLength={50}
                 className={`form-control ${touched.firstName && errors.firstName ? 'is-invalid border-danger' : ''}`}
                 placeholder="e.g. Juan"
                 value={formData.firstName}
@@ -377,6 +405,7 @@ function Register() {
                 id="reg-middleName"
                 type="text"
                 name="middleName"
+                maxLength={50}
                 className={`form-control ${touched.middleName && errors.middleName ? 'is-invalid border-danger' : ''}`}
                 placeholder="e.g. Santos"
                 value={formData.middleName}
@@ -399,6 +428,7 @@ function Register() {
                 id="reg-lastName"
                 type="text"
                 name="lastName"
+                maxLength={50}
                 className={`form-control ${touched.lastName && errors.lastName ? 'is-invalid border-danger' : ''}`}
                 placeholder="e.g. Dela Cruz"
                 value={formData.lastName}
@@ -489,6 +519,7 @@ function Register() {
                 id="reg-email"
                 type="email"
                 name="email"
+                maxLength={100}
                 className={`form-control ${touched.email && errors.email ? 'is-invalid border-danger' : ''}`}
                 placeholder="e.g. juan.delacruz@example.com"
                 value={formData.email}
@@ -543,6 +574,7 @@ function Register() {
                 id="reg-addressLine1"
                 type="text"
                 name="addressLine1"
+                maxLength={100}
                 className={`form-control ${touched.addressLine1 && errors.addressLine1 ? 'is-invalid border-danger' : ''}`}
                 placeholder="e.g. Blk 12 Lot 4, Emerald St."
                 value={formData.addressLine1}
@@ -566,6 +598,7 @@ function Register() {
                 id="reg-addressLine2"
                 type="text"
                 name="addressLine2"
+                maxLength={100}
                 className="form-control"
                 placeholder="e.g. Greenbreeze Subdivision"
                 value={formData.addressLine2}
@@ -665,6 +698,7 @@ function Register() {
                 id="reg-barangay"
                 type="text"
                 name="barangay"
+                maxLength={60}
                 className={`form-control ${touched.barangay && errors.barangay ? 'is-invalid border-danger' : ''}`}
                 placeholder="e.g. Brgy. San Agustin"
                 value={formData.barangay}
@@ -693,6 +727,7 @@ function Register() {
             id="reg-username"
             type="text"
             name="username"
+            maxLength={30}
             className={`form-control ${touched.username && errors.username ? 'is-invalid border-danger' : ''}`}
             placeholder="e.g. jdelacruz"
             value={formData.username}
@@ -718,6 +753,7 @@ function Register() {
                   id="reg-password"
                   type={showPassword ? "text" : "password"}
                   name="password"
+                  maxLength={64}
                   className={`form-control ${touched.password && errors.password ? 'is-invalid border-danger' : ''}`}
                   placeholder="At least 6 characters"
                   value={formData.password}
@@ -755,6 +791,7 @@ function Register() {
                   id="reg-confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
+                  maxLength={64}
                   className={`form-control ${touched.confirmPassword && errors.confirmPassword ? 'is-invalid border-danger' : ''}`}
                   placeholder="Re-enter password"
                   value={formData.confirmPassword}

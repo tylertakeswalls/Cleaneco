@@ -50,7 +50,11 @@ function AdminUsers() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    let max = 100;
+    if (name === 'first_name' || name === 'last_name') max = 50;
+    if (name === 'phone') max = 25;
+    setFormData({ ...formData, [name]: value.slice(0, max) });
   };
 
   const handleUpdate = async () => {
@@ -263,9 +267,10 @@ function AdminUsers() {
               type="text"
               className="form-control m-0"
               style={{ width: '250px', height: '52px' }}
+              maxLength={100}
               placeholder="Search user, name, email..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value.slice(0, 100))}
             />
             <select
               className="form-select m-0"
@@ -332,12 +337,14 @@ function AdminUsers() {
                             <input
                               className="form-control mb-1"
                               name="first_name"
+                              maxLength={50}
                               value={formData.first_name}
                               onChange={handleChange}
                             />
                             <input
                               className="form-control"
                               name="last_name"
+                              maxLength={50}
                               value={formData.last_name}
                               onChange={handleChange}
                             />
@@ -352,6 +359,7 @@ function AdminUsers() {
                           <input
                             className="form-control"
                             name="email"
+                            maxLength={100}
                             value={formData.email}
                             onChange={handleChange}
                           />
@@ -363,6 +371,7 @@ function AdminUsers() {
                           <input
                             className="form-control"
                             name="phone"
+                            maxLength={25}
                             value={formData.phone}
                             onChange={handleChange}
                           />

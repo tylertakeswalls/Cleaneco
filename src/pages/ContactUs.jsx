@@ -23,9 +23,11 @@ function ContactUs() {
 
   const handleChange = (e) => {
     const { id, value } = e.target;
+    let max = 1000;
+    if (id === 'name' || id === 'email') max = 100;
     setFormData(prev => ({
       ...prev,
-      [id]: value
+      [id]: value.slice(0, max)
     }));
   };
 
@@ -88,6 +90,7 @@ function ContactUs() {
                     type="text" 
                     className="form-control" 
                     id="name" 
+                    maxLength={100}
                     placeholder="Juan Dela Cruz"
                     value={formData.name}
                     onChange={handleChange}
@@ -101,6 +104,7 @@ function ContactUs() {
                     type="email" 
                     className="form-control" 
                     id="email" 
+                    maxLength={100}
                     placeholder="juan@example.com"
                     value={formData.email}
                     onChange={handleChange}
@@ -130,6 +134,7 @@ function ContactUs() {
                     className="form-control" 
                     id="message" 
                     rows="5" 
+                    maxLength={1000}
                     placeholder="Please provide the details of your inquiry, complaint, or feedback..."
                     value={formData.message}
                     onChange={handleChange}

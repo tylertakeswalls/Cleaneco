@@ -63,9 +63,10 @@ function ServicePricingFields({
                     type="text"
                     className="form-control form-control-sm"
                     style={{ flex: 2 }}
+                    maxLength={200}
                     placeholder="Reason / Finding note"
                     value={justifications[field.key] || ''}
-                    onChange={(e) => onJustificationChange && onJustificationChange(field.key, e.target.value)}
+                    onChange={(e) => onJustificationChange && onJustificationChange(field.key, e.target.value.slice(0, 200))}
                   />
                 )}
               </div>
@@ -90,9 +91,10 @@ function ServicePricingFields({
                     type="text"
                     className="form-control form-control-sm"
                     style={{ flex: 1.5 }}
+                    maxLength={200}
                     placeholder="Reason / Finding note"
                     value={justifications[field.key] || ''}
-                    onChange={(e) => onJustificationChange && onJustificationChange(field.key, e.target.value)}
+                    onChange={(e) => onJustificationChange && onJustificationChange(field.key, e.target.value.slice(0, 200))}
                   />
                 )}
               </div>

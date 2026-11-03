@@ -220,11 +220,23 @@ function OrderForm() {
 
     const handleChange = (e) => {
         const { id, value, type, checked } = e.target;
+        const maxLimits = {
+            firstName: 50,
+            lastName: 50,
+            email: 100,
+            address: 200,
+            landmark: 100,
+            notes: 500
+        };
+        let finalValue = value;
+        if (maxLimits[id] && typeof value === 'string') {
+            finalValue = value.slice(0, maxLimits[id]);
+        }
         if (id === 'address') {
-            const detected = detectRegionFromAddress(value);
+            const detected = detectRegionFromAddress(finalValue);
             setFormData(prev => ({
                 ...prev,
-                address: value,
+                address: finalValue,
                 region: detected || prev.region
             }));
             return;
@@ -238,7 +250,7 @@ function OrderForm() {
         }
         setFormData(prev => ({
             ...prev,
-            [id]: type === 'checkbox' ? checked : value
+            [id]: type === 'checkbox' ? checked : finalValue
         }));
     };
 
@@ -269,9 +281,11 @@ function OrderForm() {
     }, [formData.firstName, formData.lastName, formData.address, formData.clientType]);
 
     const handleHouseholdChange = (index, field, value) => {
+        const limit = field === 'name' ? 80 : 150;
+        const val = typeof value === 'string' ? value.slice(0, limit) : value;
         setHouseholds(prev => {
             const updated = [...prev];
-            updated[index] = { ...updated[index], [field]: value };
+            updated[index] = { ...updated[index], [field]: val };
             return updated;
         });
     };
@@ -535,15 +549,15 @@ function OrderForm() {
                                     </div>
                                     <div className="form-group mb-2">
                                         <label className="form-label small fw-bold">Bank Name</label>
-                                        <input type="text" className="form-control form-control-sm" placeholder="e.g. BDO, BPI" value={chequeDetails.bankName} onChange={(e) => setChequeDetails({...chequeDetails, bankName: e.target.value})} required />
+                                        <input type="text" className="form-control form-control-sm" maxLength={80} placeholder="e.g. BDO, BPI" value={chequeDetails.bankName} onChange={(e) => setChequeDetails({...chequeDetails, bankName: e.target.value.slice(0, 80)})} required />
                                     </div>
                                     <div className="form-group mb-2">
                                         <label className="form-label small fw-bold">Cheque Number</label>
-                                        <input type="text" className="form-control form-control-sm" value={chequeDetails.chequeNumber} onChange={(e) => setChequeDetails({...chequeDetails, chequeNumber: e.target.value})} required />
+                                        <input type="text" className="form-control form-control-sm" maxLength={50} value={chequeDetails.chequeNumber} onChange={(e) => setChequeDetails({...chequeDetails, chequeNumber: e.target.value.slice(0, 50)})} required />
                                     </div>
                                     <div className="form-group mb-2">
                                         <label className="form-label small fw-bold">Account Name</label>
-                                        <input type="text" className="form-control form-control-sm" value={chequeDetails.accountName} onChange={(e) => setChequeDetails({...chequeDetails, accountName: e.target.value})} required />
+                                        <input type="text" className="form-control form-control-sm" maxLength={100} value={chequeDetails.accountName} onChange={(e) => setChequeDetails({...chequeDetails, accountName: e.target.value.slice(0, 100)})} required />
                                     </div>
                                     <div className="form-group mb-2">
                                         <label className="form-label small fw-bold">Cheque Date</label>
@@ -599,6 +613,7 @@ function OrderForm() {
                                 type="text"
                                 className="form-control"
                                 id="firstName"
+                                maxLength={50}
                                 placeholder="e.g. Juan"
                                 value={formData.firstName}
                                 onChange={handleChange}
@@ -612,6 +627,7 @@ function OrderForm() {
                                 type="text"
                                 className="form-control"
                                 id="lastName"
+                                maxLength={50}
                                 placeholder="e.g. Dela Cruz"
                                 value={formData.lastName}
                                 onChange={handleChange}
@@ -627,6 +643,7 @@ function OrderForm() {
                                 type="email"
                                 className="form-control"
                                 id="email"
+                                maxLength={100}
                                 placeholder="e.g. juan.delacruz@example.com"
                                 value={formData.email}
                                 onChange={handleChange}
@@ -670,6 +687,7 @@ function OrderForm() {
                                 type="text"
                                 className="form-control"
                                 id="address"
+                                maxLength={200}
                                 placeholder="House/Unit No., Street, Barangay, City, Province"
                                 value={formData.address}
                                 onChange={handleChange}
@@ -685,6 +703,7 @@ function OrderForm() {
                             type="text"
                             className="form-control"
                             id="landmark"
+                            maxLength={100}
                             placeholder="e.g. Near Brgy Hall, Beside 7-Eleven..."
                             value={formData.landmark}
                             onChange={handleChange}
@@ -805,6 +824,7 @@ function OrderForm() {
                                                 <input 
                                                     type="text"
                                                     className="form-control form-control-sm w-100"
+                                                    maxLength={80}
                                                     placeholder="Resident Full Name"
                                                     value={household.name}
                                                     onChange={(e) => handleHouseholdChange(index, 'name', e.target.value)}
@@ -816,6 +836,7 @@ function OrderForm() {
                                                 <input 
                                                     type="text"
                                                     className="form-control form-control-sm w-100"
+                                                    maxLength={150}
                                                     placeholder="House / Lot / Street Address"
                                                     value={household.address}
                                                     onChange={(e) => handleHouseholdChange(index, 'address', e.target.value)}
@@ -970,6 +991,7 @@ function OrderForm() {
                         <textarea 
                             className="form-control"
                             id="notes"
+                            maxLength={500}
                             placeholder="Any special instructions or details..."
                             value={formData.notes}
                             onChange={handleChange}

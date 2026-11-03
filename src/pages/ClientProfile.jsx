@@ -106,7 +106,17 @@ function ClientProfile() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const finalVal = name === 'phone' ? formatPhoneNumber(value) : value;
+    let finalVal = name === 'phone' ? formatPhoneNumber(value) : value;
+    const maxLimits = {
+      username: 30,
+      first_name: 50,
+      middle_name: 50,
+      last_name: 50,
+      companyName: 100
+    };
+    if (maxLimits[name] && typeof finalVal === 'string') {
+      finalVal = finalVal.slice(0, maxLimits[name]);
+    }
     setProfile(prev => ({ ...prev, [name]: finalVal }));
   };
 
@@ -124,7 +134,15 @@ function ClientProfile() {
   };
 
   const handleAddressComponentChange = (e) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    const maxLimits = {
+      addressLine1: 100,
+      addressLine2: 100,
+      barangay: 60
+    };
+    if (maxLimits[name] && typeof value === 'string') {
+      value = value.slice(0, maxLimits[name]);
+    }
     setProfile(prev => {
       const updated = {
         ...prev,
@@ -432,6 +450,7 @@ function ClientProfile() {
                     <input
                       type="text"
                       name="companyName"
+                      maxLength={100}
                       className="form-control"
                       placeholder="e.g. Cleaneco Commercial Hub Inc."
                       value={profile.companyName || ''}
@@ -460,6 +479,7 @@ function ClientProfile() {
                       type="text" 
                       className="form-control" 
                       name="first_name" 
+                      maxLength={50}
                       value={profile.first_name || ''} 
                       onChange={handleChange} 
                       required 
@@ -473,6 +493,7 @@ function ClientProfile() {
                       type="text" 
                       className="form-control" 
                       name="middle_name" 
+                      maxLength={50}
                       value={profile.middle_name || ''} 
                       onChange={handleChange} 
                     />
@@ -485,6 +506,7 @@ function ClientProfile() {
                       type="text" 
                       className="form-control" 
                       name="last_name" 
+                      maxLength={50}
                       value={profile.last_name || ''} 
                       onChange={handleChange} 
                       required 
@@ -501,6 +523,7 @@ function ClientProfile() {
                       type="text" 
                       className="form-control" 
                       name="username" 
+                      maxLength={30}
                       value={profile.username || ''} 
                       onChange={handleChange} 
                       required 
@@ -590,6 +613,7 @@ function ClientProfile() {
                       type="text" 
                       className="form-control" 
                       name="addressLine1" 
+                      maxLength={100}
                       placeholder="e.g. Blk 12 Lot 4, Emerald St." 
                       value={profile.addressLine1 || ''} 
                       onChange={handleAddressComponentChange} 
@@ -604,6 +628,7 @@ function ClientProfile() {
                       type="text" 
                       className="form-control" 
                       name="addressLine2" 
+                      maxLength={100}
                       placeholder="e.g. Greenbreeze Subdivision" 
                       value={profile.addressLine2 || ''} 
                       onChange={handleAddressComponentChange} 
@@ -657,6 +682,7 @@ function ClientProfile() {
                       type="text" 
                       className="form-control" 
                       name="barangay" 
+                      maxLength={60}
                       placeholder="e.g. San Agustin" 
                       value={profile.barangay || ''} 
                       onChange={handleAddressComponentChange} 

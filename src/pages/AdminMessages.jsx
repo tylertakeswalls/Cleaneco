@@ -716,9 +716,10 @@ export default function AdminMessages() {
               <input
                 type="text"
                 className="form-control admin-search-input"
+                maxLength={100}
                 placeholder="Search client, email, or order #..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value.slice(0, 100))}
               />
               {searchTerm && (
                 <button 
@@ -1154,9 +1155,10 @@ export default function AdminMessages() {
                     <textarea
                       ref={textareaRef}
                       className="chat-composer-textarea"
+                      maxLength={1000}
                       placeholder={selectedImage ? "Add an optional caption to your image..." : "Type your response to the client..."}
                       value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
+                      onChange={(e) => setMessageText(e.target.value.slice(0, 1000))}
                       onKeyDown={handleKeyDown}
                       onPaste={handlePaste}
                       disabled={sending}
