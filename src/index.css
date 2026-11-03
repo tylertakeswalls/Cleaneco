@@ -25,13 +25,18 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-wrap: break-word;
+}
+
+/* Defensive UI layout armor: prevent unbroken strings from blowing out cards, modals, and chat containers */
+.card, .modal-content, .chat-message, .order-card, .table-responsive {
+  overflow-wrap: break-word;
   word-break: break-word;
 }
 
-/* Defensive UI layout armor: prevent unbroken strings from blowing out tables, cards, and modal containers */
-table, td, th, .card, .modal-content, .chat-message, .order-card, .table-responsive {
+/* In tables, wrap text without splitting normal words arbitrarily */
+table, td, th {
   overflow-wrap: break-word;
-  word-break: break-word;
+  word-break: normal;
 }
 
 /* Notification Tray adjustments */

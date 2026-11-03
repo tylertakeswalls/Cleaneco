@@ -802,13 +802,13 @@ function OrderDatabase() {
               <thead className="thead-light">
                 <tr>
                   <th style={{ minWidth: '160px', whiteSpace: 'nowrap' }}>Order ID</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Customer</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Service</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Schedule</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Status</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Truck Team</th>
+                  <th style={{ minWidth: '140px', whiteSpace: 'nowrap' }}>Customer</th>
+                  <th style={{ minWidth: '220px', maxWidth: '300px', whiteSpace: 'nowrap' }}>Service</th>
+                  <th style={{ minWidth: '170px', whiteSpace: 'nowrap' }}>Schedule</th>
+                  <th style={{ minWidth: '120px', whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ minWidth: '130px', whiteSpace: 'nowrap' }}>Truck Team</th>
                   <th style={{ minWidth: '145px', whiteSpace: 'nowrap' }}>Final Price (₱)</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Actions</th>
+                  <th style={{ minWidth: '100px', whiteSpace: 'nowrap' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -831,14 +831,20 @@ function OrderDatabase() {
                         <div className="fw-bold text-dark text-nowrap" style={{ whiteSpace: 'nowrap' }}>#{formatOrderReference(order.order_id)}</div>
                         <div className="text-muted text-nowrap" style={{ fontSize: '0.72rem', whiteSpace: 'nowrap' }}>{order.order_id}</div>
                       </td>
-                      <td>{formatName(order)}</td>
-                      <td>
-                        {order.service_name || order.service_type}
+                      <td style={{ minWidth: '140px' }}>{formatName(order)}</td>
+                      <td style={{ minWidth: '220px', maxWidth: '300px' }}>
+                        <div className="fw-semibold text-dark" style={{ lineHeight: '1.4', fontSize: '0.9rem' }}>
+                          {(order.service_name || order.service_type || '').split(', ').map((s, idx, arr) => (
+                            <span key={idx} style={{ display: 'block' }}>
+                              {s}{idx < arr.length - 1 ? ',' : ''}
+                            </span>
+                          ))}
+                        </div>
                         {order.estimate_inputs && (order.estimate_inputs.accessibility === 'difficult' || Object.values(order.estimate_inputs).some(v => v && typeof v === 'object' && v.accessibility === 'difficult')) && (
                           <div className="badge bg-danger mt-1 d-block"><i className="fas fa-exclamation-triangle me-1"></i>Requires Extension Hoses</div>
                         )}
                       </td>
-                      <td>
+                      <td style={{ minWidth: '170px' }}>
                         {(() => {
                           const sched = resolveOrderSchedule(order);
                           return (
@@ -876,13 +882,13 @@ function OrderDatabase() {
                           );
                         })()}
                       </td>
-                      <td className={`status-cell ${getStatusClass(order.status)}`}>
+                      <td className={`status-cell text-nowrap ${getStatusClass(order.status)}`} style={{ minWidth: '120px', whiteSpace: 'nowrap' }}>
                         {order.status}
                         {order.request_type && (
                           <div className="small text-warning fw-bold mt-1">{order.request_type}</div>
                         )}
                       </td>
-                      <td>
+                      <td style={{ minWidth: '130px', whiteSpace: 'nowrap' }}>
                         <div>{order.truck_team || 'Unassigned'}</div>
                         {(() => {
                           const issue = getOrderTruckIssue(order);
