@@ -116,12 +116,14 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     if (user.inactive) {
-      if (user.isModified('inactive')) await user.save();
+      if (user.isModified('inactive')) {
+        await User.updateOne({ _id: user._id }, { inactive: true });
+      }
       return res.status(403).json({ success: false, message: 'Account is inactive.', inactive: true });
     }
 
     user.last_login = Date.now();
-    await user.save();
+    await User.updateOne({ _id: user._id }, { last_login: user.last_login });
 
     if (!process.env.JWT_SECRET) {
       console.error('CRITICAL: JWT_SECRET environment variable is missing.');
