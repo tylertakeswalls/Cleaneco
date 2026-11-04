@@ -17,6 +17,7 @@ import ThankYou from './pages/ThankYou';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
 import AdminLanding from './pages/AdminLanding';
+import AdminCalendarPage from './pages/AdminCalendarPage';
 import OrderDatabase from './pages/OrderDatabase';
 import ServiceManagement from './components/ServiceManagement';
 import AdminUsers from './pages/AdminUsers';
@@ -79,6 +80,7 @@ function App() {
           <Route path="/payment-cancel" element={<PaymentCancel />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminLanding />} />
+            <Route path="calendar" element={<AdminCalendarPage />} />
             <Route path="profile" element={<AdminProfile />} />
             <Route path="messages" element={<AdminMessages />} />
             <Route path="orders" element={<OrderDatabase />} />

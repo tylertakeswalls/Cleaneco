@@ -836,7 +836,12 @@ function AdminLanding() {
           <div className="col-lg-8">
             <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4">
-                <h5 className="fw-bold text-dark mb-4" style={{ fontSize: '1.1rem' }}>Calendar</h5>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Calendar</h5>
+                  <Link to="/admin/calendar" className="text-brand text-decoration-none small fw-bold">
+                    Full Screen View <i className="fas fa-arrow-right ms-1"></i>
+                  </Link>
+                </div>
                 <AdminCalendar orders={groupedOrders} />
               </div>
             </div>
