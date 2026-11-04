@@ -171,7 +171,7 @@ function AdminSettings() {
   };
 
   return (
-    <div ref={container} className="container-fluid bg-light min-vh-100 py-5">
+    <div ref={container} className="container-fluid py-5" style={{ backgroundColor: '#f2edf3', minHeight: '100%' }}>
       <div className="container">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">

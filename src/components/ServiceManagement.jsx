@@ -512,8 +512,8 @@ function ServiceManagement() {
                                                                 </span>
                                                             </td>
                                                             <td>
-                                                                <span className={`badge ${service.status === 'available' ? 'bg-success' : 'bg-danger'}`}>
-                                                                    {service.status}
+                                                                <span className={`badge ${service.status === 'available' ? 'bg-success' : 'bg-danger'} text-capitalize`}>
+                                                                    {service.status ? service.status.charAt(0).toUpperCase() + service.status.slice(1) : 'Available'}
                                                                 </span>
                                                             </td>
                                                             <td>

@@ -2,6 +2,7 @@ const express = require('express');
 const Order = require('../models/Order');
 const Notification = require('../models/Notification');
 const { sendConfirmationEmail } = require('../utils/emailHelper');
+const ordersRouter = require('./orders');
 
 const router = express.Router();
 
@@ -61,6 +62,7 @@ router.post('/webhook', async (req, res) => {
                                 { order_id: actualOrderId, status: { $ne: 'Cancelled' } },
                                 { $set: { final_payment_status: 'Paid' } }
                             );
+                            ordersRouter.invalidateOrdersCache?.();
 
                             if (primaryOrder.user_id) {
                                 await new Notification({
@@ -76,6 +78,7 @@ router.post('/webhook', async (req, res) => {
                             { order_id: actualOrderId, status: 'Pending' },
                             { $set: { status: 'In Progress' } }
                         );
+                        ordersRouter.invalidateOrdersCache?.();
 
                         if (primaryOrder.user_id) {
                             await new Notification({

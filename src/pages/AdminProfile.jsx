@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import { formatPhoneNumber } from '../utils/helpers';
+import { compressProfileImage } from '../utils/imageCompressor';
 
 function AdminProfile() {
   const [profile, setProfile] = useState({
@@ -77,18 +78,20 @@ function AdminProfile() {
     setProfile(prev => ({ ...prev, [name]: finalVal }));
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setMessage({ type: 'danger', text: 'Image size must be less than 2MB.' });
+      if (file.size > 10 * 1024 * 1024) {
+        setMessage({ type: 'danger', text: 'Image size must be less than 10MB.' });
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile(prev => ({ ...prev, profile_picture: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedDataUrl = await compressProfileImage(file, 256, 0.8);
+        setProfile(prev => ({ ...prev, profile_picture: compressedDataUrl }));
+      } catch (err) {
+        console.error('Image compression error:', err);
+        setMessage({ type: 'danger', text: 'Failed to process image.' });
+      }
     }
   };
 
@@ -100,8 +103,11 @@ function AdminProfile() {
     try {
       const res = await api.put(`/users/${userId}`, profile);
       if (res.data.success) {
-        if (profile.first_name || profile.last_name) {
-          sessionStorage.setItem('userName', `${profile.first_name} ${profile.last_name}`.trim());
+        const fullName = [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ').trim();
+        if (fullName) {
+          sessionStorage.setItem('userName', fullName);
+          localStorage.setItem('userName', fullName);
+          window.dispatchEvent(new CustomEvent('user-name-updated', { detail: { fullName, profilePic: profile.profile_picture } }));
         }
         setMessage({ type: 'success', text: 'Admin profile updated successfully!' });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -123,7 +129,7 @@ function AdminProfile() {
   }
 
   return (
-    <div className="admin-profile-page py-4 px-3 px-md-4 px-xl-5" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+    <div className="admin-profile-page py-4 px-3 px-md-4 px-xl-5" style={{ backgroundColor: '#f2edf3', minHeight: '100%' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         
         {/* Page Title */}
@@ -192,7 +198,7 @@ function AdminProfile() {
                   <div>
                     <div className="d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-2 mb-1">
                       <h4 className="fw-bold mb-0 text-dark">
-                        {profile.first_name || profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.username}
+                        {[profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ') || profile.username}
                       </h4>
                     </div>
                     <p className="text-muted small mb-0">

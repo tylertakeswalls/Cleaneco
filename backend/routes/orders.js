@@ -37,10 +37,25 @@ let availabilityCache = null;
 let availabilityCacheTime = 0;
 const AVAILABILITY_TTL_MS = 60 * 1000;
 
+// ponytail: In-memory cache is ideal for single-instance hosting (Render / localhost).
+// Ceiling: Horizontal scaling across multiple containers requires Redis or MongoDB Change Streams.
+// In-memory orders cache (30s TTL) for instant dashboard/calendar navigation
+let ordersCache = null;
+let ordersCacheTime = 0;
+const ORDERS_TTL_MS = 30 * 1000;
+
+function invalidateOrdersCache() {
+  ordersCache = null;
+  ordersCacheTime = 0;
+  availabilityCache = null;
+  availabilityCacheTime = 0;
+}
+
 function invalidateAvailabilityCache() {
   availabilityCache = null;
   availabilityCacheTime = 0;
 }
+router.invalidateOrdersCache = invalidateOrdersCache;
 
 const formatOrder = (o) => ({
   ...o,
@@ -53,9 +68,21 @@ const formatOrder = (o) => ({
 });
 
 router.get('/', async (req, res) => {
+  const now = Date.now();
+  if (ordersCache && (now - ordersCacheTime < ORDERS_TTL_MS)) {
+    return res.json(ordersCache);
+  }
   try {
-    const orders = await Order.find().populate('user_id').populate('service_id').sort({ created_at: -1, _id: -1 }).lean();
-    res.json(orders.map(formatOrder));
+    const orders = await Order.find()
+      .populate('user_id', 'clientType companyName first_name last_name email phone')
+      .populate('service_id', 'name')
+      .sort({ created_at: -1, _id: -1 })
+      .batchSize(500)
+      .lean();
+    const formatted = orders.map(formatOrder);
+    ordersCache = formatted;
+    ordersCacheTime = Date.now();
+    res.json(formatted);
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch orders' });
   }
@@ -479,6 +506,8 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
       };
     }));
 
+    invalidateOrdersCache();
+
     const servicesStr = services.map(s => s.name).join(', ');
     const description = `Cleaneco Service Booking - ${servicesStr}`;
 
@@ -578,6 +607,7 @@ router.post('/:id/upload-documents', upload.fields([{ name: 'quotation' }, { nam
     if (order.order_id && Object.keys(siblingUpdates).length > 0) {
       await Order.updateMany({ order_id: order.order_id }, { $set: siblingUpdates });
     }
+    invalidateOrdersCache();
 
     if (statusChangedToCompleted) {
       const siblings = order.order_id ? await Order.find({ order_id: order.order_id }) : [order];
@@ -894,6 +924,7 @@ router.put('/:id', async (req, res) => {
     }
 
     await Order.updateMany({ order_id: oldOrder.order_id }, updateData);
+    invalidateOrdersCache();
     const order = await Order.findById(id);
 
     if (updateData.status && updateData.status !== oldOrder.status && order) {
@@ -1010,6 +1041,7 @@ router.delete('/:id', async (req, res) => {
     if (deletedOrder.order_id) {
       await Order.deleteMany({ order_id: deletedOrder.order_id });
     }
+    invalidateOrdersCache();
 
     // Also delete any associated notifications
     if (deletedOrder.order_id) {
@@ -1093,6 +1125,7 @@ router.post('/:id/pay-cheque', upload.fields([{ name: 'cheque_image' }]), async 
         }
       }
     );
+    invalidateOrdersCache();
     res.json({ success: true, message: 'Cheque submitted successfully for verification.' });
   } catch (error) {
     console.error(error);
@@ -1134,6 +1167,7 @@ router.post('/:id/pay-cheque-final', upload.fields([{ name: 'cheque_image' }]), 
         }
       }
     );
+    invalidateOrdersCache();
     res.json({ success: true, message: 'Final cheque submitted successfully for verification.' });
   } catch (error) {
     console.error(error);
@@ -1193,6 +1227,7 @@ router.post('/:id/verify-cheque', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid action' });
     }
 
+    invalidateOrdersCache();
     res.json({ success: true, message: `Cheque ${action}d successfully` });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Verification failed: ' + error.message });
@@ -1247,6 +1282,7 @@ router.post('/:id/quotation', async (req, res) => {
       }).save();
     }
 
+    invalidateOrdersCache();
     res.json({ success: true, message: 'Quotation submitted successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to submit quotation: ' + error.message });
@@ -1303,6 +1339,7 @@ router.post('/:id/quotation/respond', async (req, res) => {
       console.error('Non-critical error creating quotation response notification:', notifErr);
     }
 
+    invalidateOrdersCache();
     res.json({ success: true, message: 'Quotation response submitted successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to submit response: ' + error.message });
@@ -1464,6 +1501,7 @@ router.post('/:id/service-date', async (req, res) => {
       }).save();
     }
 
+    invalidateOrdersCache();
     res.json({ success: true, message: 'Service date set successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to set service date: ' + error.message });

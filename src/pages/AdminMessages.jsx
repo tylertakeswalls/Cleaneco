@@ -362,9 +362,15 @@ export default function AdminMessages() {
           }
           @media (max-width: 767.98px) {
             .admin-chat-hub {
-              height: calc(100vh - 120px) !important;
+              height: calc(100vh - 100px) !important;
               min-height: 520px;
               border-radius: 0.85rem;
+              width: 100% !important;
+            }
+            .admin-chat-workspace {
+              display: flex;
+              flex: 1 1 0;
+              min-height: 0;
               width: 100% !important;
             }
             .admin-threads-sidebar {
@@ -398,14 +404,22 @@ export default function AdminMessages() {
             }
           }
           .admin-chat-hub {
-            height: calc(100vh - 160px);
-            min-height: 640px;
+            height: calc(100vh - 120px);
+            min-height: 680px;
             border-radius: 1.25rem;
             overflow: hidden;
             background: #ffffff;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
             border: 1px solid #eef2f6;
             display: flex;
+            flex-direction: column;
+          }
+          .admin-chat-workspace {
+            display: flex;
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: hidden;
+            width: 100%;
           }
         .admin-threads-sidebar {
           width: 380px;
@@ -615,8 +629,8 @@ export default function AdminMessages() {
         }
         .btn-admin-view-order {
           border: 1.5px solid #0D8D1E !important;
-          color: #0D8D1E !important;
-          background-color: #ffffff !important;
+          color: #ffffff !important;
+          background-color: #0D8D1E !important;
           font-size: 0.8rem !important;
           font-weight: 600 !important;
           border-radius: 20px !important;
@@ -626,13 +640,16 @@ export default function AdminMessages() {
           display: inline-flex !important;
           align-items: center !important;
           gap: 6px !important;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+          box-shadow: 0 2px 6px rgba(13, 141, 30, 0.25) !important;
+        }
+        .btn-admin-view-order i {
+          color: #ffffff !important;
         }
         .btn-admin-view-order:hover {
-          background-color: #0D8D1E !important;
+          background-color: #0a7018 !important;
           color: #ffffff !important;
-          border-color: #0D8D1E !important;
-          box-shadow: 0 4px 12px rgba(13, 141, 30, 0.25) !important;
+          border-color: #0a7018 !important;
+          box-shadow: 0 4px 12px rgba(13, 141, 30, 0.35) !important;
           transform: translateY(-1px);
         }
         .btn-admin-view-order:hover i {
@@ -640,68 +657,72 @@ export default function AdminMessages() {
         }
         .btn-admin-view-order:active {
           transform: scale(0.97);
-          background-color: #0A6F17 !important;
+          background-color: #085a13 !important;
+          border-color: #085a13 !important;
         }
       `}</style>
 
-      {/* Top Header Bar & Indicators */}
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
-        <div>
-          <nav aria-label="breadcrumb">
-            <ol className="breadcrumb mb-1 small">
+      {/* Main Support Hub Workspace (Fixed Viewport Height, Internal Scroll) */}
+      <div className="admin-chat-hub">
+        
+        {/* Top Header inside the Messages Container */}
+        <div className="p-3 px-4 border-bottom bg-white text-center flex-shrink-0">
+          <nav aria-label="breadcrumb" className="d-flex justify-content-center">
+            <ol className="breadcrumb mb-1 small justify-content-center">
               <li className="breadcrumb-item text-muted">Admin</li>
               <li className="breadcrumb-item active text-secondary" aria-current="page">Support Desk</li>
             </ol>
           </nav>
-          <h3 className="fw-bold mb-0 text-dark">
+          <h4 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.3px' }}>
             Client Messages & Inquiries
-          </h3>
-        </div>
-
-        <div className="d-flex align-items-center gap-2 mt-2 mt-md-0">
-          <span 
-            className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-2 shadow-sm"
-            style={{
-              fontSize: '0.74rem',
-              padding: '6px 12px',
-              backgroundColor: '#E8F5E9',
-              color: '#0D8D1E',
-              border: '1px solid #C8E6C9'
-            }}
-          >
-            <span className="support-pulse-dot"></span> Live Support Channel
-          </span>
-          <span 
-            className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1 shadow-sm"
-            style={{
-              fontSize: '0.74rem',
-              padding: '6px 12px',
-              backgroundColor: '#ffffff',
-              color: '#334155',
-              border: '1px solid #E2E8F0'
-            }}
-          >
-            <i className="fas fa-inbox text-success me-1"></i> {conversations.length} Active Conversations
-          </span>
-          {totalUnreadAdmin > 0 && (
+          </h4>
+          <p className="text-muted small mb-2 mx-auto" style={{ maxWidth: '640px' }}>
+            Overview of customer inquiries, live support conversations, and order communications
+          </p>
+          <div className="d-flex justify-content-center align-items-center flex-wrap gap-2">
             <span 
-              className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1 shadow-sm"
+              className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
               style={{
                 fontSize: '0.74rem',
-                padding: '6px 12px',
-                backgroundColor: '#FEE2E2',
-                color: '#DC2626',
-                border: '1px solid #FECACA'
+                padding: '5px 12px',
+                backgroundColor: '#E8F5E9',
+                color: '#0D8D1E',
+                border: '1px solid #C8E6C9'
               }}
             >
-              <i className="fas fa-bell me-1"></i> {totalUnreadAdmin} Unread
+              <span className="support-pulse-dot"></span> Live Support Channel
             </span>
-          )}
+            <span 
+              className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1 shadow-xs"
+              style={{
+                fontSize: '0.74rem',
+                padding: '5px 12px',
+                backgroundColor: '#F8FAFC',
+                color: '#334155',
+                border: '1px solid #E2E8F0'
+              }}
+            >
+              <i className="fas fa-inbox text-success me-1"></i> {conversations.length} Active Conversations
+            </span>
+            {totalUnreadAdmin > 0 && (
+              <span 
+                className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1 shadow-xs"
+                style={{
+                  fontSize: '0.74rem',
+                  padding: '5px 12px',
+                  backgroundColor: '#FEE2E2',
+                  color: '#DC2626',
+                  border: '1px solid #FECACA'
+                }}
+              >
+                <i className="fas fa-bell me-1"></i> {totalUnreadAdmin} Unread
+              </span>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Main Support Hub Workspace (Fixed Viewport Height, Internal Scroll) */}
-      <div className="admin-chat-hub">
+        {/* 2-Column Chat Workspace Body */}
+        <div className="admin-chat-workspace">
         
         {/* LEFT COLUMN: Conversation List & Search */}
         <div className={`admin-threads-sidebar ${selectedConv ? 'd-none d-md-flex' : 'd-flex'}`}>
@@ -1237,5 +1258,6 @@ export default function AdminMessages() {
       </div>
     </div>
   </div>
+</div>
 );
 }

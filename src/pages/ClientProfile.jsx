@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import { PSGC_PROVINCES, formatFullAddress } from '../data/psgcData';
 import { formatPhoneNumber } from '../utils/helpers';
+import { compressProfileImage } from '../utils/imageCompressor';
 
 function ClientProfile() {
   const [profile, setProfile] = useState({
@@ -153,18 +154,20 @@ function ClientProfile() {
     });
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setMessage({ type: 'danger', text: 'Image size must be less than 2MB.' });
+      if (file.size > 10 * 1024 * 1024) {
+        setMessage({ type: 'danger', text: 'Image size must be less than 10MB.' });
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile(prev => ({ ...prev, profile_picture: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedDataUrl = await compressProfileImage(file, 256, 0.8);
+        setProfile(prev => ({ ...prev, profile_picture: compressedDataUrl }));
+      } catch (err) {
+        console.error('Image compression error:', err);
+        setMessage({ type: 'danger', text: 'Failed to process image.' });
+      }
     }
   };
 
@@ -182,8 +185,10 @@ function ClientProfile() {
       const res = await api.put(`/users/${userId}`, payload);
       if (res.data.success) {
         setProfile(prev => ({ ...prev, address: computedAddress }));
-        if (profile.first_name || profile.last_name) {
-          sessionStorage.setItem('userName', `${profile.first_name} ${profile.last_name}`.trim());
+        const fullName = [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ').trim();
+        if (fullName) {
+          sessionStorage.setItem('userName', fullName);
+          localStorage.setItem('userName', fullName);
         }
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
         window.scrollTo({ top: 0, behavior: 'smooth' });

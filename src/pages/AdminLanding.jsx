@@ -43,6 +43,7 @@ function AdminLanding() {
     totalOrders: 0
   });
 
+  const [loading, setLoading] = useState(true);
   const [allOrders, setAllOrders] = useState([]);
   const groupedOrders = useMemo(() => groupOrdersByOrderId(allOrders), [allOrders]);
   const navigate = useNavigate();
@@ -81,8 +82,61 @@ function AdminLanding() {
   }, [serviceStats]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [navigate]);
+    let isCurrent = true;
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const [ordersRes, servicesRes] = await Promise.all([
+          api.get('/orders'),
+          api.get('/services')
+        ]);
+        if (!isCurrent) return;
+
+        const ordersData = ordersRes.data || [];
+        setAllOrders(ordersData);
+
+        const grouped = groupOrdersByOrderId(ordersData);
+        const servicesData = servicesRes.data || [];
+
+        const statusMap = {};
+        let computedRevenue = 0;
+        grouped.forEach(order => {
+          const st = order.status || 'Pending';
+          statusMap[st] = (statusMap[st] || 0) + 1;
+          computedRevenue += calculateOrderCollectedRevenue(order);
+        });
+
+        setDashboardData({
+          totalRevenue: computedRevenue,
+          completedOrders: statusMap["Completed"] || 0,
+          inProgressOrders: statusMap["In Progress"] || 0,
+          pendingOrders: statusMap["Pending"] || 0,
+          cancelledOrders: statusMap["Cancelled"] || 0,
+          totalServices: servicesData.length,
+          availableServices: servicesData.filter(s => s.status === 'available').length,
+          totalOrders: grouped.length
+        });
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  // Cleanup chart instances on component unmount
+  useEffect(() => {
+    return () => {
+      if (statusChartInstance.current) statusChartInstance.current.destroy();
+      if (lineChartInstance.current) lineChartInstance.current.destroy();
+      if (growthChartInstance.current) growthChartInstance.current.destroy();
+    };
+  }, []);
 
   // Status chart (Doughnut)
   useEffect(() => {
@@ -93,47 +147,48 @@ function AdminLanding() {
       return acc;
     }, {});
 
-    if (statusChartInstance.current) statusChartInstance.current.destroy();
-
-    const statusCtx = statusChartRef.current?.getContext('2d');
-    if (statusCtx) {
-      statusChartInstance.current = new Chart(statusCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Pending', 'In Progress', 'Completed', 'Cancelled'],
-          datasets: [{
-            data: [
-              statusCounts['Pending'] || 0,
-              statusCounts['In Progress'] || 0,
-              statusCounts['Completed'] || 0,
-              statusCounts['Cancelled'] || 0
-            ],
-            backgroundColor: ['#ffb300', '#2563eb', '#2e7d32', '#d32f2f'],
-            borderWidth: 0,
-            hoverOffset: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: {
-                usePointStyle: true,
-                padding: 20,
-                font: { size: 12, family: "'Inter', sans-serif" }
-              }
-            }
-          },
-          cutout: '70%'
-        }
-      });
-    }
-
-    return () => {
-      if (statusChartInstance.current) statusChartInstance.current.destroy();
+    const chartData = {
+      labels: ['Pending', 'In Progress', 'Completed', 'Cancelled'],
+      datasets: [{
+        data: [
+          statusCounts['Pending'] || 0,
+          statusCounts['In Progress'] || 0,
+          statusCounts['Completed'] || 0,
+          statusCounts['Cancelled'] || 0
+        ],
+        backgroundColor: ['#ffb300', '#2563eb', '#2e7d32', '#d32f2f'],
+        borderWidth: 0,
+        hoverOffset: 4
+      }]
     };
+
+    if (statusChartInstance.current) {
+      statusChartInstance.current.data = chartData;
+      statusChartInstance.current.update('none');
+    } else {
+      const statusCtx = statusChartRef.current?.getContext('2d');
+      if (statusCtx) {
+        statusChartInstance.current = new Chart(statusCtx, {
+          type: 'doughnut',
+          data: chartData,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  usePointStyle: true,
+                  padding: 20,
+                  font: { size: 12, family: "'Inter', sans-serif" }
+                }
+              }
+            },
+            cutout: '70%'
+          }
+        });
+      }
+    }
   }, [groupedOrders]);
 
   // Gross Sales Bar Chart
@@ -199,71 +254,72 @@ function AdminLanding() {
       return new Date(`${bucket}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     });
 
-    if (lineChartInstance.current) lineChartInstance.current.destroy();
+    const chartData = {
+      labels,
+      datasets: [{
+        label: 'Gross Sales',
+        data: revenueValues,
+        backgroundColor: '#0D8D1E',
+        hoverBackgroundColor: '#0A6F17',
+        borderRadius: 6,
+        maxBarThickness: 36,
+      }]
+    };
 
-    const lineCtx = lineChartRef.current?.getContext('2d');
-    if (lineCtx) {
-      lineChartInstance.current = new Chart(lineCtx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Gross Sales',
-            data: revenueValues,
-            backgroundColor: '#0D8D1E',
-            hoverBackgroundColor: '#0A6F17',
-            borderRadius: 6,
-            maxBarThickness: 36,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#1f2937',
-              titleFont: { size: 12, family: "'Inter', sans-serif" },
-              bodyFont: { size: 12, family: "'Inter', sans-serif" },
-              padding: 10,
-              cornerRadius: 8,
-              callbacks: {
-                label: function(context) {
-                  const val = context.parsed.y || 0;
-                  return `Gross Sales: ₱${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (lineChartInstance.current) {
+      lineChartInstance.current.data = chartData;
+      lineChartInstance.current.update('none');
+    } else {
+      const lineCtx = lineChartRef.current?.getContext('2d');
+      if (lineCtx) {
+        lineChartInstance.current = new Chart(lineCtx, {
+          type: 'bar',
+          data: chartData,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1f2937',
+                titleFont: { size: 12, family: "'Inter', sans-serif" },
+                bodyFont: { size: 12, family: "'Inter', sans-serif" },
+                padding: 10,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function(context) {
+                    const val = context.parsed.y || 0;
+                    return `Gross Sales: ₱${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#f3f4f6', drawBorder: false },
+                ticks: {
+                  callback: (value) => '₱' + Number(value).toLocaleString('en-US'),
+                  color: '#9ca3af',
+                  font: { size: 11, family: "'Inter', sans-serif" }
+                }
+              },
+              x: {
+                grid: { display: false },
+                ticks: {
+                  color: '#9ca3af',
+                  autoSkip: true,
+                  maxTicksLimit: 8,
+                  maxRotation: 0,
+                  minRotation: 0,
+                  font: { size: 11, family: "'Inter', sans-serif" }
                 }
               }
             }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              grid: { color: '#f3f4f6', drawBorder: false },
-              ticks: {
-                callback: (value) => '₱' + Number(value).toLocaleString('en-US'),
-                color: '#9ca3af',
-                font: { size: 11, family: "'Inter', sans-serif" }
-              }
-            },
-            x: {
-              grid: { display: false },
-              ticks: {
-                color: '#9ca3af',
-                autoSkip: true,
-                maxTicksLimit: 8,
-                maxRotation: 0,
-                minRotation: 0,
-                font: { size: 11, family: "'Inter', sans-serif" }
-              }
-            }
           }
-        }
-      });
+        });
+      }
     }
-
-    return () => {
-      if (lineChartInstance.current) lineChartInstance.current.destroy();
-    };
   }, [groupedOrders, salesPeriod]);
 
   useEffect(() => {
@@ -324,64 +380,65 @@ function AdminLanding() {
       growthData.push(growth);
     }
 
-    if (growthChartInstance.current) growthChartInstance.current.destroy();
+    const chartData = {
+      labels: labels,
+      datasets: [{
+        label: 'Sales Growth (%)',
+        data: growthData,
+        borderColor: '#0D8D1E',
+        backgroundColor: 'rgba(13, 141, 30, 0.1)',
+        borderWidth: 2,
+        pointBackgroundColor: '#0D8D1E',
+        fill: true,
+        tension: 0.3
+      }]
+    };
 
-    const ctx = growthChartRef.current?.getContext('2d');
-    if (ctx) {
-      growthChartInstance.current = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Sales Growth (%)',
-            data: growthData,
-            borderColor: '#0D8D1E',
-            backgroundColor: 'rgba(13, 141, 30, 0.1)',
-            borderWidth: 2,
-            pointBackgroundColor: '#0D8D1E',
-            fill: true,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                title: function(context) {
-                  return context[0]?.label || '';
-                },
-                label: function(context) {
-                  return ` Growth: ${context.parsed.y.toFixed(2)}%`;
+    if (growthChartInstance.current) {
+      growthChartInstance.current.data = chartData;
+      growthChartInstance.current.update('none');
+    } else {
+      const ctx = growthChartRef.current?.getContext('2d');
+      if (ctx) {
+        growthChartInstance.current = new Chart(ctx, {
+          type: 'line',
+          data: chartData,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  title: function(context) {
+                    return context[0]?.label || '';
+                  },
+                  label: function(context) {
+                    return ` Growth: ${context.parsed.y.toFixed(2)}%`;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                grid: { color: '#f0f0f0', drawBorder: false },
+                ticks: { callback: (value) => value + '%', color: '#a0a0a0' }
+              },
+              x: {
+                grid: { display: false },
+                ticks: {
+                  color: '#a0a0a0',
+                  maxRotation: 0,
+                  minRotation: 0,
+                  autoSkip: true,
+                  maxTicksLimit: 7
                 }
               }
             }
-          },
-          scales: {
-            y: {
-              grid: { color: '#f0f0f0', drawBorder: false },
-              ticks: { callback: (value) => value + '%', color: '#a0a0a0' }
-            },
-            x: {
-              grid: { display: false },
-              ticks: {
-                color: '#a0a0a0',
-                maxRotation: 0,
-                minRotation: 0,
-                autoSkip: true,
-                maxTicksLimit: 7
-              }
-            }
           }
-        }
-      });
+        });
+      }
     }
-
-    return () => {
-      if (growthChartInstance.current) growthChartInstance.current.destroy();
-    };
   }, [groupedOrders, growthPeriod]);
 
   const handleGenerateReport = async (period) => {
@@ -397,42 +454,6 @@ function AdminLanding() {
     } catch (error) {
       console.error("Error downloading report:", error);
       alert("Failed to generate report. Please try again later.");
-    }
-  };
-
-  const loadDashboardData = async () => {
-    try {
-      const [ordersRes, servicesRes] = await Promise.all([
-        api.get('/orders'),
-        api.get('/services')
-      ]);
-      
-      const ordersData = ordersRes.data;
-      setAllOrders(ordersData);
-
-      const grouped = groupOrdersByOrderId(ordersData);
-      const servicesData = servicesRes.data;
-
-      const statusMap = {};
-      let computedRevenue = 0;
-      grouped.forEach(order => {
-        const st = order.status || 'Pending';
-        statusMap[st] = (statusMap[st] || 0) + 1;
-        computedRevenue += calculateOrderCollectedRevenue(order);
-      });
-
-      setDashboardData({
-        totalRevenue: computedRevenue,
-        completedOrders: statusMap["Completed"] || 0,
-        inProgressOrders: statusMap["In Progress"] || 0,
-        pendingOrders: statusMap["Pending"] || 0,
-        cancelledOrders: statusMap["Cancelled"] || 0,
-        totalServices: servicesData.length,
-        availableServices: servicesData.filter(s => s.status === 'available').length,
-        totalOrders: grouped.length
-      });
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
     }
   };
 
@@ -494,45 +515,64 @@ function AdminLanding() {
     return items;
   }, [groupedOrders]);
 
+  const adminFirstName = useMemo(() => {
+    const rawName = sessionStorage.getItem("userName");
+    if (rawName && rawName.trim()) {
+      const first = rawName.trim().split(/\s+/)[0];
+      if (first && first.toLowerCase() !== 'undefined' && first.toLowerCase() !== 'null') {
+        return first.charAt(0).toUpperCase() + first.slice(1);
+      }
+    }
+    const loggedIn = sessionStorage.getItem("loggedInUser");
+    if (loggedIn && loggedIn.trim()) {
+      return loggedIn.charAt(0).toUpperCase() + loggedIn.slice(1);
+    }
+    return 'Admin';
+  }, []);
+
   return (
     <>
       {/* PAGE CONTENT */}
       <div className="p-4 w-100 h-100">
 
-        {/* Page Header */}
-        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-          <h4 className="fw-bold text-dark mb-0 d-flex align-items-center">
-            <span className="d-inline-flex align-items-center justify-content-center bg-white shadow-sm text-brand rounded me-3 icon-container-md">
-              <i className="fas fa-home"></i>
-            </span>
-            Dashboard
-          </h4>
-          <div className="d-flex flex-wrap align-items-center gap-2">
-            <span className="text-muted fw-bold me-1 small"><i className="fas fa-download me-1 text-success"></i>Export:</span>
-            <button 
-              className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
-              onClick={() => handleGenerateReport('monthly')}
-              title="Download Monthly Performance Report PDF"
-              aria-label="Download Monthly Performance Report PDF"
-            >
-              <i className="fas fa-file-pdf me-1 text-white"></i>Monthly Report
-            </button>
-            <button 
-              className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
-              onClick={() => handleGenerateReport('quarterly')}
-              title="Download Quarterly Performance Report PDF"
-              aria-label="Download Quarterly Performance Report PDF"
-            >
-              <i className="fas fa-file-pdf me-1 text-white"></i>Quarterly Report
-            </button>
-            <button 
-              className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
-              onClick={() => handleGenerateReport('yearly')}
-              title="Download Yearly Performance Report PDF"
-              aria-label="Download Yearly Performance Report PDF"
-            >
-              <i className="fas fa-file-pdf me-1 text-white"></i>Yearly Report
-            </button>
+        {/* Page Header Banner */}
+        <div className="card border-0 shadow-sm rounded-xl p-4 mb-4 bg-white">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+              <h4 className="fw-bold mb-1" style={{ letterSpacing: '-0.3px', color: '#1e293b' }}>
+                Hello, <span className="text-brand" style={{ color: '#0D8D1E' }}>{adminFirstName}!</span>
+              </h4>
+              <p className="text-muted small mb-0">
+                Here's an overview of today's bookings, sales, and operations.
+              </p>
+            </div>
+            <div className="d-flex flex-wrap align-items-center gap-2">
+              <span className="text-muted fw-bold me-1 small"><i className="fas fa-download me-1 text-brand"></i>Export:</span>
+              <button 
+                className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
+                onClick={() => handleGenerateReport('monthly')}
+                title="Download Monthly Performance Report PDF"
+                aria-label="Download Monthly Performance Report PDF"
+              >
+                <i className="fas fa-file-pdf me-1 text-white"></i>Monthly Report
+              </button>
+              <button 
+                className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
+                onClick={() => handleGenerateReport('quarterly')}
+                title="Download Quarterly Performance Report PDF"
+                aria-label="Download Quarterly Performance Report PDF"
+              >
+                <i className="fas fa-file-pdf me-1 text-white"></i>Quarterly Report
+              </button>
+              <button 
+                className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
+                onClick={() => handleGenerateReport('yearly')}
+                title="Download Yearly Performance Report PDF"
+                aria-label="Download Yearly Performance Report PDF"
+              >
+                <i className="fas fa-file-pdf me-1 text-white"></i>Yearly Report
+              </button>
+            </div>
           </div>
         </div>
 
@@ -542,7 +582,13 @@ function AdminLanding() {
             <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center">
                 <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Gross Sales</p>
-                <h3 className="fw-bold mb-3 text-dark">₱ {dashboardData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+                <h3 className="fw-bold mb-3 text-dark">
+                  {loading ? (
+                    <div className="spinner-border spinner-border-sm text-success" role="status"></div>
+                  ) : (
+                    `₱ ${dashboardData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                  )}
+                </h3>
                 <div className="rounded-circle d-flex align-items-center justify-content-center bg-brand-soft icon-container-lg">
                   <i className="fas fa-chart-line fs-5 text-brand"></i>
                 </div>
@@ -553,7 +599,13 @@ function AdminLanding() {
             <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center">
                 <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Total Orders</p>
-                <h3 className="fw-bold mb-3 text-dark">{dashboardData.totalOrders.toLocaleString()}</h3>
+                <h3 className="fw-bold mb-3 text-dark">
+                  {loading ? (
+                    <div className="spinner-border spinner-border-sm text-success" role="status"></div>
+                  ) : (
+                    dashboardData.totalOrders.toLocaleString()
+                  )}
+                </h3>
                 <div className="rounded-circle d-flex align-items-center justify-content-center bg-brand-soft icon-container-lg">
                   <i className="fas fa-bookmark fs-5 text-brand"></i>
                 </div>
@@ -564,7 +616,13 @@ function AdminLanding() {
             <div className="card border-0 shadow-sm h-100 rounded-xl">
               <div className="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center">
                 <p className="text-muted mb-2" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Completed Orders</p>
-                <h3 className="fw-bold mb-3 text-dark">{dashboardData.completedOrders.toLocaleString()}</h3>
+                <h3 className="fw-bold mb-3 text-dark">
+                  {loading ? (
+                    <div className="spinner-border spinner-border-sm text-success" role="status"></div>
+                  ) : (
+                    dashboardData.completedOrders.toLocaleString()
+                  )}
+                </h3>
                 <div className="rounded-circle d-flex align-items-center justify-content-center bg-brand-soft icon-container-lg">
                   <i className="fas fa-check fs-5 text-brand"></i>
                 </div>
@@ -593,7 +651,12 @@ function AdminLanding() {
             </Link>
           </div>
           <div className="card-body p-4">
-            {attentionItems.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-4 text-muted">
+                <div className="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+                <span className="small">Checking operational triage...</span>
+              </div>
+            ) : attentionItems.length === 0 ? (
               <div className="text-center py-3 text-muted">
                 <i className="fas fa-check-circle text-success fs-3 mb-2 d-block"></i>
                 <span className="fw-medium">All caught up! No cheques, clarifications, or reschedule requests pending triage.</span>
@@ -630,11 +693,11 @@ function AdminLanding() {
         </div>
 
         {/* MAIN CHARTS GRID */}
-        <div className="row g-4">
+        <div className="row g-4 align-items-stretch">
           {/* Daily Gross Sales Chart (Large Left) */}
-          <div className="col-lg-7">
-            <div className="card border-0 shadow-sm h-100 rounded-xl">
-              <div className="card-body p-4">
+          <div className="col-lg-7 d-flex">
+            <div className="card border-0 shadow-sm w-100 rounded-xl d-flex flex-column">
+              <div className="card-body p-4 d-flex flex-column">
                 <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Gross Sales Statistics</h5>
                   <div className="d-flex gap-2">
@@ -656,8 +719,13 @@ function AdminLanding() {
                     >Yearly</button>
                   </div>
                 </div>
-                <div style={{ height: '300px' }} className="d-flex justify-content-center align-items-center">
-                  {allOrders.length === 0 ? (
+                <div className="flex-grow-1 d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
+                  {loading ? (
+                    <div className="text-center text-muted">
+                      <div className="spinner-border text-success mb-2" role="status"></div>
+                      <p className="mb-0 small">Loading sales statistics...</p>
+                    </div>
+                  ) : allOrders.length === 0 ? (
                     <div className="text-center text-muted">
                       <i className="fas fa-chart-bar fs-1 mb-3 text-light"></i>
                       <p className="mb-0">No sales data available yet.</p>
@@ -671,12 +739,17 @@ function AdminLanding() {
           </div>
 
           {/* Traffic Sources / Order Status Chart (Smaller Right) */}
-          <div className="col-lg-5">
-            <div className="card border-0 shadow-sm h-100 d-flex flex-column rounded-xl">
+          <div className="col-lg-5 d-flex">
+            <div className="card border-0 shadow-sm w-100 rounded-xl d-flex flex-column">
               <div className="card-body p-4 d-flex flex-column">
                 <h5 className="fw-bold text-dark mb-4" style={{ fontSize: '1.1rem' }}>Order Status Overview</h5>
                 <div className="flex-grow-1 d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
-                  {allOrders.length === 0 ? (
+                  {loading ? (
+                    <div className="text-center text-muted">
+                      <div className="spinner-border text-success mb-2" role="status"></div>
+                      <p className="mb-0 small">Loading status distribution...</p>
+                    </div>
+                  ) : allOrders.length === 0 ? (
                     <div className="text-center text-muted">
                       <i className="fas fa-chart-pie fs-1 mb-3 text-light"></i>
                       <p className="mb-0">Waiting for first orders...</p>
@@ -691,10 +764,10 @@ function AdminLanding() {
         </div>
 
         {/* SERVICES & GROWTH CHARTS */}
-        <div className="row mt-4 g-4">
+        <div className="row mt-4 g-4 align-items-stretch">
           {/* Most Availed Services (Modern Ranked Leaderboard) */}
-          <div className="col-lg-6">
-            <div className="card border-0 shadow-sm h-100 rounded-xl">
+          <div className="col-lg-6 d-flex">
+            <div className="card border-0 shadow-sm w-100 rounded-xl d-flex flex-column">
               <div className="card-body p-4 d-flex flex-column">
                 <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                   <div>
@@ -705,8 +778,13 @@ function AdminLanding() {
                     <i className="fas fa-fire me-1"></i>{totalServiceBookings} Total Bookings
                   </span>
                 </div>
-                <div className="flex-grow-1 overflow-auto pe-1" style={{ maxHeight: '300px' }}>
-                  {serviceStats.length === 0 ? (
+                <div className="flex-grow-1 overflow-auto pe-1" style={{ minHeight: '300px' }}>
+                  {loading ? (
+                    <div className="text-center py-5 text-muted my-auto">
+                      <div className="spinner-border text-success mb-2" role="status"></div>
+                      <p className="mb-0 small">Loading service rankings...</p>
+                    </div>
+                  ) : serviceStats.length === 0 ? (
                     <div className="text-center text-muted py-5 my-auto">
                       <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '56px', height: '56px' }}>
                         <i className="fas fa-broom fs-4 text-secondary"></i>
@@ -795,9 +873,9 @@ function AdminLanding() {
           </div>
 
           {/* Sales Growth Statistics */}
-          <div className="col-lg-6">
-            <div className="card border-0 shadow-sm h-100 rounded-xl">
-              <div className="card-body p-4">
+          <div className="col-lg-6 d-flex">
+            <div className="card border-0 shadow-sm w-100 rounded-xl d-flex flex-column">
+              <div className="card-body p-4 d-flex flex-column">
                 <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Sales Growth Statistics</h5>
                   <div className="d-flex gap-2">
@@ -815,8 +893,13 @@ function AdminLanding() {
                     >Yearly</button>
                   </div>
                 </div>
-                <div style={{ height: '300px' }} className="d-flex justify-content-center align-items-center">
-                  {groupedOrders.length < 2 ? (
+                <div className="flex-grow-1 d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
+                  {loading ? (
+                    <div className="text-center text-muted">
+                      <div className="spinner-border text-success mb-2" role="status"></div>
+                      <p className="mb-0 small">Calculating growth trends...</p>
+                    </div>
+                  ) : groupedOrders.length < 2 ? (
                     <div className="text-center text-muted p-4">
                       <i className="fas fa-chart-line fs-1 mb-3 text-secondary opacity-50 d-block"></i>
                       <p className="fw-semibold text-dark mb-1">Not enough historical data to calculate sales growth</p>
@@ -832,33 +915,40 @@ function AdminLanding() {
         </div>
 
         {/* ADMIN CALENDAR & RECENT ORDERS */}
-        <div className="row mt-4 g-4">
-          <div className="col-lg-8">
-            <div className="card border-0 shadow-sm h-100 rounded-xl">
-              <div className="card-body p-4">
+        <div className="row mt-4 g-4 align-items-stretch">
+          <div className="col-lg-8 d-flex">
+            <div className="card border-0 shadow-sm w-100 rounded-xl d-flex flex-column">
+              <div className="card-body p-4 d-flex flex-column">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Calendar</h5>
                   <Link to="/admin/calendar" className="text-brand text-decoration-none small fw-bold">
                     Full Screen View <i className="fas fa-arrow-right ms-1"></i>
                   </Link>
                 </div>
-                <AdminCalendar orders={groupedOrders} />
+                <div className="flex-grow-1">
+                  <AdminCalendar orders={groupedOrders} />
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="col-lg-4">
-            <div className="card border-0 shadow-sm h-100 rounded-xl overflow-hidden">
-              <div className="card-body p-3 p-sm-4 d-flex flex-column">
+          <div className="col-lg-4 d-flex">
+            <div className="card border-0 shadow-sm w-100 rounded-xl overflow-hidden d-flex flex-column">
+              <div className="card-body p-3 p-sm-4 d-flex flex-column flex-grow-1">
                 <div className="d-flex justify-content-between align-items-center mb-3 mb-sm-4">
                   <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>Recent Orders</h5>
                   <Link to="/admin/orders" className="text-brand text-decoration-none small fw-bold">View All</Link>
                 </div>
                 <div 
                   className="flex-grow-1 d-flex flex-column gap-2 gap-sm-3 recent-orders-list" 
-                  style={{ maxHeight: '400px' }}
+                  style={{ minHeight: 0, overflowY: 'auto' }}
                 >
-                  {recentOrders.length === 0 ? (
+                  {loading ? (
+                    <div className="text-center text-muted my-auto py-5">
+                      <div className="spinner-border text-success mb-3" role="status"></div>
+                      <p className="mb-0 fw-bold text-dark">Loading recent orders...</p>
+                    </div>
+                  ) : recentOrders.length === 0 ? (
                     <div className="text-center text-muted my-auto py-5">
                       <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width: '60px', height:'60px'}}>
                          <i className="fas fa-inbox fs-3 text-secondary"></i>

@@ -852,20 +852,17 @@ function OrderForm() {
                             <div className="mt-3 text-end">
                                 <button
                                     type="button"
-                                    className="btn btn-sm rounded-pill fw-bold px-3 shadow-sm"
+                                    className="btn btn-sm btn-solid-brand rounded-pill fw-bold px-3 py-2 text-white shadow-sm"
                                     style={{ 
-                                        color: '#0D8D1E', 
-                                        borderColor: '#0D8D1E', 
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: '#0D8D1E', 
+                                        border: 'none',
                                         transition: 'all 0.2s ease'
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = '#0D8D1E';
-                                        e.currentTarget.style.color = '#ffffff';
+                                        e.currentTarget.style.backgroundColor = '#0A6F17';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = '#ffffff';
-                                        e.currentTarget.style.color = '#0D8D1E';
+                                        e.currentTarget.style.backgroundColor = '#0D8D1E';
                                     }}
                                     onClick={addHousehold}
                                 >

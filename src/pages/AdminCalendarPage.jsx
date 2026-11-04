@@ -69,34 +69,11 @@ export default function AdminCalendarPage() {
       <img className="img-fluid banner-img" src={carousel2} alt="Operations Calendar Banner" />
 
       <section className="section-bg">
-        <div className="table-box" style={{ maxWidth: '1150px' }}>
-          {/* Header with Title and Quick Actions */}
-          <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mb-4">
-            <div className="text-center text-md-start">
-              <h3 className="fw-bold text-dark mb-1">Operations & Scheduling Calendar</h3>
-              <p className="text-muted small mb-0">Overview of site inspection appointments, service execution bookings, and truck assignments</p>
-            </div>
-
-            <div className="d-flex align-items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm bg-white"
-                onClick={fetchOrders}
-                disabled={loading}
-                title="Refresh scheduling data"
-              >
-                <i className={`fas fa-sync-alt ${loading ? 'fa-spin text-success' : ''}`}></i>
-                <span>Refresh</span>
-              </button>
-              <Link
-                to="/admin/orders"
-                className="btn btn-sm text-white rounded-pill px-4 py-2 fw-semibold shadow-sm d-flex align-items-center gap-2"
-                style={{ backgroundColor: '#0D8D1E', border: 'none' }}
-              >
-                <i className="fas fa-database"></i>
-                <span>All Orders</span>
-              </Link>
-            </div>
+        <div className="table-box">
+          {/* Page Title & Description (Centered to match Order Database & Registered Users) */}
+          <div className="text-center mb-4">
+            <h3 className="fw-bold text-dark mb-1">Operations & Scheduling Calendar</h3>
+            <p className="text-muted small mb-0">Overview of site inspection appointments, service execution bookings, and truck assignments</p>
           </div>
 
           {/* Executive KPI Metric Cards */}
@@ -157,7 +134,7 @@ export default function AdminCalendarPage() {
                 <div className="d-flex align-items-center justify-content-between">
                   <span className="db-kpi-label">Completed Services</span>
                   <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(22, 163, 74, 0.12)', color: '#16a34a' }}>
-                    <i className="fas fa-check-double"></i>
+                    <i className="fas fa-check"></i>
                   </div>
                 </div>
                 <div className="db-kpi-value text-success">
@@ -170,19 +147,36 @@ export default function AdminCalendarPage() {
             </div>
           </div>
 
+          {/* Quick Actions Bar (Refresh beside All Orders) */}
+          <div className="d-flex justify-content-end align-items-center mb-3 flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-solid-light rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-2 shadow-sm"
+              onClick={fetchOrders}
+              disabled={loading}
+              title="Refresh scheduling data"
+            >
+              <i className={`fas fa-sync-alt ${loading ? 'fa-spin text-success' : 'text-success'}`}></i>
+              <span>Refresh</span>
+            </button>
+
+            <Link
+              to="/admin/orders"
+              className="btn btn-sm btn-solid-brand rounded-pill px-4 py-2 fw-semibold shadow-sm d-flex align-items-center gap-2"
+            >
+              <i className="fas fa-database"></i>
+              <span>All Orders</span>
+            </Link>
+          </div>
+
           {/* Main Calendar Panel */}
           <div className="card border shadow-sm rounded-3 overflow-hidden bg-white">
-            <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-              <div className="d-flex align-items-center gap-2">
-                <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.05rem' }}>
-                  Monthly Fleet Schedule Grid
-                </h5>
-                <span className="badge rounded-pill bg-light text-secondary border px-2 py-1 small fw-normal">
-                  Click any date to inspect details
+            <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-center align-items-center">
+              <div className="d-flex align-items-center justify-content-center gap-3 gap-md-4 small text-muted flex-wrap">
+                <span className="d-inline-flex align-items-center gap-1">
+                  <span className="rounded-circle" style={{ width: '9px', height: '9px', backgroundColor: '#dc2626' }}></span>
+                  Cancelled
                 </span>
-              </div>
-
-              <div className="d-flex align-items-center gap-3 small text-muted">
                 <span className="d-inline-flex align-items-center gap-1">
                   <span className="rounded-circle" style={{ width: '9px', height: '9px', backgroundColor: '#ffb300' }}></span>
                   Pending / Pref.

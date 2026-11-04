@@ -6,13 +6,19 @@ import '../assets/styles/admin.css';
 import { getNotificationRoute, getNotificationMeta } from '../utils/notificationRoutes';
 
 export default function AdminLayout() {
-  const [userName, setUserName] = useState('Admin');
+  const [adminFullName, setAdminFullName] = useState(() => {
+    const stored = sessionStorage.getItem("userName");
+    if (stored && stored.trim() && stored !== "undefined" && stored !== "null") {
+      return stored.trim();
+    }
+    const loggedIn = sessionStorage.getItem("loggedInUser");
+    return loggedIn || "Admin";
+  });
   const [profilePic, setProfilePic] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [showNotifTray, setShowNotifTray] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,34 +27,84 @@ export default function AdminLayout() {
     const loggedInUser = sessionStorage.getItem("loggedInUser");
     const userRole = sessionStorage.getItem("userRole");
     const userId = sessionStorage.getItem("userId");
+    const storedName = sessionStorage.getItem("userName");
 
     if (!loggedInUser || userRole !== "admin") {
       navigate('/login');
       return;
     }
 
-    setUserName(loggedInUser);
-
-    if (userId) {
-      api.get(`/users/${userId}`)
-        .then(res => {
-          if (res.data && res.data.profile_picture) {
-            setProfilePic(res.data.profile_picture);
-          }
-        })
-        .catch(err => console.error(err));
+    if (storedName && storedName.trim() && storedName !== "undefined" && storedName !== "null") {
+      setAdminFullName(storedName.trim());
     }
 
-    loadNotifications();
-    loadUnreadMessages();
+    let isMounted = true;
+    const fetchInitialLayoutData = async () => {
+      try {
+        const promises = [
+          loadNotifications(),
+          loadUnreadMessages()
+        ];
+        if (userId) {
+          promises.push(
+            api.get(`/users/${userId}`)
+              .then(res => {
+                if (isMounted && res.data) {
+                  if (res.data.profile_picture) {
+                    setProfilePic(res.data.profile_picture);
+                  }
+                  const nameParts = [res.data.first_name, res.data.middle_name, res.data.last_name].filter(Boolean).join(' ').trim();
+                  if (nameParts) {
+                    setAdminFullName(nameParts);
+                    sessionStorage.setItem('userName', nameParts);
+                  }
+                }
+              })
+              .catch(err => console.error(err))
+          );
+        }
+        await Promise.all(promises);
+      } catch (err) {
+        console.error("Error loading layout data:", err);
+      }
+    };
+
+    fetchInitialLayoutData();
+
+    const handleProfileUpdate = (e) => {
+      if (e.detail?.fullName) {
+        setAdminFullName(e.detail.fullName);
+      } else {
+        const stored = sessionStorage.getItem("userName");
+        if (stored && stored.trim()) setAdminFullName(stored.trim());
+      }
+      if (e.detail?.profilePic) {
+        setProfilePic(e.detail.profilePic);
+      }
+    };
+
+    window.addEventListener('user-name-updated', handleProfileUpdate);
+    window.addEventListener('storage', handleProfileUpdate);
 
     const interval = setInterval(() => {
       loadUnreadMessages();
       loadNotifications();
     }, 8000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('user-name-updated', handleProfileUpdate);
+      window.removeEventListener('storage', handleProfileUpdate);
+    };
   }, [navigate]);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("userName");
+    if (stored && stored.trim() && stored !== "undefined" && stored !== "null") {
+      setAdminFullName(stored.trim());
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     sessionStorage.clear();
@@ -160,36 +216,38 @@ export default function AdminLayout() {
         )}
       </li>
 
-      <li 
-        className="nav-item position-relative"
-        onMouseEnter={() => setShowProfileMenu(true)}
-        onMouseLeave={() => setShowProfileMenu(false)}
-      >
-        <div className="nav-link d-flex align-items-center" style={{ cursor: 'pointer' }}>
+      <li className="nav-item dropdown position-relative">
+        <div 
+          className="nav-link dropdown-toggle d-flex align-items-center p-0" 
+          role="button"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+          aria-label="Admin account menu"
+          style={{ cursor: 'pointer' }}
+        >
           <img 
             src={profilePic || '/default_profile.jpg'} 
             alt="Profile" 
             className="rounded-circle bg-white"
             style={{ width: '35px', height: '35px', objectFit: 'cover', border: '2px solid #ffffff' }}
           />
-          <span className="fw-medium text-white ms-2 d-none d-md-block" style={{ fontSize: '0.9rem' }}>{userName}</span>
         </div>
-        
-        {showProfileMenu && (
-          <ul className="dropdown-menu dropdown-menu-end shadow position-absolute d-block" style={{ top: '100%', right: '0', left: 'auto', minWidth: '160px', border: 'none', borderRadius: '8px', marginTop: '0' }}>
-            <li>
-              <Link className="dropdown-item fw-bold py-2" to="/admin/profile">
-                <i className="fas fa-user-circle me-2 text-success"></i> My Account
-              </Link>
-            </li>
-            <li><hr className="dropdown-divider my-1" /></li>
-            <li>
-              <button className="dropdown-item text-danger fw-bold py-2" onClick={handleLogout}>
-                <i className="fas fa-sign-out-alt me-2"></i> Logout
-              </button>
-            </li>
-          </ul>
-        )}
+        <ul 
+          className="dropdown-menu dropdown-menu-end shadow position-absolute" 
+          style={{ right: 0, left: 'auto', minWidth: '160px', top: '100%', marginTop: '0.5rem', border: 'none', borderRadius: '8px' }}
+        >
+          <li>
+            <Link className="dropdown-item fw-bold py-2" to="/admin/profile">
+              <i className="fas fa-user-circle me-2 text-success"></i> My Account
+            </Link>
+          </li>
+          <li><hr className="dropdown-divider my-1" /></li>
+          <li>
+            <button className="dropdown-item text-danger fw-bold py-2" onClick={handleLogout}>
+              <i className="fas fa-sign-out-alt me-2"></i> Logout
+            </button>
+          </li>
+        </ul>
       </li>
     </ul>
   );
@@ -218,16 +276,15 @@ export default function AdminLayout() {
         {/* Sidebar Profile */}
         <div className="d-none d-lg-flex align-items-center px-4 py-3 mb-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <img 
-            src={profilePic || 'https://via.placeholder.com/40'} 
+            src={profilePic || '/default_profile.jpg'} 
             alt="Profile" 
-            className="rounded-circle"
+            className="rounded-circle flex-shrink-0"
             style={{ width: '45px', height: '45px', objectFit: 'cover', border: '2px solid white' }}
           />
-          <div className="ms-3">
-            <h6 className="mb-0 fw-bold text-white">{userName}</h6>
+          <div className="ms-3 overflow-hidden flex-grow-1" style={{ minWidth: 0 }}>
+            <h6 className="mb-0 fw-bold text-white text-truncate" title={adminFullName}>{adminFullName}</h6>
             <small className="text-white" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Company Admin</small>
           </div>
-          <i className="fas fa-check-circle ms-auto text-white" style={{ fontSize: '0.8rem' }}></i>
         </div>
 
         <div className="p-3 flex-grow-1 overflow-auto">

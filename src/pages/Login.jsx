@@ -129,7 +129,7 @@ function Login() {
           userId: data.user.id,
           userRole: data.user.role,
           userEmail: data.user.email,
-          userName: `${data.user.first_name} ${data.user.last_name}`,
+          userName: [data.user.first_name, data.user.middle_name, data.user.last_name].filter(Boolean).join(' ').trim(),
           ...(data.user.date_of_birth && { userDob: data.user.date_of_birth }),
           ...(data.token && { token: data.token })
         };

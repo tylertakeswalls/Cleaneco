@@ -27,19 +27,18 @@ function Header() {
   // Fetch user data and poll notifications when userId changes
   useEffect(() => {
     if (userId) {
-      // Fetch user profile picture
-      api.get(`/users/${userId}`)
-        .then(res => {
-          if (res.data && res.data.profile_picture) {
-            setProfilePic(res.data.profile_picture);
-          } else {
-            setProfilePic('');
-          }
-        })
-        .catch(err => console.error(err));
-
-      // Poll notifications and messages (fetch once + interval)
+      // Poll notifications, messages and avatar for client (Admin avatar and notifications are handled by AdminLayout)
       if (loggedInUser !== 'admin') {
+        api.get(`/users/${userId}`)
+          .then(res => {
+            if (res.data && res.data.profile_picture) {
+              setProfilePic(res.data.profile_picture);
+            } else {
+              setProfilePic('');
+            }
+          })
+          .catch(err => console.error(err));
+
         loadNotifications(userId);
         loadUnreadMessages(userId);
         const interval = setInterval(() => {
