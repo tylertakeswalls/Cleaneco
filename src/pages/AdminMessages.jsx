@@ -336,7 +336,7 @@ export default function AdminMessages() {
   });
 
   const selectedClient = selectedConv?.client_id || {};
-  const selectedClientName = `${selectedClient.first_name || ''} ${selectedClient.last_name || ''}`.trim() || selectedClient.username || 'Client';
+  const selectedClientName = [selectedClient.first_name, selectedClient.middle_name, selectedClient.last_name].filter(Boolean).join(' ').trim() || selectedClient.username || 'Client';
 
   return (
     <div>
@@ -803,7 +803,7 @@ export default function AdminMessages() {
                 const client = conv.client_id || {};
                 const isSelected = selectedConv && selectedConv._id === conv._id;
                 const unreadCount = conv.unread_admin_count || 0;
-                const clientFullName = `${client.first_name || ''} ${client.last_name || ''}`.trim() || client.username || 'Client';
+                const clientFullName = [client.first_name, client.middle_name, client.last_name].filter(Boolean).join(' ').trim() || client.username || 'Client';
 
                 return (
                   <div

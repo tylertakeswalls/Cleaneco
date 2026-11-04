@@ -311,10 +311,10 @@ div[style*="background-color: #F2F2F2"] {
   background-color: #f8fafc !important;
 }
 
-.clients-section {
-  background-color: #f1f5f9 !important;
-  border-radius: 1.5rem;
-  margin: 2rem auto;
+/* Override background colors that were inline explicitly */
+div[style*="backgroundColor: '#f2edf3'"],
+div[style*="background-color: #f2edf3"] {
+  background-color: #f8fafc !important;
 }
 
 /* Table Enhancements */

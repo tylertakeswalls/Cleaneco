@@ -74,7 +74,7 @@ router.get('/', async (req, res) => {
   }
   try {
     const orders = await Order.find()
-      .populate('user_id', 'clientType companyName first_name last_name email phone')
+      .populate('user_id', 'clientType companyName first_name middle_name last_name email phone')
       .populate('service_id', 'name')
       .sort({ created_at: -1, _id: -1 })
       .batchSize(500)

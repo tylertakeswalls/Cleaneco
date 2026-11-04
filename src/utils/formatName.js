@@ -1,8 +1,9 @@
 export const formatName = (data) => {
   if (!data) return '';
   const firstName = data.first_name || data.firstName || '';
+  const middleName = data.middle_name || data.middleName || '';
   const lastName = data.last_name || data.lastName || '';
-  const fullName = `${firstName} ${lastName}`.trim();
+  const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ').trim();
   
   const clientType = data.clientType || data.user_clientType;
   const companyName = data.companyName || data.user_companyName;

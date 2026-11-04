@@ -189,6 +189,7 @@ function ClientProfile() {
         if (fullName) {
           sessionStorage.setItem('userName', fullName);
           localStorage.setItem('userName', fullName);
+          window.dispatchEvent(new CustomEvent('user-name-updated', { detail: { fullName, profilePic: profile.profile_picture } }));
         }
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -268,7 +269,7 @@ function ClientProfile() {
             </div>
 
             <h5 className="fw-bold mb-1 mt-3 text-dark">
-              {profile.first_name || profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.username}
+              {[profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(' ') || profile.username}
             </h5>
             <p className="text-muted small mb-2">@{profile.username}</p>
 

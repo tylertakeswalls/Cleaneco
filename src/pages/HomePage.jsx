@@ -123,7 +123,7 @@ function HomePage() {
       </section>
 
       {/* client portfolio and testimonials section */}
-      <section className="clients-section text-center py-5 bg-light">
+      <section className="clients-section text-center my-5 py-5 bg-light">
         <h2 className="intro-title mb-4" id="clients">Trusted by Our Clients</h2>
 
         {/* client logo carousel */}

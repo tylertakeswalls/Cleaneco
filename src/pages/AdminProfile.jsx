@@ -129,7 +129,7 @@ function AdminProfile() {
   }
 
   return (
-    <div className="admin-profile-page py-4 px-3 px-md-4 px-xl-5" style={{ backgroundColor: '#f2edf3', minHeight: '100%' }}>
+    <div className="admin-profile-page py-4 px-3 px-md-4 px-xl-5" style={{ backgroundColor: '#f8fafc', minHeight: '100%' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         
         {/* Page Title */}

@@ -253,7 +253,7 @@ export default function AdminLayout() {
   );
 
   return (
-    <div className="d-flex admin-layout-wrapper" style={{ height: '100vh', overflow: 'hidden', backgroundColor: '#f2edf3' }}>
+    <div className="d-flex admin-layout-wrapper" style={{ height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
       
       {/* SIDEBAR */}
       <div 
