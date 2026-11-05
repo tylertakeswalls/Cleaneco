@@ -68,6 +68,68 @@ export const mergePolledMessages = (prevMessages, fetchedMessages) => {
   return prevMessages;
 };
 
+export const isLiveAdminHandoffMessage = (messages, index) => {
+  if (!Array.isArray(messages) || index <= 0) return false;
+  const msg = messages[index];
+  if (!msg || msg.sender_role !== 'admin' || msg.is_automated) return false;
+
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (messages[i]?.sender_role === 'admin') {
+      return Boolean(messages[i].is_automated);
+    }
+  }
+  return false;
+};
+
+export const getSupportSessionStatus = (messages) => {
+  const idleStatus = {
+    mode: 'idle',
+    label: 'Active Customer Assistance',
+    dotColor: '#10B981'
+  };
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return idleStatus;
+  }
+
+  // Find the most recent automated message in the conversation
+  let lastAutoIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.is_automated) {
+      lastAutoIndex = i;
+      break;
+    }
+  }
+
+  // If no automated greeting has occurred in this thread, remain in default idle state
+  if (lastAutoIndex === -1) {
+    return idleStatus;
+  }
+
+  const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+  const lastMsgTime = new Date(messages[messages.length - 1]?.created_at || 0).getTime();
+  if (!lastMsgTime || Date.now() - lastMsgTime >= FOUR_HOURS_MS) {
+    return idleStatus;
+  }
+
+  // Check if a live human admin has replied AFTER that automated greeting
+  for (let i = lastAutoIndex + 1; i < messages.length; i += 1) {
+    if (messages[i]?.sender_role === 'admin' && !messages[i]?.is_automated) {
+      return {
+        mode: 'live_admin',
+        label: "You're now talking to a Live Admin",
+        dotColor: '#10B981'
+      };
+    }
+  }
+
+  return {
+    mode: 'waiting_admin',
+    label: 'Awaiting Live Admin Response...',
+    dotColor: '#F59E0B'
+  };
+};
+
 export default function ChatImageLightbox({ image, onClose }) {
   useEffect(() => {
     if (!image) return undefined;

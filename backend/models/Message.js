@@ -10,12 +10,16 @@ const messageSchema = new mongoose.Schema({
   sender_id: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
-    required: true 
+    default: null 
   },
   sender_role: { 
     type: String, 
     enum: ['admin', 'client'], 
     required: true 
+  },
+  is_automated: {
+    type: Boolean,
+    default: false
   },
   text: { 
     type: String, 

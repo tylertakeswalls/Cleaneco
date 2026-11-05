@@ -8,7 +8,9 @@ import ChatImageLightbox, {
   validateChatImageFile,
   formatImageFileSize,
   extractPastedImageFile,
-  mergePolledMessages
+  mergePolledMessages,
+  isLiveAdminHandoffMessage,
+  getSupportSessionStatus
 } from '../components/ChatImageLightbox';
 
 export default function ClientMessages() {
@@ -229,12 +231,20 @@ export default function ClientMessages() {
 
       if (res.data && res.data.success) {
         const savedMsg = res.data.message;
+        const autoReplyMsg = res.data.autoReply;
         setMessages(prev => {
+          let next;
           if (prev.some(m => m._id === tempId)) {
-            return prev.map(m => m._id === tempId ? savedMsg : m);
+            next = prev.map(m => m._id === tempId ? savedMsg : m);
+          } else if (prev.some(m => m._id === savedMsg._id)) {
+            next = prev;
+          } else {
+            next = [...prev, savedMsg];
           }
-          if (prev.some(m => m._id === savedMsg._id)) return prev;
-          return [...prev, savedMsg];
+          if (autoReplyMsg && !next.some(m => m._id === autoReplyMsg._id)) {
+            next = [...next, autoReplyMsg];
+          }
+          return next;
         });
       }
     } catch (err) {
@@ -594,10 +604,20 @@ export default function ClientMessages() {
                     </span>
                   )}
                 </div>
-                <div className="d-flex align-items-center gap-2 text-muted mt-1" style={{ fontSize: '0.78rem' }}>
-                  <span className="support-pulse-dot"></span>
-                  <span>Active Customer Assistance</span>
-                </div>
+                {(() => {
+                  const sessionStatus = getSupportSessionStatus(messages);
+                  return (
+                    <div className="d-flex align-items-center gap-2 text-muted mt-1" style={{ fontSize: '0.78rem' }}>
+                      <span
+                        className="support-pulse-dot"
+                        style={{ backgroundColor: sessionStatus.dotColor }}
+                      ></span>
+                      <span className={sessionStatus.mode === 'live_admin' ? 'fw-semibold text-success' : ''}>
+                        {sessionStatus.label}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -658,54 +678,90 @@ export default function ClientMessages() {
 
                 {messages.map((msg, index) => {
                   const isMe = msg.sender_role === 'client';
+                  const isAuto = Boolean(msg.is_automated) || /\(This is an automated message\)\s*$/i.test(msg.text || '');
+                  const displayText = isAuto
+                    ? (msg.text || '').replace(/(?:\r?\n)*\(This is an automated message\)\s*$/i, '').trim()
+                    : msg.text;
+                  const showHandoffBanner = isLiveAdminHandoffMessage(messages, index);
                   const hasImg = Boolean(msg.image_url);
-                  const hasTxt = Boolean(msg.text);
+                  const hasTxt = Boolean(displayText);
                   const bubblePadding = hasImg ? (hasTxt ? 'p-2 pb-3' : 'p-2') : 'p-3 px-4';
 
                   return (
-                    <div
-                      key={msg._id || index}
-                      className={`d-flex flex-column ${isMe ? 'align-items-end' : 'align-items-start'}`}
-                    >
-                      <div className="d-flex align-items-end gap-2" style={{ maxWidth: '80%' }}>
-                        {!isMe && (
-                          <div 
-                            className="rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" 
-                            style={{ width: '32px', height: '32px', backgroundColor: '#0D8D1E', fontSize: '0.8rem' }}
+                    <div key={msg._id || index} className="d-flex flex-column">
+                      {showHandoffBanner && (
+                        <div className="text-center my-3">
+                          <span
+                            className="badge rounded-pill d-inline-flex align-items-center gap-2 px-3 py-2 shadow-sm"
+                            style={{
+                              backgroundColor: '#ECFDF5',
+                              color: '#065F46',
+                              border: '1px solid #A7F3D0',
+                              fontSize: '0.75rem',
+                              fontWeight: 600
+                            }}
                           >
-                            <i className="fas fa-headset"></i>
-                          </div>
-                        )}
-                        <div className={`${bubblePadding} shadow-sm ${isMe ? 'chat-bubble-client' : 'chat-bubble-admin'}`}>
-                          {hasImg && (
-                            <div className="position-relative">
-                              <img
-                                src={resolveChatImageUrl(msg.image_url)}
-                                alt={msg.image_name || 'Chat attachment'}
-                                className="chat-msg-image"
-                                onClick={() => setLightboxImage({ url: msg.image_url, name: msg.image_name })}
-                              />
-                              {msg._uploading && (
-                                <span
-                                  className="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-2"
-                                  style={{ fontSize: '0.68rem' }}
-                                >
-                                  Uploading...
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {hasTxt && (
-                            <div className={hasImg ? 'mt-2 px-2' : ''}>
-                              {msg.text}
-                            </div>
-                          )}
+                            <span
+                              className="rounded-circle d-inline-block"
+                              style={{ width: '8px', height: '8px', backgroundColor: '#10B981' }}
+                            ></span>
+                            <span>You're now talking to a live admin</span>
+                          </span>
                         </div>
+                      )}
+                      <div className={`d-flex flex-column ${isMe ? 'align-items-end' : 'align-items-start'}`}>
+                        <div className="d-flex align-items-end gap-2" style={{ maxWidth: '80%' }}>
+                          {!isMe && (
+                            <div 
+                              className="rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" 
+                              style={{ width: '32px', height: '32px', backgroundColor: '#0D8D1E', fontSize: '0.8rem' }}
+                            >
+                              <i className="fas fa-headset"></i>
+                            </div>
+                          )}
+                          <div className={`${bubblePadding} shadow-sm ${isMe ? 'chat-bubble-client' : 'chat-bubble-admin'}`}>
+                            {hasImg && (
+                              <div className="position-relative">
+                                <img
+                                  src={resolveChatImageUrl(msg.image_url)}
+                                  alt={msg.image_name || 'Chat attachment'}
+                                  className="chat-msg-image"
+                                  onClick={() => setLightboxImage({ url: msg.image_url, name: msg.image_name })}
+                                />
+                                {msg._uploading && (
+                                  <span
+                                    className="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-2"
+                                    style={{ fontSize: '0.68rem' }}
+                                  >
+                                    Uploading...
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {hasTxt && (
+                              <div className={hasImg ? 'mt-2 px-2' : ''}>
+                                {displayText}
+                              </div>
+                            )}
+                            {isAuto && (
+                              <div
+                                className="mt-2"
+                                style={{
+                                  fontStyle: 'italic',
+                                  color: '#94A3B8',
+                                  fontSize: '0.78rem'
+                                }}
+                              >
+                                (This is an automated message)
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <small className="text-muted mt-1 px-1" style={{ fontSize: '0.7rem' }}>
+                          {isMe ? 'You • ' : 'Cleaneco Support Staff • '}
+                          {formatMsgTime(msg.created_at)}
+                        </small>
                       </div>
-                      <small className="text-muted mt-1 px-1" style={{ fontSize: '0.7rem' }}>
-                        {isMe ? 'You • ' : 'Cleaneco Support Staff • '}
-                        {formatMsgTime(msg.created_at)}
-                      </small>
                     </div>
                   );
                 })}

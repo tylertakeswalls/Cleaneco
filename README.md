@@ -478,6 +478,18 @@ Comprehensive resolution of all findings from the 13-page DLSU-D Capstone UI/UX 
   - Standardized modal header text to "Terms of Service".
   - Configured PDF modal viewer sizing with `#view=FitH&toolbar=0&navpanes=0` to ensure the document fits seamlessly within the modal viewport on initial click without horizontal cutoff.
 
+## 49. Automated Support Acknowledgment, Live Admin Handoff & Portal Background Harmonization
+- **Automated Support Greeting & 4-Hour Inactivity Cooldown (`backend/models/Message.js`, `backend/routes/messages.js`)**:
+  - Added `is_automated` message tracking to automatically send an instant acknowledgment greeting whenever a client initiates a new conversation or sends a message after 4+ hours of conversation inactivity.
+  - Built-in anti-spam cooldown prevents duplicate automated messages when clients send consecutive follow-up messages or photos.
+  - Preserves `unread_admin_count` and keeps the client's actual message as `conversation.last_message` so the Admin inbox preview and **"Needs Reply"** filter remain accurate.
+- **Live Admin Handoff & Dynamic Session Status (`ChatImageLightbox.jsx`, `ClientMessages.jsx`, `ClientChatWidget.jsx`, `AdminMessages.jsx`)**:
+  - Dynamically transitions the chat header status across three states: **`Active Customer Assistance`** (default/idle) $\rightarrow$ **`Awaiting Live Admin Response...`** (queued after automated reply) $\rightarrow$ **`You're now talking to a Live Admin`** (active staff session), resetting cleanly after 4+ hours of inactivity.
+  - Renders an inline **`You're now talking to a live admin`** (and **`Live admin joined the conversation`** on the Admin view) handoff pill directly above the administrator's first reply following an automated greeting, with a subtle italicized `(This is an automated message)` footnote inside automated bubbles.
+- **Portal Background Harmonization & Middle Name Persistence (`AdminLayout.jsx`, `AdminProfile.jsx`, `AdminSettings.jsx`, `HomePage.jsx`, `ClientProfile.jsx`, `formatName.js`)**:
+  - Unified all Admin portal backgrounds (`#f8fafc` / `--cleaneco-bg`) with the Client portal and removed the conflicting `.clients-section` gray override on the landing page so **"Trusted by Our Clients"** matches the rest of `HomePage.jsx`.
+  - Updated client profile cards, `formatName.js`, `AdminMessages.jsx`, and `/api/orders` population queries to persist and display `middle_name` across the entire platform.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

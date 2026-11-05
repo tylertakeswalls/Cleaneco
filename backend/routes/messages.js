@@ -198,7 +198,7 @@ router.get('/conversations/:id/messages', async (req, res) => {
     const conversationId = req.params.id;
     const messages = await Message.find({ conversation_id: conversationId })
       .populate('sender_id', 'first_name last_name username role profile_picture')
-      .sort({ created_at: 1 });
+      .sort({ created_at: 1, _id: 1 });
 
     res.json({ success: true, messages });
   } catch (error) {
@@ -232,6 +232,31 @@ router.post('/conversations/:id/messages', handleChatImageUpload, async (req, re
     if (req.file) {
       imageUrl = await uploadChatImageToGridFS(req.file);
       imageName = req.file.originalname || 'photo.png';
+    }
+
+    // Determine if an automated welcome/acknowledgment reply should be sent
+    let shouldSendAutoReply = false;
+    if (sender_role === 'client') {
+      const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+      const [lastPriorMsg, lastAutoMsg] = await Promise.all([
+        Message.findOne({ conversation_id: conversationId })
+          .sort({ created_at: -1, _id: -1 })
+          .select('created_at')
+          .lean(),
+        Message.findOne({ conversation_id: conversationId, is_automated: true })
+          .sort({ created_at: -1, _id: -1 })
+          .select('created_at')
+          .lean()
+      ]);
+
+      if (!lastPriorMsg || !lastAutoMsg) {
+        shouldSendAutoReply = true;
+      } else {
+        const inactiveMs = Date.now() - new Date(lastPriorMsg.created_at).getTime();
+        if (inactiveMs >= FOUR_HOURS_MS) {
+          shouldSendAutoReply = true;
+        }
+      }
     }
 
     const message = new Message({
@@ -301,7 +326,26 @@ router.post('/conversations/:id/messages', handleChatImageUpload, async (req, re
     const populatedMessage = await Message.findById(message._id)
       .populate('sender_id', 'first_name last_name username role profile_picture');
 
-    res.json({ success: true, message: populatedMessage });
+    let populatedAutoReply = null;
+    if (shouldSendAutoReply) {
+      const adminUser = await User.findOne({ role: 'admin' }).select('_id').lean();
+      const autoReplyText = "Thank you for contacting Cleaneco Waste Management Services! We have received your message and our support team will get back to you as soon as possible. Feel free to share any additional details or photos regarding your inquiry in the meantime.\n\n(This is an automated message)";
+      const autoMsg = new Message({
+        conversation_id: conversationId,
+        sender_id: adminUser ? adminUser._id : null,
+        sender_role: 'admin',
+        is_automated: true,
+        text: autoReplyText,
+        is_read: true,
+        read_at: new Date(),
+        created_at: new Date(new Date(message.created_at).getTime() + 100)
+      });
+      await autoMsg.save();
+      populatedAutoReply = await Message.findById(autoMsg._id)
+        .populate('sender_id', 'first_name last_name username role profile_picture');
+    }
+
+    res.json({ success: true, message: populatedMessage, autoReply: populatedAutoReply });
   } catch (error) {
     console.error('Error sending message:', error);
     res.status(500).json({ success: false, message: 'Failed to send message' });

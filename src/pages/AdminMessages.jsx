@@ -10,7 +10,8 @@ import ChatImageLightbox, {
   validateChatImageFile,
   formatImageFileSize,
   extractPastedImageFile,
-  mergePolledMessages
+  mergePolledMessages,
+  isLiveAdminHandoffMessage
 } from '../components/ChatImageLightbox';
 
 export default function AdminMessages() {
@@ -1029,71 +1030,107 @@ export default function AdminMessages() {
 
                     {messages.map((msg, index) => {
                       const isAdmin = msg.sender_role === 'admin';
+                      const isAuto = Boolean(msg.is_automated) || /\(This is an automated message\)\s*$/i.test(msg.text || '');
+                      const displayText = isAuto
+                        ? (msg.text || '').replace(/(?:\r?\n)*\(This is an automated message\)\s*$/i, '').trim()
+                        : msg.text;
+                      const showHandoffBanner = isLiveAdminHandoffMessage(messages, index);
                       const hasImg = Boolean(msg.image_url);
-                      const hasTxt = Boolean(msg.text);
+                      const hasTxt = Boolean(displayText);
                       const bubblePadding = hasImg ? (hasTxt ? 'p-2 pb-3' : 'p-2') : 'p-3 px-4';
 
                       return (
-                        <div
-                          key={msg._id || index}
-                          className={`d-flex flex-column ${isAdmin ? 'align-items-end' : 'align-items-start'}`}
-                        >
-                          <div className="d-flex align-items-end gap-2" style={{ maxWidth: '78%' }}>
-                            {!isAdmin && (
-                              selectedClient.profile_picture ? (
-                                <img 
-                                  src={selectedClient.profile_picture} 
-                                  alt={selectedClientName}
-                                  className="rounded-circle object-fit-cover shadow-sm flex-shrink-0"
-                                  style={{ width: '32px', height: '32px', border: '1px solid #E2E8F0' }}
-                                />
-                              ) : (
-                                <div 
-                                  className="rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm fw-bold"
-                                  style={{ width: '32px', height: '32px', backgroundColor: '#64748B', fontSize: '0.78rem' }}
-                                >
-                                  {selectedClientName.charAt(0).toUpperCase()}
-                                </div>
-                              )
-                            )}
-                            <div className={`${bubblePadding} shadow-sm ${isAdmin ? 'chat-bubble-admin-staff' : 'chat-bubble-client-msg'}`}>
-                              {hasImg && (
-                                <div className="position-relative">
-                                  <img
-                                    src={resolveChatImageUrl(msg.image_url)}
-                                    alt={msg.image_name || 'Chat attachment'}
-                                    className="chat-msg-image"
-                                    onClick={() => setLightboxImage({ url: msg.image_url, name: msg.image_name })}
+                        <div key={msg._id || index} className="d-flex flex-column">
+                          {showHandoffBanner && (
+                            <div className="text-center my-3">
+                              <span
+                                className="badge rounded-pill d-inline-flex align-items-center gap-2 px-3 py-2 shadow-sm"
+                                style={{
+                                  backgroundColor: '#ECFDF5',
+                                  color: '#065F46',
+                                  border: '1px solid #A7F3D0',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600
+                                }}
+                              >
+                                <span
+                                  className="rounded-circle d-inline-block"
+                                  style={{ width: '8px', height: '8px', backgroundColor: '#10B981' }}
+                                ></span>
+                                <span>Live admin joined the conversation</span>
+                              </span>
+                            </div>
+                          )}
+                          <div className={`d-flex flex-column ${isAdmin ? 'align-items-end' : 'align-items-start'}`}>
+                            <div className="d-flex align-items-end gap-2" style={{ maxWidth: '78%' }}>
+                              {!isAdmin && (
+                                selectedClient.profile_picture ? (
+                                  <img 
+                                    src={selectedClient.profile_picture} 
+                                    alt={selectedClientName}
+                                    className="rounded-circle object-fit-cover shadow-sm flex-shrink-0"
+                                    style={{ width: '32px', height: '32px', border: '1px solid #E2E8F0' }}
                                   />
-                                  {msg._uploading && (
-                                    <span
-                                      className="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-2"
-                                      style={{ fontSize: '0.68rem' }}
-                                    >
-                                      Uploading...
-                                    </span>
-                                  )}
-                                </div>
+                                ) : (
+                                  <div 
+                                    className="rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm fw-bold"
+                                    style={{ width: '32px', height: '32px', backgroundColor: '#64748B', fontSize: '0.78rem' }}
+                                  >
+                                    {selectedClientName.charAt(0).toUpperCase()}
+                                  </div>
+                                )
                               )}
-                              {hasTxt && (
-                                <div className={hasImg ? 'mt-2 px-2' : ''}>
-                                  {msg.text}
+                              <div className={`${bubblePadding} shadow-sm ${isAdmin ? 'chat-bubble-admin-staff' : 'chat-bubble-client-msg'}`}>
+                                {hasImg && (
+                                  <div className="position-relative">
+                                    <img
+                                      src={resolveChatImageUrl(msg.image_url)}
+                                      alt={msg.image_name || 'Chat attachment'}
+                                      className="chat-msg-image"
+                                      onClick={() => setLightboxImage({ url: msg.image_url, name: msg.image_name })}
+                                    />
+                                    {msg._uploading && (
+                                      <span
+                                        className="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-2"
+                                        style={{ fontSize: '0.68rem' }}
+                                      >
+                                        Uploading...
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {hasTxt && (
+                                  <div className={hasImg ? 'mt-2 px-2' : ''}>
+                                    {displayText}
+                                  </div>
+                                )}
+                                {isAuto && (
+                                  <div
+                                    className="mt-2"
+                                    style={{
+                                      fontStyle: 'italic',
+                                      color: 'rgba(255, 255, 255, 0.72)',
+                                      fontSize: '0.78rem'
+                                    }}
+                                  >
+                                    (This is an automated message)
+                                  </div>
+                                )}
+                              </div>
+                              {isAdmin && (
+                                <div 
+                                  className="rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm"
+                                  style={{ width: '32px', height: '32px', backgroundColor: '#0D8D1E', fontSize: '0.75rem' }}
+                                >
+                                  <i className="fas fa-headset"></i>
                                 </div>
                               )}
                             </div>
-                            {isAdmin && (
-                              <div 
-                                className="rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm"
-                                style={{ width: '32px', height: '32px', backgroundColor: '#0D8D1E', fontSize: '0.75rem' }}
-                              >
-                                <i className="fas fa-headset"></i>
-                              </div>
-                            )}
+                            <small className="text-muted mt-1 px-1" style={{ fontSize: '0.7rem' }}>
+                              {isAdmin ? 'Cleaneco Staff (You) • ' : `${selectedClientName} • `}
+                              {formatTime(msg.created_at)}
+                            </small>
                           </div>
-                          <small className="text-muted mt-1 px-1" style={{ fontSize: '0.7rem' }}>
-                            {isAdmin ? 'Cleaneco Staff (You) • ' : `${selectedClientName} • `}
-                            {formatTime(msg.created_at)}
-                          </small>
                         </div>
                       );
                     })}

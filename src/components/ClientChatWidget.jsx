@@ -8,7 +8,9 @@ import ChatImageLightbox, {
   validateChatImageFile,
   formatImageFileSize,
   extractPastedImageFile,
-  mergePolledMessages
+  mergePolledMessages,
+  isLiveAdminHandoffMessage,
+  getSupportSessionStatus
 } from './ChatImageLightbox';
 
 export default function ClientChatWidget() {
@@ -248,12 +250,20 @@ export default function ClientChatWidget() {
 
       if (res.data && res.data.success) {
         const savedMsg = res.data.message;
+        const autoReplyMsg = res.data.autoReply;
         setMessages(prev => {
+          let next;
           if (prev.some(m => m._id === tempId)) {
-            return prev.map(m => m._id === tempId ? savedMsg : m);
+            next = prev.map(m => m._id === tempId ? savedMsg : m);
+          } else if (prev.some(m => m._id === savedMsg._id)) {
+            next = prev;
+          } else {
+            next = [...prev, savedMsg];
           }
-          if (prev.some(m => m._id === savedMsg._id)) return prev;
-          return [...prev, savedMsg];
+          if (autoReplyMsg && !next.some(m => m._id === autoReplyMsg._id)) {
+            next = [...next, autoReplyMsg];
+          }
+          return next;
         });
       }
     } catch (err) {
@@ -452,10 +462,25 @@ export default function ClientChatWidget() {
                 <h6 className="mb-0 fw-bold" style={{ color: '#FFFFFF', fontSize: '0.98rem', letterSpacing: '0.2px' }}>
                   Cleaneco Support
                 </h6>
-                <small style={{ color: '#FFFFFF', opacity: 0.94, fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'block' }}>
-                  <span className="rounded-circle d-inline-block me-1" style={{ width: '7px', height: '7px', backgroundColor: '#5DFF79', boxShadow: '0 0 6px rgba(93, 255, 121, 0.8)' }}></span>
-                  We typically reply in a few minutes
-                </small>
+                {(() => {
+                  const sessionStatus = getSupportSessionStatus(messages);
+                  const dotBg = sessionStatus.mode === 'waiting_admin' ? '#FBBF24' : '#5DFF79';
+                  const dotShadow = sessionStatus.mode === 'waiting_admin'
+                    ? '0 0 6px rgba(251, 191, 36, 0.8)'
+                    : '0 0 6px rgba(93, 255, 121, 0.8)';
+                  const statusText = sessionStatus.mode === 'idle'
+                    ? 'We typically reply in a few minutes'
+                    : sessionStatus.label;
+                  return (
+                    <small style={{ color: '#FFFFFF', opacity: 0.94, fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'block' }}>
+                      <span
+                        className="rounded-circle d-inline-block me-1"
+                        style={{ width: '7px', height: '7px', backgroundColor: dotBg, boxShadow: dotShadow }}
+                      ></span>
+                      {statusText}
+                    </small>
+                  );
+                })()}
               </div>
             </div>
 
@@ -516,58 +541,94 @@ export default function ClientChatWidget() {
               <div className="d-flex flex-column gap-2">
                 {messages.map((msg, idx) => {
                   const isMe = msg.sender_role === 'client';
+                  const isAuto = Boolean(msg.is_automated) || /\(This is an automated message\)\s*$/i.test(msg.text || '');
+                  const displayText = isAuto
+                    ? (msg.text || '').replace(/(?:\r?\n)*\(This is an automated message\)\s*$/i, '').trim()
+                    : msg.text;
+                  const showHandoffBanner = isLiveAdminHandoffMessage(messages, idx);
                   const hasImg = Boolean(msg.image_url);
-                  const hasTxt = Boolean(msg.text);
+                  const hasTxt = Boolean(displayText);
                   const bubblePad = hasImg ? (hasTxt ? 'p-2 pb-2' : 'p-1') : 'p-2 px-3';
 
                   return (
-                    <div
-                      key={msg._id || idx}
-                      className={`d-flex flex-column ${isMe ? 'align-items-end' : 'align-items-start'}`}
-                    >
-                      <div
-                        className={`${bubblePad} rounded-4 shadow-sm ${
-                          isMe ? 'bg-success text-white' : 'bg-white text-dark border'
-                        }`}
-                        style={{
-                          backgroundColor: isMe ? '#0D8D1E' : '#FFFFFF',
-                          maxWidth: '82%',
-                          fontSize: '0.88rem',
-                          borderBottomRightRadius: isMe ? '4px' : '1rem',
-                          borderBottomLeftRadius: !isMe ? '4px' : '1rem',
-                          lineHeight: '1.4',
-                          wordBreak: 'break-word',
-                          whiteSpace: 'pre-wrap'
-                        }}
-                      >
-                        {hasImg && (
-                          <div className="position-relative">
-                            <img
-                              src={resolveChatImageUrl(msg.image_url)}
-                              alt={msg.image_name || 'Chat attachment'}
-                              className="cleaneco-widget-msg-img"
-                              onClick={() => setLightboxImage({ url: msg.image_url, name: msg.image_name })}
-                            />
-                            {msg._uploading && (
-                              <span
-                                className="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-1"
-                                style={{ fontSize: '0.62rem' }}
-                              >
-                                Uploading...
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {hasTxt && (
-                          <div className={hasImg ? 'mt-2 px-1' : ''}>
-                            {msg.text}
-                          </div>
-                        )}
+                    <div key={msg._id || idx} className="d-flex flex-column">
+                      {showHandoffBanner && (
+                        <div className="text-center my-2">
+                          <span
+                            className="badge rounded-pill d-inline-flex align-items-center gap-2 px-3 py-1 shadow-sm"
+                            style={{
+                              backgroundColor: '#ECFDF5',
+                              color: '#065F46',
+                              border: '1px solid #A7F3D0',
+                              fontSize: '0.7rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            <span
+                              className="rounded-circle d-inline-block"
+                              style={{ width: '6px', height: '6px', backgroundColor: '#10B981' }}
+                            ></span>
+                            <span>You're now talking to a live admin</span>
+                          </span>
+                        </div>
+                      )}
+                      <div className={`d-flex flex-column ${isMe ? 'align-items-end' : 'align-items-start'}`}>
+                        <div
+                          className={`${bubblePad} rounded-4 shadow-sm ${
+                            isMe ? 'bg-success text-white' : 'bg-white text-dark border'
+                          }`}
+                          style={{
+                            backgroundColor: isMe ? '#0D8D1E' : '#FFFFFF',
+                            maxWidth: '82%',
+                            fontSize: '0.88rem',
+                            borderBottomRightRadius: isMe ? '4px' : '1rem',
+                            borderBottomLeftRadius: !isMe ? '4px' : '1rem',
+                            lineHeight: '1.4',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
+                        >
+                          {hasImg && (
+                            <div className="position-relative">
+                              <img
+                                src={resolveChatImageUrl(msg.image_url)}
+                                alt={msg.image_name || 'Chat attachment'}
+                                className="cleaneco-widget-msg-img"
+                                onClick={() => setLightboxImage({ url: msg.image_url, name: msg.image_name })}
+                              />
+                              {msg._uploading && (
+                                <span
+                                  className="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-1"
+                                  style={{ fontSize: '0.62rem' }}
+                                >
+                                  Uploading...
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {hasTxt && (
+                            <div className={hasImg ? 'mt-2 px-1' : ''}>
+                              {displayText}
+                            </div>
+                          )}
+                          {isAuto && (
+                            <div
+                              className="mt-2"
+                              style={{
+                                fontStyle: 'italic',
+                                color: '#94A3B8',
+                                fontSize: '0.76rem'
+                              }}
+                            >
+                              (This is an automated message)
+                            </div>
+                          )}
+                        </div>
+                        <small className="text-muted mt-1 px-1" style={{ fontSize: '0.65rem' }}>
+                          {isMe ? 'You • ' : 'Cleaneco Support • '}
+                          {formatMsgTime(msg.created_at)}
+                        </small>
                       </div>
-                      <small className="text-muted mt-1 px-1" style={{ fontSize: '0.65rem' }}>
-                        {isMe ? 'You • ' : 'Cleaneco Support • '}
-                        {formatMsgTime(msg.created_at)}
-                      </small>
                     </div>
                   );
                 })}
