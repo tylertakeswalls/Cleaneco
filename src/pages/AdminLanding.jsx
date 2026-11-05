@@ -537,7 +537,7 @@ function AdminLanding() {
 
         {/* Page Header Banner */}
         <div className="card border-0 shadow-sm rounded-xl p-4 mb-4 bg-white">
-          <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+          <div className="d-flex flex-column flex-xl-row justify-content-between align-items-start align-items-xl-center gap-3">
             <div>
               <h4 className="fw-bold mb-1" style={{ letterSpacing: '-0.3px', color: '#1e293b' }}>
                 Hello, <span className="text-brand" style={{ color: '#0D8D1E' }}>{adminFirstName}!</span>
@@ -546,32 +546,36 @@ function AdminLanding() {
                 Here's an overview of today's bookings, sales, and operations.
               </p>
             </div>
-            <div className="d-flex flex-wrap align-items-center gap-2">
-              <span className="text-muted fw-bold me-1 small"><i className="fas fa-download me-1 text-brand"></i>Export:</span>
-              <button 
-                className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
-                onClick={() => handleGenerateReport('monthly')}
-                title="Download Monthly Performance Report PDF"
-                aria-label="Download Monthly Performance Report PDF"
-              >
-                <i className="fas fa-file-pdf me-1 text-white"></i>Monthly Report
-              </button>
-              <button 
-                className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
-                onClick={() => handleGenerateReport('quarterly')}
-                title="Download Quarterly Performance Report PDF"
-                aria-label="Download Quarterly Performance Report PDF"
-              >
-                <i className="fas fa-file-pdf me-1 text-white"></i>Quarterly Report
-              </button>
-              <button 
-                className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white" 
-                onClick={() => handleGenerateReport('yearly')}
-                title="Download Yearly Performance Report PDF"
-                aria-label="Download Yearly Performance Report PDF"
-              >
-                <i className="fas fa-file-pdf me-1 text-white"></i>Yearly Report
-              </button>
+            <div className="admin-export-toolbar">
+              <span className="text-muted fw-bold small text-nowrap">
+                <i className="fas fa-download me-1 text-brand"></i>Export:
+              </span>
+              <div className="admin-export-btn-group">
+                <button 
+                  className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white text-nowrap" 
+                  onClick={() => handleGenerateReport('monthly')}
+                  title="Download Monthly Performance Report PDF"
+                  aria-label="Download Monthly Performance Report PDF"
+                >
+                  <i className="fas fa-file-pdf me-1 text-white"></i>Monthly Report
+                </button>
+                <button 
+                  className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white text-nowrap" 
+                  onClick={() => handleGenerateReport('quarterly')}
+                  title="Download Quarterly Performance Report PDF"
+                  aria-label="Download Quarterly Performance Report PDF"
+                >
+                  <i className="fas fa-file-pdf me-1 text-white"></i>Quarterly Report
+                </button>
+                <button 
+                  className="btn btn-brand btn-sm shadow-sm px-3 rounded-pill fw-semibold text-white text-nowrap" 
+                  onClick={() => handleGenerateReport('yearly')}
+                  title="Download Yearly Performance Report PDF"
+                  aria-label="Download Yearly Performance Report PDF"
+                >
+                  <i className="fas fa-file-pdf me-1 text-white"></i>Yearly Report
+                </button>
+              </div>
             </div>
           </div>
         </div>

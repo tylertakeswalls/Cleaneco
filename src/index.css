@@ -229,12 +229,20 @@ h1, h2, h3, h4, h5, h6, .intro-title {
 }
 
 /* Fix table/small buttons inflating from global override */
-.btn-sm, .table .btn, .action-buttons .btn {
+.btn-sm:not(.w-100), .table .btn:not(.w-100), .action-buttons .btn:not(.w-100) {
   padding: 0.35rem 0.85rem !important;
   font-size: 0.85rem !important;
   border-radius: 0.5rem !important;
   min-height: auto !important;
   width: auto !important;
+}
+
+.btn-sm.w-100 {
+  padding: 0.45rem 1rem !important;
+  font-size: 0.85rem !important;
+  border-radius: 0.5rem !important;
+  min-height: auto !important;
+  width: 100% !important;
 }
 
 .action-buttons {

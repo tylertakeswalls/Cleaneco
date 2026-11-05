@@ -212,20 +212,36 @@ function ClientProfile() {
 
   return (
     <div className="profile-layout" style={{ backgroundColor: '#f8fafc', minHeight: 'calc(100vh - 70px)' }}>
+      <style>{`
+        .profile-drawer {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          border-bottom: 1px solid #e2e8f0;
+          flex-shrink: 0;
+        }
+        @media (min-width: 992px) {
+          .profile-drawer {
+            width: 360px;
+            max-width: 360px;
+            min-width: 320px;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: none;
+          }
+        }
+        @media (max-width: 575.98px) {
+          .profile-save-btn {
+            width: 100% !important;
+          }
+        }
+      `}</style>
       <div className="d-flex flex-column flex-lg-row">
         
         {/* ======================================================== */}
         {/* LEFT DRAWER / SIDEBAR (Red Box in Diagram)              */}
         {/* ======================================================== */}
         <aside 
-          className="profile-drawer bg-white border-end"
-          style={{ 
-            width: '100%', 
-            maxWidth: '360px', 
-            minWidth: '320px',
-            borderRight: '1px solid #e2e8f0',
-            flexShrink: 0
-          }}
+          className="profile-drawer bg-white"
         >
           {/* Drawer Top Header Banner */}
           <div 
@@ -350,7 +366,8 @@ function ClientProfile() {
             {/* Upload Button */}
             <button 
               type="button" 
-              className="btn btn-sm btn-solid-light border w-100 fw-semibold text-dark py-2 rounded-2 mt-2"
+              className="btn btn-sm btn-solid-light border w-100 fw-semibold text-dark py-2 rounded-2 mt-2 d-flex align-items-center justify-content-center"
+              style={{ width: '100%' }}
               onClick={() => document.getElementById('drawerPicInput').click()}
             >
               <i className="fas fa-upload me-2 text-success"></i>Upload New Picture
@@ -698,10 +715,12 @@ function ClientProfile() {
                 </div>
 
                 {/* Combined Address Preview Pill */}
-                <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-2 mt-2" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                  <i className="fas fa-check-circle text-success fs-6"></i>
-                  <span className="fw-semibold text-dark small text-nowrap">Combined Address:</span>
-                  <span className="text-secondary small fw-medium text-truncate">
+                <div className="d-flex align-items-start align-items-sm-center flex-column flex-sm-row gap-1 gap-sm-2 px-3 py-2 rounded-2 mt-2" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                    <i className="fas fa-check-circle text-success fs-6"></i>
+                    <span className="fw-semibold text-dark small text-nowrap">Combined Address:</span>
+                  </div>
+                  <span className="text-secondary small fw-medium text-break">
                     {profile.address || 'Select your province, city, and street address above to preview the complete address.'}
                   </span>
                 </div>
@@ -709,14 +728,14 @@ function ClientProfile() {
             </div>
 
             {/* Bottom Save Action Bar */}
-            <div className="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-3 p-3 bg-white rounded-3 shadow-sm border mb-4">
+            <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3 p-3 bg-white rounded-3 shadow-sm border mb-5">
               <span className="text-muted small">
                 <i className="fas fa-shield-alt text-success me-1"></i>
                 Changes are saved to your profile and reflected in upcoming bookings.
               </span>
               <button 
                 type="submit" 
-                className="btn btn-solid-brand px-5 py-2 fw-semibold text-white shadow-sm"
+                className="btn btn-solid-brand px-5 py-2 fw-semibold text-white shadow-sm profile-save-btn flex-shrink-0"
                 disabled={saving}
               >
                 {saving ? (

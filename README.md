@@ -490,6 +490,17 @@ Comprehensive resolution of all findings from the 13-page DLSU-D Capstone UI/UX 
   - Unified all Admin portal backgrounds (`#f8fafc` / `--cleaneco-bg`) with the Client portal and removed the conflicting `.clients-section` gray override on the landing page so **"Trusted by Our Clients"** matches the rest of `HomePage.jsx`.
   - Updated client profile cards, `formatName.js`, `AdminMessages.jsx`, and `/api/orders` population queries to persist and display `middle_name` across the entire platform.
 
+## 50. Cross-Device Responsiveness Refinements (Client Profile, Admin Report Exports & Admin Messaging Desk)
+- **Client Profile Settings Responsive Drawer (`ClientProfile.jsx`, `src/index.css`)**:
+  - Replaced the hardcoded inline `maxWidth: '360px'` on `.profile-drawer` with responsive CSS rules so the profile card expands to `100%` width on mobile and tablet screens (`< 992px`) without leaving a right-side gap, while maintaining the `360px` side-by-side drawer on desktop (`>= 992px`).
+  - Scoped `.btn-sm` width rules in `src/index.css` so `.btn-sm.w-100` preserves `width: 100%`, restoring full-width rendering for the **"Upload New Picture"** action button and mobile **"Save Changes"** bar.
+- **Admin Dashboard Report Export Toolbar (`AdminLanding.jsx`, `src/assets/styles/admin.css`)**:
+  - Restructured the greeting banner (`flex-column flex-xl-row`) and grouped the Monthly, Quarterly, and Yearly PDF export buttons inside `.admin-export-btn-group` (`flex-wrap: nowrap`), eliminating asymmetric 1-over-2 button wrapping on tablet/medium viewports and providing an equal-width responsive grid on mobile screens.
+- **Admin Support Messaging Desk Split-Pane & Header/Composer Alignment (`AdminMessages.jsx`)**:
+  - Optimized `.admin-threads-sidebar` width (`280px`) across medium/tablet breakpoints (`768px–1279px`) to give the active conversation stage more horizontal room.
+  - Restructured the active conversation stage header so the **"View Order"** pill (`white-space: nowrap; flex-shrink: 0`) aligns in the top header row and contact metadata (`email`, `phone`, `companyName`) wraps cleanly with `text-nowrap` below without breaking phone numbers or company names into vertical columns.
+  - Enforced `white-space: nowrap` and `flex-shrink: 0` on the **"Send Reply"** button and scoped the keyboard shortcut hint to wide screens (`d-none d-xl-inline`) so composer controls never collide.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

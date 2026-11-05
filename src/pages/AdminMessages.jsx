@@ -398,10 +398,11 @@ export default function AdminMessages() {
               padding: 0.6rem 0.8rem;
             }
           }
-          @media (min-width: 768px) and (max-width: 991.98px) {
+          @media (min-width: 768px) and (max-width: 1279.98px) {
             .admin-threads-sidebar {
-              width: 320px !important;
-              min-width: 300px !important;
+              width: 280px !important;
+              min-width: 260px !important;
+              max-width: 280px !important;
             }
           }
           .admin-chat-hub {
@@ -641,6 +642,8 @@ export default function AdminMessages() {
           display: inline-flex !important;
           align-items: center !important;
           gap: 6px !important;
+          white-space: nowrap !important;
+          flex-shrink: 0 !important;
           box-shadow: 0 2px 6px rgba(13, 141, 30, 0.25) !important;
         }
         .btn-admin-view-order i {
@@ -915,13 +918,13 @@ export default function AdminMessages() {
           {selectedConv ? (
             <>
               {/* Active Conversation Stage Header */}
-              <div className="p-3 px-4 border-bottom d-flex align-items-center justify-content-between bg-white flex-shrink-0">
-                <div className="d-flex align-items-center gap-3">
+              <div className="p-3 px-3 px-lg-4 border-bottom bg-white flex-shrink-0">
+                <div className="d-flex align-items-start gap-2 gap-sm-3 w-100">
                   
                   {/* Mobile Back Button */}
                   <button
                     type="button"
-                    className="btn btn-solid-light btn-sm d-md-none rounded-circle"
+                    className="btn btn-solid-light btn-sm d-md-none rounded-circle flex-shrink-0 mt-1"
                     style={{ width: '36px', height: '36px', padding: 0, border: 'none' }}
                     onClick={() => setSelectedConv(null)}
                     title="Back to inbox"
@@ -934,70 +937,81 @@ export default function AdminMessages() {
                     <img 
                       src={selectedClient.profile_picture} 
                       alt={selectedClientName}
-                      className="rounded-circle object-fit-cover shadow-sm flex-shrink-0"
-                      style={{ width: '44px', height: '44px' }}
+                      className="rounded-circle object-fit-cover shadow-sm flex-shrink-0 mt-1"
+                      style={{ width: '42px', height: '42px' }}
                     />
                   ) : (
                     <div 
-                      className="rounded-circle text-white d-flex align-items-center justify-content-center shadow-sm fw-bold flex-shrink-0"
-                      style={{ width: '44px', height: '44px', backgroundColor: '#0D8D1E', fontSize: '1.1rem' }}
+                      className="rounded-circle text-white d-flex align-items-center justify-content-center shadow-sm fw-bold flex-shrink-0 mt-1"
+                      style={{ width: '42px', height: '42px', backgroundColor: '#0D8D1E', fontSize: '1.05rem' }}
                     >
                       {selectedClientName.charAt(0).toUpperCase()}
                     </div>
                   )}
 
-                  {/* Header Details */}
-                  <div>
-                    <div className="d-flex align-items-center gap-2 flex-wrap">
-                      <h5 className="mb-0 fw-bold text-dark">{selectedClientName}</h5>
-                      {selectedClient.clientType && (
-                        <span 
-                          className="badge rounded-pill text-uppercase fw-semibold"
-                          style={{
-                            fontSize: '0.65rem',
-                            padding: '3px 8px',
-                            backgroundColor: selectedClient.clientType === 'commercial' ? '#EFF6FF' : '#F1F5F9',
-                            color: selectedClient.clientType === 'commercial' ? '#2563EB' : '#475569',
-                            border: selectedClient.clientType === 'commercial' ? '1px solid #BFDBFE' : '1px solid #E2E8F0'
-                          }}
-                        >
-                          {selectedClient.clientType} Client
-                        </span>
-                      )}
+                  {/* Header Details + Action */}
+                  <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                    <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                      <div className="d-flex align-items-center gap-2 flex-wrap" style={{ minWidth: 0 }}>
+                        <h5 className="mb-0 fw-bold text-dark text-truncate" style={{ fontSize: '1.05rem' }}>{selectedClientName}</h5>
+                        {selectedClient.clientType && (
+                          <span 
+                            className="badge rounded-pill text-uppercase fw-semibold"
+                            style={{
+                              fontSize: '0.65rem',
+                              padding: '3px 8px',
+                              backgroundColor: selectedClient.clientType === 'commercial' ? '#EFF6FF' : '#F1F5F9',
+                              color: selectedClient.clientType === 'commercial' ? '#2563EB' : '#475569',
+                              border: selectedClient.clientType === 'commercial' ? '1px solid #BFDBFE' : '1px solid #E2E8F0'
+                            }}
+                          >
+                            {selectedClient.clientType} Client
+                          </span>
+                        )}
+                        {selectedConv.order_id && (
+                          <span 
+                            className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1"
+                            style={{
+                              fontSize: '0.72rem',
+                              padding: '3px 10px',
+                              backgroundColor: '#F1F5F9',
+                              color: '#334155',
+                              border: '1px solid #CBD5E1'
+                            }}
+                          >
+                            <i className="fas fa-tag" style={{ color: '#0D8D1E', fontSize: '0.68rem' }}></i> Order #{formatOrderReference(selectedConv.order_id)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Right Header Action: Link to Order in database */}
                       {selectedConv.order_id && (
-                        <span 
-                          className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1"
-                          style={{
-                            fontSize: '0.72rem',
-                            padding: '3px 10px',
-                            backgroundColor: '#F1F5F9',
-                            color: '#334155',
-                            border: '1px solid #CBD5E1'
-                          }}
+                        <Link 
+                          to={`/admin/orders?orderId=${encodeURIComponent(selectedConv.order_id)}`} 
+                          className="btn-admin-view-order"
                         >
-                          <i className="fas fa-tag" style={{ color: '#0D8D1E', fontSize: '0.68rem' }}></i> Order #{formatOrderReference(selectedConv.order_id)}
-                        </span>
+                          <i className="fas fa-external-link-alt"></i> View Order
+                        </Link>
                       )}
                     </div>
-                    <div className="d-flex align-items-center gap-2 text-muted mt-1 small" style={{ fontSize: '0.78rem' }}>
-                      <span><i className="fas fa-envelope me-1 text-secondary"></i>{selectedClient.email || 'No email provided'}</span>
-                      {selectedClient.phone && <span>• <i className="fas fa-phone me-1 text-secondary"></i>{selectedClient.phone}</span>}
-                      {selectedClient.companyName && <span>• <i className="fas fa-building me-1 text-secondary"></i>{selectedClient.companyName}</span>}
+
+                    <div className="d-flex align-items-center flex-wrap row-gap-1 column-gap-2 text-muted mt-1 small" style={{ fontSize: '0.78rem' }}>
+                      <span className="text-truncate" style={{ maxWidth: '100%' }}>
+                        <i className="fas fa-envelope me-1 text-secondary"></i>{selectedClient.email || 'No email provided'}
+                      </span>
+                      {selectedClient.phone && (
+                        <span className="text-nowrap">
+                          • <i className="fas fa-phone me-1 text-secondary"></i>{selectedClient.phone}
+                        </span>
+                      )}
+                      {selectedClient.companyName && (
+                        <span className="text-nowrap">
+                          • <i className="fas fa-building me-1 text-secondary"></i>{selectedClient.companyName}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-
-                {/* Right Header Action: Link to Order in database */}
-                {selectedConv.order_id && (
-                  <div>
-                    <Link 
-                      to={`/admin/orders?orderId=${encodeURIComponent(selectedConv.order_id)}`} 
-                      className="btn-admin-view-order"
-                    >
-                      <i className="fas fa-external-link-alt"></i> View Order
-                    </Link>
-                  </div>
-                )}
               </div>
 
               {/* Messages Body (Internal Scrolling Only) */}
@@ -1223,15 +1237,15 @@ export default function AdminMessages() {
                       rows={2}
                     />
 
-                    <div className="d-flex justify-content-between align-items-center pt-2 border-top border-light mt-1">
-                      <span className="text-muted small d-none d-sm-inline" style={{ fontSize: '0.75rem' }}>
+                    <div className="d-flex justify-content-between align-items-center gap-2 pt-2 border-top border-light mt-1">
+                      <span className="text-muted small d-none d-xl-inline text-truncate" style={{ fontSize: '0.75rem' }}>
                         <kbd className="bg-light text-secondary border px-1 rounded">Enter ↵</kbd> to send • <kbd className="bg-light text-secondary border px-1 rounded">Shift + Enter</kbd> for new line
                       </span>
 
-                      <div className="d-flex align-items-center gap-2 ms-auto">
+                      <div className="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
                         <button
                           type="button"
-                          className="chat-attach-btn"
+                          className="chat-attach-btn flex-shrink-0"
                           onClick={() => fileInputRef.current?.click()}
                           disabled={sending}
                           title="Attach image (JPG, PNG, WEBP, GIF up to 5 MB)"
@@ -1241,8 +1255,8 @@ export default function AdminMessages() {
 
                         <button
                           type="submit"
-                          className="btn btn-success d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm fw-semibold"
-                          style={{ backgroundColor: '#0D8D1E', border: 'none', transition: 'all 0.18s ease' }}
+                          className="btn btn-success d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm fw-semibold text-nowrap flex-shrink-0"
+                          style={{ backgroundColor: '#0D8D1E', border: 'none', transition: 'all 0.18s ease', whiteSpace: 'nowrap' }}
                           disabled={(!messageText.trim() && !selectedImage) || sending}
                         >
                           {sending ? (
