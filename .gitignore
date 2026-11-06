@@ -27,3 +27,7 @@ yarn-error.log*
 .env.*
 !.env.example
 backend/uploads/
+
+# local agent skills
+.agents/
+skills-lock.json
