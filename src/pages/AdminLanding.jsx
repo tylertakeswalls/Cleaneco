@@ -5,7 +5,7 @@ import api from '../api/api';
 import '../assets/styles/admin.css';
 import AdminCalendar from '../components/AdminCalendar';
 import { formatName } from '../utils/formatName';
-import { formatOrderReference } from '../utils/helpers';
+import { formatOrderReference, previewPdfBlob } from '../utils/helpers';
 import { groupOrdersByOrderId, calculateOrderCollectedRevenue } from '../utils/pricing';
 
 const getOrderTimestamp = (order) => {
@@ -444,13 +444,7 @@ function AdminLanding() {
   const handleGenerateReport = async (period) => {
     try {
       const response = await api.get(`/reports/generate?period=${period}`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Cleaneco_Report_${period}_${new Date().getFullYear()}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      previewPdfBlob(response.data, `Cleaneco_Report_${period}_${new Date().getFullYear()}.pdf`);
     } catch (error) {
       console.error("Error downloading report:", error);
       alert("Failed to generate report. Please try again later.");

@@ -7,6 +7,7 @@ import carousel7 from '../assets/styles/images/carousell7.webp';
 import AlertModal from './AlertModal';
 import { useConfirm } from '../context/ConfirmContext';
 import { calculateStartingPrice } from '../utils/pricing';
+import { previewPdfBlob } from '../utils/helpers';
 
 const emptyServiceTemplate = {
     name: '',
@@ -322,6 +323,29 @@ function ServiceManagement() {
         }
     };
 
+    const handleGenerateInspectionList = async (targetService = null) => {
+        try {
+            const params = new URLSearchParams();
+            if (targetService && (targetService.id || targetService._id)) {
+                params.set('serviceId', targetService.id || targetService._id);
+            } else {
+                if (filterName) params.set('name', filterName);
+                if (filterStatus) params.set('status', filterStatus);
+            }
+            const queryString = params.toString();
+            const endpoint = `/reports/inspection-list${queryString ? `?${queryString}` : ''}`;
+            const response = await api.get(endpoint, { responseType: 'blob' });
+            const selectedServiceName = targetService?.name || filterName;
+            const fileLabel = selectedServiceName
+                ? selectedServiceName.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+                : `All_Services_${new Date().getFullYear()}`;
+            previewPdfBlob(response.data, `Cleaneco_Inspection_Report_List_${fileLabel}.pdf`);
+        } catch (error) {
+            console.error('Error generating inspection report list:', error);
+            showAlert("Error", "Failed to generate inspection report list PDF. Please try again.", "error");
+        }
+    };
+
     const uniqueServiceNames = [...new Set(services.map(s => s.name))].sort();
 
     const filteredServices = services.filter(service => {
@@ -457,13 +481,25 @@ function ServiceManagement() {
                             >
                                 Clear Filters
                             </button>
-                            <button 
-                                className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" 
-                                style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
-                                onClick={openAddModal}
-                            >
-                                <i className="fas fa-plus me-2"></i> Add New Service
-                            </button>
+                            <div className="d-flex align-items-center gap-2 ms-auto flex-wrap">
+                                <button
+                                    type="button"
+                                    className="btn btn-primary m-0 d-flex align-items-center justify-content-center"
+                                    style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }}
+                                    onClick={() => handleGenerateInspectionList()}
+                                    title="Generate and download real-time PDF inspection checklist of service factors"
+                                >
+                                    <i className="fas fa-file-pdf me-2"></i> Generate Inspection Report List
+                                </button>
+                                <button 
+                                    type="button"
+                                    className="btn btn-primary m-0 d-flex align-items-center justify-content-center" 
+                                    style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
+                                    onClick={openAddModal}
+                                >
+                                    <i className="fas fa-plus me-2"></i> Add New Service
+                                </button>
+                            </div>
                         </div>
 
                         <div className="table-container">

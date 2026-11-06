@@ -343,3 +343,52 @@ export const getBookedTruckMapForOrder = (targetOrder, allOrders = [], overrideT
 
   return booked;
 };
+
+/**
+ * Loads a PDF Blob into a hidden iframe and triggers the browser's native
+ * Print / Save-as-PDF preview dialog (matching the client-side PDF preview flow).
+ */
+export const previewPdfBlob = (blobData, fileName = 'Report.pdf') => {
+  const blob = blobData instanceof Blob && blobData.type === 'application/pdf'
+    ? blobData
+    : new Blob([blobData], { type: 'application/pdf' });
+  const blobUrl = window.URL.createObjectURL(blob);
+
+  const existingFrame = document.getElementById('cleaneco-pdf-print-frame');
+  if (existingFrame) {
+    existingFrame.remove();
+  }
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'cleaneco-pdf-print-frame';
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '1px';
+  iframe.style.height = '1px';
+  iframe.style.border = '0';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  iframe.src = blobUrl;
+
+  const originalTitle = document.title;
+  const cleanTitle = String(fileName || 'Report').replace(/\.pdf$/i, '');
+
+  iframe.onload = () => {
+    setTimeout(() => {
+      try {
+        document.title = cleanTitle;
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (err) {
+        window.open(blobUrl, '_blank');
+      } finally {
+        setTimeout(() => {
+          document.title = originalTitle;
+        }, 1500);
+      }
+    }, 350);
+  };
+
+  document.body.appendChild(iframe);
+};

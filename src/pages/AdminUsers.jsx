@@ -9,6 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import reportHeaderImg from '../assets/styles/images/report_header.png';
 import { formatName } from '../utils/formatName';
+import { previewPdfBlob } from '../utils/helpers';
 
 function AdminUsers() {
   const confirm = useConfirm();
@@ -169,7 +170,7 @@ function AdminUsers() {
       headStyles: { fillColor: '#0D8D1E' }
     });
 
-    doc.save(`Registered_Users_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    previewPdfBlob(doc.output('blob'), `Registered_Users_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (

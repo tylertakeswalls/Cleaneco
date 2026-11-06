@@ -5,7 +5,7 @@ import api from '../api/api';
 import '../assets/styles/orderdatabase.css';
 import carousel7 from '../assets/styles/images/carousell7.webp';
 import AlertModal from '../components/AlertModal';
-import { formatDate, getStatusClass, toISODateKey, resolveOrderSchedule, parseAssignedTrucks, getBookedTruckMapForOrder, formatOrderReference } from '../utils/helpers';
+import { formatDate, getStatusClass, toISODateKey, resolveOrderSchedule, parseAssignedTrucks, getBookedTruckMapForOrder, formatOrderReference, previewPdfBlob } from '../utils/helpers';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRef } from 'react';
 import jsPDF from 'jspdf';
@@ -658,7 +658,7 @@ function OrderDatabase() {
       headStyles: { fillColor: '#0D8D1E' }
     });
 
-    doc.save(`Order_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    previewPdfBlob(doc.output('blob'), `Order_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (

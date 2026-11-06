@@ -501,6 +501,20 @@ Comprehensive resolution of all findings from the 13-page DLSU-D Capstone UI/UX 
   - Restructured the active conversation stage header so the **"View Order"** pill (`white-space: nowrap; flex-shrink: 0`) aligns in the top header row and contact metadata (`email`, `phone`, `companyName`) wraps cleanly with `text-nowrap` below without breaking phone numbers or company names into vertical columns.
   - Enforced `white-space: nowrap` and `flex-shrink: 0` on the **"Send Reply"** button and scoped the keyboard shortcut hint to wide screens (`d-none d-xl-inline`) so composer controls never collide.
 
+## 51. Service Inspection Report List Generator, Unified PDF Templates & Preview-First Admin Exports
+- **Service Inspection Report List PDF Generator (`ServiceManagement.jsx`, `backend/routes/reports.js`)**:
+  - Added the **"Generate Inspection Report List"** button in the Admin Service Catalog Manager toolbar (`ServiceManagement.jsx`) backed by `GET /api/reports/inspection-list`.
+  - Dynamically generates printable on-site inspection checklists (`SUBJECT: On-Site Service Inspection & Assessment`) using the Cleaneco company header (`public/header.png`), Times New Roman typography, checkbox option lists (`[   ]`), right-aligned proportional fill-in lines (`Recorded Quantity / Count:` and two-line `Inspector Remarks:`), factor dividers, and sign-off fields (`Inspected By (Name & Signature):` and `Date:`).
+  - Adapts automatically to the active service filter (generating a single-service checklist such as `DECLOGGING INSPECTION REPORT LIST` when filtered to a specific service, or a multi-service `SERVICE INSPECTION REPORT LIST` covering all matching services).
+- **Client Final Billing Report & Official Receipt PDF Unification (`BillingTemplate.jsx`, `ReceiptTemplate.jsx`)**:
+  - Replaced `ATTENTION:` with `BILLED TO:` in `BillingTemplate.jsx` and `ISSUED TO:` in `ReceiptTemplate.jsx`, and integrated `Thank you for choosing Cleaneco Waste Management Services!` directly into the receipt confirmation summary.
+  - Unified the itemized table and right-aligned price breakdown summary block (`Subtotal`, `Less Discount`, `Quotation Total`, `Service Tax (10%)`, `Less Reservation Paid`, and `Remaining Balance` / `Total Paid`) across both templates with optimized typography and spacing so reports fit cleanly on a single page.
+- **Admin Operations & Sales Report Table Redesign (`backend/routes/reports.js`)**:
+  - Redesigned `GET /api/reports/generate` (`Monthly`, `Quarterly`, and `Yearly` reports) with `SUBJECT: <Period> Operations & Financial Performance Summary` and two Times New Roman tables (`FINANCIAL SUMMARY` and `ORDER STATUS` breakdown with booking counts, percentage share, and collected revenue).
+  - Styled tables with crisp single-pass `1px` borders, `#F0F0F0` headers, white body rows, bold emphasis on `Gross Sales Collected (incl. 10% Service Tax)` and `TOTAL`, and color-coded left status bars (`#16A34A`, `#2563EB`, `#D97706`, `#DC2626`).
+- **Unified Preview-First Admin PDF Experience (`src/utils/helpers.js`, `AdminLanding.jsx`, `ServiceManagement.jsx`, `OrderDatabase.jsx`, `AdminUsers.jsx`)**:
+  - Added `previewPdfBlob` in `src/utils/helpers.js` so all Admin PDF exports (Monthly/Quarterly/Yearly Operations & Sales Reports, Service Inspection Report List, Order Database Report, and Registered Users Report) open in the browser's Print / Save-as-PDF preview dialog first, matching the Client portal PDF workflow.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
