@@ -210,6 +210,12 @@ export function groupOrdersByOrderId(rawOrders = []) {
       if (order.service_report_pdf_url && !existing.service_report_pdf_url) {
         existing.service_report_pdf_url = order.service_report_pdf_url;
       }
+      if (order.site_photo_url && !existing.site_photo_url) {
+        existing.site_photo_url = order.site_photo_url;
+      }
+      if (order.cheque_image_url && !existing.cheque_image_url) {
+        existing.cheque_image_url = order.cheque_image_url;
+      }
       if (order.truck_team && !existing.truck_team) {
         existing.truck_team = order.truck_team;
       }

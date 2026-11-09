@@ -1079,7 +1079,63 @@ function OrderDatabase() {
                         </div>
                       )}
                       
-                      {editModal.order.payment_method === 'cheque' && (
+                      {editModal.order.site_photo_url && (() => {
+                        const apiBase = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+                        const sitePhotoHref = `${apiBase}${editModal.order.site_photo_url.startsWith('/') ? '' : '/'}${editModal.order.site_photo_url}`;
+                        const photoConditions = [];
+                        const inputsMap = editModal.order.estimate_inputs || {};
+                        orderServices.forEach(srv => {
+                          const sId = String(srv.id || srv._id || '');
+                          const srvInputs = inputsMap[sId] || {};
+                          (srv.fields || []).forEach(field => {
+                            const selectedVal = srvInputs[field.key] !== undefined ? String(srvInputs[field.key]) : String(field.default ?? '');
+                            const matchedOpt = (field.options || []).find(o => String(o.value) === selectedVal);
+                            if (matchedOpt && matchedOpt.requires_photo) {
+                              photoConditions.push(`${field.label}: ${matchedOpt.label}`);
+                            }
+                          });
+                        });
+                        const conditionLabel = photoConditions.length > 0
+                          ? [...new Set(photoConditions)].join(' • ')
+                          : 'Difficult Site Accessibility';
+
+                        return (
+                          <div className="alert alert-secondary border-0 shadow-sm p-3 mb-4">
+                            <h6 className="fw-bold text-dark mb-2">
+                              <i className="fas fa-camera me-2 text-success"></i>Site Accessibility Details
+                            </h6>
+                            <div className="small mb-2">
+                              <strong className="d-block mb-1">Condition:</strong>
+                              <span
+                                className="badge bg-warning text-dark text-wrap text-start lh-base"
+                                style={{ maxWidth: '100%', whiteSpace: 'normal', wordBreak: 'break-word', padding: '6px 10px' }}
+                              >
+                                {conditionLabel}
+                              </span>
+                            </div>
+                            <div className="small text-muted mb-3">
+                              Client uploaded a site photo during booking to help the inspection and truck team prepare necessary equipment.
+                            </div>
+                            <div className="mb-3">
+                              <a href={sitePhotoHref} target="_blank" rel="noopener noreferrer" className="d-inline-block">
+                                <img
+                                  src={sitePhotoHref}
+                                  alt="Client Uploaded Site Accessibility"
+                                  className="img-fluid rounded border bg-white shadow-sm"
+                                  style={{ maxHeight: '160px', objectFit: 'cover' }}
+                                />
+                              </a>
+                            </div>
+                            <div>
+                              <a href={sitePhotoHref} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-solid-primary fw-bold">
+                                <i className="fas fa-image me-1"></i>View Site Photo
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {!isSubAdmin && editModal.order.payment_method === 'cheque' && (
                         <div className="alert alert-secondary border-0 shadow-sm p-3 mb-4">
                           <h6 className="fw-bold text-dark mb-2"><i className="fas fa-money-check-alt me-2 text-primary"></i>Cheque Payment Details</h6>
                           <div className="small mb-1"><strong>Status:</strong> <span className={`badge ${editModal.order.cheque_status === 'approved' ? 'bg-success' : editModal.order.cheque_status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'}`}>{editModal.order.cheque_status?.replace('_', ' ').toUpperCase()}</span></div>
@@ -1090,13 +1146,13 @@ function OrderDatabase() {
                           
                           {editModal.order.cheque_image_url && (
                             <div className="mb-3">
-                              <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editModal.order.cheque_image_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-solid-primary fw-bold">
+                              <a href={`${(process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/+$/, '')}${editModal.order.cheque_image_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-solid-primary fw-bold">
                                 <i className="fas fa-image me-1"></i>View Cheque Image
                               </a>
                             </div>
                           )}
 
-                          {!isSubAdmin && editModal.order.cheque_status === 'pending_verification' && (
+                          {editModal.order.cheque_status === 'pending_verification' && (
                             <div className="d-flex gap-2 pt-2 border-top">
                               <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => handleVerifyCheque('approve')} disabled={isSaving}>
                                 <i className="fas fa-check me-1"></i>Approve
@@ -1109,109 +1165,141 @@ function OrderDatabase() {
                         </div>
                       )}
 
-                      {editModal.order.households && editModal.order.households.length > 0 && (
-                        <div className="card border-0 shadow-sm p-3 mb-4 bg-light">
-                          <h6 className="fw-bold text-dark mb-2">
-                            <i className="fas fa-users me-2 text-success"></i>Participating Households ({editModal.order.num_households || editModal.order.households.length})
-                          </h6>
-                          <div 
-                            className="table-responsive bg-white" 
-                            style={{ 
-                              borderRadius: '8px', 
-                              border: '1px solid #dee2e6', 
-                              overflow: 'hidden' 
-                            }}
-                          >
-                            <table 
-                              className="table table-sm bg-white mb-0 small" 
+                      {(() => {
+                        const isBizOrder = ['commercial', 'industrial'].includes(String(editModal.order.user_clientType || '').toLowerCase());
+                        const fallbackName = formatName(editModal.order);
+                        const displayLocations = (Array.isArray(editModal.order.households) && editModal.order.households.length > 0)
+                          ? editModal.order.households
+                          : (editModal.order.address ? [{ name: fallbackName, address: editModal.order.address }] : []);
+
+                        if (displayLocations.length === 0) return null;
+
+                        return (
+                          <div className="card border-0 shadow-sm p-3 mb-4 bg-light">
+                            <h6 className="fw-bold text-dark mb-2">
+                              <i className={`fas ${isBizOrder ? 'fa-building' : 'fa-users'} me-2 text-success`}></i>
+                              {isBizOrder
+                                ? `Service Locations / Buildings (${displayLocations.length})`
+                                : `Participating Households (${editModal.order.num_households || displayLocations.length})`}
+                            </h6>
+                            <div 
+                              className="bg-white" 
                               style={{ 
-                                borderCollapse: 'separate', 
-                                borderSpacing: 0, 
-                                width: '100%',
-                                marginBottom: 0
+                                borderRadius: '8px', 
+                                border: '1px solid #dee2e6', 
+                                overflow: 'hidden' 
                               }}
                             >
-                              <thead className="table-light">
-                                <tr>
-                                  <th 
-                                    style={{ 
-                                      width: '40px', 
-                                      borderTopLeftRadius: '7px', 
-                                      borderBottom: '1px solid #dee2e6', 
-                                      borderRight: '1px solid #dee2e6',
-                                      borderTop: 'none', 
-                                      borderLeft: 'none' 
-                                    }}
-                                    className="px-2 py-1 text-center"
-                                  >
-                                    #
-                                  </th>
-                                  <th 
-                                    style={{ 
-                                      borderBottom: '1px solid #dee2e6', 
-                                      borderRight: '1px solid #dee2e6',
-                                      borderTop: 'none' 
-                                    }}
-                                    className="px-2 py-1"
-                                  >
-                                    Name
-                                  </th>
-                                  <th 
-                                    style={{ 
-                                      borderTopRightRadius: '7px', 
-                                      borderBottom: '1px solid #dee2e6', 
-                                      borderTop: 'none', 
-                                      borderRight: 'none' 
-                                    }}
-                                    className="px-2 py-1"
-                                  >
-                                    Address
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {editModal.order.households.map((h, i) => {
-                                  const isLast = i === editModal.order.households.length - 1;
-                                  return (
-                                    <tr key={i}>
-                                      <td 
-                                        className="fw-bold px-2 py-1 text-center" 
-                                        style={{ 
-                                          borderBottom: isLast ? 'none' : '1px solid #dee2e6',
-                                          borderRight: '1px solid #dee2e6',
-                                          borderBottomLeftRadius: isLast ? '7px' : 0,
-                                          borderLeft: 'none'
-                                        }}
-                                      >
-                                        {i + 1}
-                                      </td>
-                                      <td 
-                                        className="px-2 py-1" 
-                                        style={{ 
-                                          borderBottom: isLast ? 'none' : '1px solid #dee2e6',
-                                          borderRight: '1px solid #dee2e6'
-                                        }}
-                                      >
-                                        {h.name} {i === 0 && <span className="badge bg-success ms-1">Lead</span>}
-                                      </td>
-                                      <td 
-                                        className="px-2 py-1" 
-                                        style={{ 
-                                          borderBottom: isLast ? 'none' : '1px solid #dee2e6',
-                                          borderBottomRightRadius: isLast ? '7px' : 0,
-                                          borderRight: 'none'
-                                        }}
-                                      >
-                                        {h.address}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                              <table 
+                                className="table table-sm bg-white mb-0 small" 
+                                style={{ 
+                                  borderCollapse: 'separate', 
+                                  borderSpacing: 0, 
+                                  width: '100%',
+                                  minWidth: 0,
+                                  tableLayout: 'fixed',
+                                  marginBottom: 0
+                                }}
+                              >
+                                <thead className="table-light">
+                                  <tr>
+                                    <th 
+                                      style={{ 
+                                        width: '36px', 
+                                        borderTopLeftRadius: '7px', 
+                                        borderBottom: '1px solid #dee2e6', 
+                                        borderRight: '1px solid #dee2e6',
+                                        borderTop: 'none', 
+                                        borderLeft: 'none' 
+                                      }}
+                                      className="px-2 py-1 text-center"
+                                    >
+                                      #
+                                    </th>
+                                    <th 
+                                      style={{ 
+                                        width: '40%',
+                                        borderBottom: '1px solid #dee2e6', 
+                                        borderRight: '1px solid #dee2e6',
+                                        borderTop: 'none',
+                                        whiteSpace: 'normal',
+                                        wordBreak: 'break-word'
+                                      }}
+                                      className="px-2 py-1"
+                                    >
+                                      {isBizOrder ? 'Building / Contact' : 'Name'}
+                                    </th>
+                                    <th 
+                                      style={{ 
+                                        width: 'calc(60% - 36px)',
+                                        borderTopRightRadius: '7px', 
+                                        borderBottom: '1px solid #dee2e6', 
+                                        borderTop: 'none', 
+                                        borderRight: 'none',
+                                        whiteSpace: 'normal',
+                                        wordBreak: 'break-word'
+                                      }}
+                                      className="px-2 py-1"
+                                    >
+                                      Address
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {displayLocations.map((h, i) => {
+                                    const isLast = i === displayLocations.length - 1;
+                                    return (
+                                      <tr key={i}>
+                                        <td 
+                                          className="fw-bold px-2 py-1 text-center" 
+                                          style={{ 
+                                            borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                            borderRight: '1px solid #dee2e6',
+                                            borderBottomLeftRadius: isLast ? '7px' : 0,
+                                            borderLeft: 'none'
+                                          }}
+                                        >
+                                          {i + 1}
+                                        </td>
+                                        <td 
+                                          className="px-2 py-1" 
+                                          style={{ 
+                                            borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                            borderRight: '1px solid #dee2e6',
+                                            whiteSpace: 'normal',
+                                            wordBreak: 'break-word'
+                                          }}
+                                        >
+                                          <span>{h.name}</span>{' '}
+                                          {i === 0 && <span className="badge bg-success d-inline-block mt-1">{isBizOrder ? 'Primary' : 'Lead'}</span>}
+                                        </td>
+                                        <td 
+                                          className="px-2 py-1" 
+                                          style={{ 
+                                            borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                            borderBottomRightRadius: isLast ? '7px' : 0,
+                                            borderRight: 'none',
+                                            whiteSpace: 'normal',
+                                            wordBreak: 'break-word'
+                                          }}
+                                        >
+                                          {h.address}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                            {editModal.order.landmark && (
+                              <div className="small text-muted mt-2">
+                                <i className="fas fa-map-pin me-1 text-success"></i>
+                                <strong>Nearest Landmark:</strong> {editModal.order.landmark}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 )}

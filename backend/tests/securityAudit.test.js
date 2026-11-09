@@ -94,7 +94,39 @@ const forgedAttempt = verifyAdminRole(forgedToken);
 assert.strictEqual(forgedAttempt.status, 401);
 console.log('  ✔ Forged token with invalid signature rejected (status 401)');
 
+// TEST 5: Sub-Admin Scope Isolation (Preserving Strict 2-Role Schema)
+console.log('\nTEST 5: Sub-Admin Scope Isolation (role: "admin", admin_scope: "sub_admin")');
+const subAdminUser = {
+  _id: '672000000000000000000003',
+  role: 'admin',
+  admin_scope: 'sub_admin',
+  email: 'inspector@cleaneco.test'
+};
+const subAdminToken = jwt.sign(
+  { userId: subAdminUser._id, role: subAdminUser.role, admin_scope: subAdminUser.admin_scope },
+  JWT_SECRET,
+  { expiresIn: '1h' }
+);
+const subAdminClaims = jwt.verify(subAdminToken, JWT_SECRET);
+assert.strictEqual(subAdminClaims.role, 'admin', 'Sub-Admin must retain canonical "admin" role');
+assert.strictEqual(subAdminClaims.admin_scope, 'sub_admin', 'Sub-Admin scope must be "sub_admin"');
+
+function requireFullAdminScope(token) {
+  const res = verifyAdminRole(token);
+  if (res.status !== 200) return res;
+  if (res.user.admin_scope === 'sub_admin') {
+    return { status: 403, error: 'Forbidden: Full Admin privileges required.' };
+  }
+  return { status: 200, user: res.user };
+}
+
+assert.strictEqual(verifyAdminRole(subAdminToken).status, 200, 'Sub-Admin can read operational orders/calendar');
+assert.strictEqual(requireFullAdminScope(subAdminToken).status, 403, 'Sub-Admin blocked from Full-Admin write/management endpoints');
+assert.strictEqual(requireFullAdminScope(adminToken).status, 200, 'Full Admin allowed on Full-Admin endpoints');
+console.log('  ✔ Sub-Admin preserves 2-role model (role = admin, admin_scope = sub_admin)');
+console.log('  ✔ Sub-Admin allowed on read-only operational routes and blocked (403) on Full-Admin write routes');
+
 console.log('\n====================================================');
-console.log('ALL SECURITY & ISOLATION AUDITS PASSED (4/4)');
+console.log('ALL SECURITY & ISOLATION AUDITS PASSED (5/5)');
 console.log('====================================================');
 

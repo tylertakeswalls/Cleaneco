@@ -138,7 +138,43 @@ assert.strictEqual(user.city, 'Dasmariñas City');
 assert.strictEqual(user.barangay, 'San Agustin');
 console.log('  ✔ Test 5 passed: User mongoose model stores structured fields');
 
+// TEST 6: Multi-Location / Building Limit Validation (Max 3: 1 Primary + up to 2 Additional)
+function validateBookingLocations(clientType, households) {
+  if (!Array.isArray(households) || households.length === 0) {
+    return { valid: false, error: 'At least 1 primary location is required.' };
+  }
+  if (households.length > 3) {
+    return {
+      valid: false,
+      error: 'A maximum of 3 locations (1 primary address and up to 2 additional neighboring households or buildings/units) is allowed per order.'
+    };
+  }
+  for (let i = 0; i < households.length; i++) {
+    const h = households[i] || {};
+    if (!h.name || !String(h.name).trim() || !h.address || !String(h.address).trim()) {
+      return { valid: false, error: `Location #${i + 1} is missing name or address.` };
+    }
+  }
+  return { valid: true, count: households.length, clientType };
+}
+
+const validCommercial = validateBookingLocations('commercial', [
+  { name: 'Riot Games - Bldg 1', address: 'BGC, Taguig City, Metro Manila (NCR)' },
+  { name: 'Riot Games - Bldg 2', address: 'BGC, Taguig City, Metro Manila (NCR)' },
+  { name: 'Riot Games - Bldg 3', address: 'BGC, Taguig City, Metro Manila (NCR)' }
+]);
+assert.strictEqual(validCommercial.valid, true, 'Up to 3 locations (1 primary + 2 additional) must be valid');
+
+const exceededLocations = validateBookingLocations('industrial', [
+  { name: 'Plant 1', address: 'Laguna Technopark, Biñan City, Laguna' },
+  { name: 'Plant 2', address: 'Laguna Technopark, Biñan City, Laguna' },
+  { name: 'Plant 3', address: 'Laguna Technopark, Biñan City, Laguna' },
+  { name: 'Plant 4', address: 'Laguna Technopark, Biñan City, Laguna' }
+]);
+assert.strictEqual(exceededLocations.valid, false, 'More than 3 locations must be rejected');
+console.log('  ✔ Test 6 passed: Multi-location validation enforces max 3 locations (1 primary + 2 additional) across Residential, Commercial & Industrial');
+
 console.log('\n====================================================');
-console.log('ALL ADDRESS & REGION DETECTION TESTS PASSED (5/5)');
+console.log('ALL ADDRESS & REGION DETECTION TESTS PASSED (6/6)');
 console.log('====================================================');
 

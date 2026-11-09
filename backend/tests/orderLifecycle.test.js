@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { calculateServiceEstimate, calculateOrderTotals, calculateStartingPrice } = require('../utils/pricing');
+const { calculateServiceEstimate, calculateOrderTotals, calculateStartingPrice, groupOrdersByOrderId } = require('../utils/pricing');
 
 console.log('====================================================');
 console.log('RUNNING CLEANECO ORDER LIFECYCLE INTEGRATION TESTS');
@@ -137,7 +137,37 @@ assert.strictEqual(isHighCapacity(highCapacityOrder), true, '6 trips is high cap
 console.log('  ✔ Standard order (3 trips) -> 1 truck slot');
 console.log('  ✔ High-capacity order (6 trips) -> 2 operational trucks full-day lock');
 
+// TEST 6: Grouped Order Metadata Preservation (Site Photo, Cheque Image, Multi-Location Households/Buildings)
+console.log('\nTEST 6: Grouped Order Metadata Preservation (Site Photo, Cheque & Multi-Building)');
+const grouped = groupOrdersByOrderId([
+  {
+    order_id: 'ORD100',
+    user_id: '672000000000000000000001',
+    client_type: 'commercial',
+    company_name: 'Riot Games',
+    address: 'Bldg A, Bonifacio Global City, Taguig City, Metro Manila (NCR)',
+    landmark: 'Near High Street',
+    households: [
+      { name: 'Riot Games - Main Tower', address: 'Bldg A, Bonifacio Global City, Taguig City, Metro Manila (NCR)' },
+      { name: 'Riot Games - Annex', address: 'Bldg B, Bonifacio Global City, Taguig City, Metro Manila (NCR)' }
+    ],
+    site_photo_url: '/uploads/site-photo-test.jpg',
+    cheque_image_url: '/uploads/cheque-test.jpg',
+    payment_method: 'cheque',
+    service_name: 'Siphoning & Desludging',
+    total_amount: 16000,
+    total_trips: 2,
+    status: 'In Progress'
+  }
+]);
+assert.strictEqual(grouped.length, 1);
+assert.strictEqual(grouped[0].site_photo_url, '/uploads/site-photo-test.jpg', 'site_photo_url must be preserved');
+assert.strictEqual(grouped[0].cheque_image_url, '/uploads/cheque-test.jpg', 'cheque_image_url must be preserved');
+assert.strictEqual(grouped[0].households.length, 2, 'Commercial multi-building locations must be preserved');
+console.log('  ✔ site_photo_url & cheque_image_url preserved in grouped orders');
+console.log('  ✔ Commercial/Industrial multi-building locations preserved in grouped orders');
+
 console.log('\n====================================================');
-console.log('ALL ORDER LIFECYCLE TESTS PASSED SUCCESSFULLY (5/5)');
+console.log('ALL ORDER LIFECYCLE TESTS PASSED SUCCESSFULLY (6/6)');
 console.log('====================================================');
 

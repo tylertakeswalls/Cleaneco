@@ -299,6 +299,15 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
     const numHouseholds = parseInt(data.num_households || (households && households.length) || 1, 10);
     const clientType = data.clientType || 'residential';
 
+    if (Array.isArray(households) && households.length > 3) {
+      return res.status(400).json({
+        success: false,
+        message: clientType === 'residential'
+          ? 'A maximum of 3 households (1 primary home and up to 2 neighboring households) is allowed per order.'
+          : 'A maximum of 3 buildings/units (1 primary site and up to 2 additional buildings/units) is allowed per order.'
+      });
+    }
+
     if (clientType === 'residential') {
       if (numHouseholds < 1 || !Array.isArray(households) || households.length < 1) {
         return res.status(400).json({
@@ -320,6 +329,21 @@ router.post('/submit', upload.fields([{ name: 'site_photo' }, { name: 'cheque_im
           return res.status(400).json({
             success: false,
             message: 'Please provide both the name and address for each added neighbor household, or remove empty entries.'
+          });
+        }
+      }
+    } else {
+      if (!Array.isArray(households) || households.length === 0) {
+        households = [{
+          name: `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Primary Site',
+          address: data.region ? `${data.address}, ${data.region}` : (data.address || '')
+        }];
+      } else if (households.length > 1) {
+        const invalidAdditional = households.slice(1).some(h => !h.name || !h.address || !h.name.trim() || !h.address.trim());
+        if (invalidAdditional) {
+          return res.status(400).json({
+            success: false,
+            message: 'Please provide both the name and address for each added building/unit, or remove empty entries.'
           });
         }
       }

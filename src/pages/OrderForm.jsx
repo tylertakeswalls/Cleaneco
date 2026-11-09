@@ -162,7 +162,7 @@ function OrderForm() {
                     setEstimateInputs(parsed.estimateInputs);
                 }
                 if (parsed.households && Array.isArray(parsed.households) && parsed.households.length > 0) {
-                    setHouseholds(parsed.households);
+                    setHouseholds(parsed.households.slice(0, 3));
                 }
             }
         } catch (err) {
@@ -264,20 +264,18 @@ function OrderForm() {
         }));
     };
 
-    // Keep Household 1 in sync with lead client info for residential bookings
+    // Keep primary location (Household #1 / Building #1) in sync with lead client info
     useEffect(() => {
-        if (formData.clientType === 'residential') {
-            const leadName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
-            const leadAddress = formData.address || '';
-            setHouseholds(prev => {
-                const updated = prev && prev.length > 0 ? [...prev] : [{ name: '', address: '' }];
-                updated[0] = {
-                    name: leadName || updated[0]?.name || '',
-                    address: leadAddress || updated[0]?.address || ''
-                };
-                return updated;
-            });
-        }
+        const leadName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+        const leadAddress = formData.address || '';
+        setHouseholds(prev => {
+            const updated = prev && prev.length > 0 ? [...prev] : [{ name: '', address: '' }];
+            updated[0] = {
+                name: leadName || updated[0]?.name || '',
+                address: leadAddress || updated[0]?.address || ''
+            };
+            return updated;
+        });
     }, [formData.firstName, formData.lastName, formData.address, formData.clientType]);
 
     const handleHouseholdChange = (index, field, value) => {
@@ -291,12 +289,28 @@ function OrderForm() {
     };
 
     const addHousehold = () => {
+        const isBiz = formData.clientType === 'commercial' || formData.clientType === 'industrial';
+        if (households.length >= 3) {
+            showAlert(
+                "Maximum Limit Reached",
+                isBiz
+                    ? "You can include up to 3 buildings/units per order (1 primary site + up to 2 additional buildings/units)."
+                    : "You can include up to 3 households per order (1 primary home + up to 2 neighboring households).",
+                "warning"
+            );
+            return;
+        }
         setHouseholds(prev => [...prev, { name: '', address: '' }]);
     };
 
     const removeHousehold = (index) => {
+        const isBiz = formData.clientType === 'commercial' || formData.clientType === 'industrial';
         if (index === 0 || households.length <= 1) {
-            showAlert("Primary Household", "The lead applicant household cannot be removed.", "warning");
+            showAlert(
+                isBiz ? "Primary Site" : "Primary Household",
+                isBiz ? "The primary building/unit location cannot be removed." : "The lead applicant household cannot be removed.",
+                "warning"
+            );
             return;
         }
         setHouseholds(prev => prev.filter((_, i) => i !== index));
@@ -361,22 +375,47 @@ function OrderForm() {
             return;
         }
 
-        if (formData.clientType === 'residential') {
-            if (!households || households.length < 1) {
-                showAlert("Household Details Required", "Please provide details for your household.", "warning");
+        const isBiz = formData.clientType === 'commercial' || formData.clientType === 'industrial';
+        if (!households || households.length < 1) {
+            showAlert(
+                isBiz ? "Location Details Required" : "Household Details Required",
+                isBiz ? "Please provide details for your primary building/unit." : "Please provide details for your household.",
+                "warning"
+            );
+            return;
+        }
+        const missingPrimary = !households[0]?.name?.trim() || !households[0]?.address?.trim();
+        if (missingPrimary) {
+            showAlert(
+                isBiz ? "Location Details Required" : "Household Details Required",
+                isBiz
+                    ? "Please provide both the Name/Contact and Address for the primary building/unit."
+                    : "Please provide both the Name and Address for the primary household.",
+                "warning"
+            );
+            return;
+        }
+        if (households.length > 3) {
+            showAlert(
+                "Maximum Limit Exceeded",
+                isBiz
+                    ? "A maximum of 3 buildings/units (1 primary site + up to 2 additional) is allowed per order."
+                    : "A maximum of 3 households (1 primary home + up to 2 neighboring households) is allowed per order.",
+                "warning"
+            );
+            return;
+        }
+        if (households.length > 1) {
+            const missingAdditional = households.slice(1).some((h) => !h.name?.trim() || !h.address?.trim());
+            if (missingAdditional) {
+                showAlert(
+                    isBiz ? "Building / Unit Details Incomplete" : "Household Details Incomplete",
+                    isBiz
+                        ? "Please provide both Name and Address for all added buildings/units, or remove empty entries."
+                        : "Please provide both Name and Address for all added neighbor households, or remove empty entries.",
+                    "warning"
+                );
                 return;
-            }
-            const missingPrimary = !households[0]?.name?.trim() || !households[0]?.address?.trim();
-            if (missingPrimary) {
-                showAlert("Household Details Required", "Please provide both the Name and Address for the primary household.", "warning");
-                return;
-            }
-            if (households.length > 1) {
-                const missingAdditional = households.slice(1).some((h) => !h.name?.trim() || !h.address?.trim());
-                if (missingAdditional) {
-                    showAlert("Household Details Incomplete", "Please provide both Name and Address for all added neighbor households, or remove empty entries.", "warning");
-                    return;
-                }
             }
         }
 
@@ -435,8 +474,8 @@ function OrderForm() {
             submitData.append('base_estimate', baseEstimate);
             submitData.append('estimate_inputs', JSON.stringify(completeInputs));
             submitData.append('clientType', formData.clientType);
-            submitData.append('num_households', formData.clientType === 'residential' ? households.length : 1);
-            submitData.append('households', JSON.stringify(formData.clientType === 'residential' ? households : []));
+            submitData.append('num_households', households.length || 1);
+            submitData.append('households', JSON.stringify(households || []));
             if (sitePhoto) {
                 submitData.append('site_photo', sitePhoto);
             }
@@ -710,168 +749,207 @@ function OrderForm() {
                         />
                     </div>
 
-                    {/* Residential Household & Neighborhood Sharing */}
-                    {formData.clientType === 'residential' && (
-                        <div className="card border-0 p-4 mb-4 shadow-sm" style={{ backgroundColor: '#ffffff', border: '1.5px solid #86efac', borderRadius: '1rem' }}>
-                            <div className="mb-3">
-                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                                    <h5 className="fw-bold mb-0 d-flex align-items-center" style={{ color: '#0D8D1E' }}>
-                                        <i className="fas fa-home me-2"></i>Residential Household & Neighborhood Sharing
-                                    </h5>
-                                    {households.length === 1 && (
-                                        <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.75rem' }}>
-                                            <i className="fas fa-user me-1"></i>Solo Booking (1 Home)
-                                        </span>
-                                    )}
-                                    {households.length === 2 && (
-                                        <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '0.75rem' }}>
-                                            <i className="fas fa-user-friends me-1"></i>Shared (2 Homes)
-                                        </span>
-                                    )}
-                                    {households.length >= 3 && (
-                                        <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '0.75rem' }}>
-                                            <i className="fas fa-users me-1"></i>Group Unlocked ({households.length} Homes)
-                                        </span>
+                    {/* Residential Household Sharing / Commercial & Industrial Multi-Building Coverage */}
+                    {(() => {
+                        const isBiz = formData.clientType === 'commercial' || formData.clientType === 'industrial';
+                        return (
+                            <div className="card border-0 p-4 mb-4 shadow-sm" style={{ backgroundColor: '#ffffff', border: '1.5px solid #86efac', borderRadius: '1rem' }}>
+                                <div className="mb-3">
+                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                        <h5 className="fw-bold mb-0 d-flex align-items-center" style={{ color: '#0D8D1E' }}>
+                                            <i className={`fas ${isBiz ? 'fa-building' : 'fa-home'} me-2`}></i>
+                                            {isBiz ? 'Service Locations & Building / Unit Coverage' : 'Residential Household & Neighborhood Sharing'}
+                                        </h5>
+                                        {households.length === 1 && (
+                                            <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.75rem' }}>
+                                                <i className={`fas ${isBiz ? 'fa-building' : 'fa-user'} me-1`}></i>
+                                                {isBiz ? 'Single Site (1 Building/Unit)' : 'Solo Booking (1 Home)'}
+                                            </span>
+                                        )}
+                                        {households.length === 2 && (
+                                            <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '0.75rem' }}>
+                                                <i className={`fas ${isBiz ? 'fa-city' : 'fa-user-friends'} me-1`}></i>
+                                                {isBiz ? 'Multi-Unit (2 Buildings/Units)' : 'Shared (2 Homes)'}
+                                            </span>
+                                        )}
+                                        {households.length >= 3 && (
+                                            <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '0.75rem' }}>
+                                                <i className={`fas ${isBiz ? 'fa-city' : 'fa-users'} me-1`}></i>
+                                                {isBiz ? `Multi-Unit (${households.length} Buildings/Units)` : `Group Unlocked (${households.length} Homes)`}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Dynamic Savings & Coverage Feedback */}
+                                    {isBiz ? (
+                                        <div className="alert alert-light border border-success border-opacity-25 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: households.length >= 3 ? '#ecfdf5' : '#f8fafc' }}>
+                                            <i className={`fas ${households.length >= 3 ? 'fa-check-circle' : 'fa-info-circle'} text-success me-2 fs-6`}></i>
+                                            <div className="small text-dark">
+                                                {households.length === 1 && (
+                                                    <>Booking for your primary facility or unit. Need multiple buildings or neighboring units serviced in the same order? <strong>You can add up to 2 additional buildings/units (3 max)!</strong></>
+                                                )}
+                                                {households.length === 2 && (
+                                                    <><strong>2 of 3 buildings / units</strong> listed. You can add <strong>1 more building/unit</strong> under this single <strong>₱1,100</strong> reservation fee.</>
+                                                )}
+                                                {households.length >= 3 && (
+                                                    <><strong>Maximum of 3 buildings / units reached!</strong> (1 primary site + 2 additional units). A single <strong>₱1,100</strong> reservation fee covers all 3 listed locations.</>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {households.length === 1 && (
+                                                <div className="alert alert-light border border-success border-opacity-25 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#f8fafc' }}>
+                                                    <i className="fas fa-info-circle text-success me-2 fs-6"></i>
+                                                    <div className="small text-dark">
+                                                        Booking for your home alone. Have neighbors nearby who also need service? <strong>Add up to 2 neighboring households (3 homes max) to save more!</strong>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {households.length === 2 && (
+                                                <div className="alert alert-light border border-primary border-opacity-25 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#eff6ff' }}>
+                                                    <i className="fas fa-user-friends text-primary me-2 fs-6"></i>
+                                                    <div className="small text-dark">
+                                                        Great! You can add <strong>1 more neighboring household (3 homes max)</strong> to unlock maximum group savings!
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {households.length >= 3 && (
+                                                <div className="alert alert-light border border-success border-opacity-50 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#ecfdf5' }}>
+                                                    <i className="fas fa-check-circle text-success me-2 fs-6"></i>
+                                                    <div className="small text-dark">
+                                                        <strong>Maximum of 3 households (full 10 cu.m tanker load) reached!</strong> Maximum group savings unlocked across all 3 participating homes. A single <strong>₱1,100</strong> reservation fee covers all participating homes.
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
 
-                                {/* Dynamic Savings & Capacity Feedback */}
-                                {households.length === 1 && (
-                                    <div className="alert alert-light border border-success border-opacity-25 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#f8fafc' }}>
-                                        <i className="fas fa-info-circle text-success me-2 fs-6"></i>
-                                        <div className="small text-dark">
-                                            Booking for your home alone. Have neighbors nearby who also need service? <strong>Add another neighbor nearby to save more!</strong>
-                                        </div>
-                                    </div>
-                                )}
-                                {households.length === 2 && (
-                                    <div className="alert alert-light border border-primary border-opacity-25 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#eff6ff' }}>
-                                        <i className="fas fa-user-friends text-primary me-2 fs-6"></i>
-                                        <div className="small text-dark">
-                                            Great! <strong>Add another neighbor nearby to save even more</strong> on your shared service!
-                                        </div>
-                                    </div>
-                                )}
-                                {households.length >= 3 && (
-                                    <div className="alert alert-light border border-success border-opacity-50 d-flex align-items-center mb-0 py-2 px-3 rounded-3" style={{ backgroundColor: '#ecfdf5' }}>
-                                        <i className="fas fa-check-circle text-success me-2 fs-6"></i>
-                                        <div className="small text-dark">
-                                            <strong>Full 10 cu.m tanker load reached!</strong> Maximum group savings unlocked across all participating households. A single <strong>₱1,100</strong> reservation fee covers all participating homes.
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Household Entries */}
-                            <div className="d-flex flex-column gap-3">
-                                {households.map((household, index) => (
-                                    <div 
-                                        key={index} 
-                                        className="p-3 rounded border"
-                                        style={{ 
-                                            backgroundColor: index === 0 ? '#f0fdf4' : '#ffffff',
-                                            borderColor: index === 0 ? '#bbf7d0' : '#e2e8f0',
-                                            overflow: 'hidden',
-                                            boxSizing: 'border-box'
-                                        }}
-                                    >
-                                        {/* Household Title & Status */}
-                                        <div className="d-flex align-items-center justify-content-between mb-2">
-                                            <div className="d-flex align-items-center gap-2">
-                                                <span 
-                                                    className="badge rounded-circle d-inline-flex align-items-center justify-content-center" 
-                                                    style={{ 
-                                                        width: '22px', 
-                                                        height: '22px', 
-                                                        backgroundColor: index === 0 ? '#0D8D1E' : '#64748b',
-                                                        color: '#ffffff',
-                                                        fontSize: '0.72rem',
-                                                        fontWeight: 'bold'
-                                                    }}
-                                                >
-                                                    {index + 1}
-                                                </span>
-                                                <span className="fw-bold small text-dark">
-                                                    {index === 0 ? 'Household #1 (Your Home)' : `Neighbor Household #${index + 1}`}
-                                                </span>
-                                                {index === 0 && (
-                                                    <span className="badge" style={{ backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.68rem' }}>
-                                                        Lead Applicant
+                                {/* Location / Household Entries */}
+                                <div className="d-flex flex-column gap-3">
+                                    {households.map((household, index) => (
+                                        <div 
+                                            key={index} 
+                                            className="p-3 rounded border"
+                                            style={{ 
+                                                backgroundColor: index === 0 ? '#f0fdf4' : '#ffffff',
+                                                borderColor: index === 0 ? '#bbf7d0' : '#e2e8f0',
+                                                overflow: 'hidden',
+                                                boxSizing: 'border-box'
+                                            }}
+                                        >
+                                            {/* Title & Status */}
+                                            <div className="d-flex align-items-center justify-content-between mb-2">
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <span 
+                                                        className="badge rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                                        style={{ 
+                                                            width: '22px', 
+                                                            height: '22px', 
+                                                            backgroundColor: index === 0 ? '#0D8D1E' : '#64748b',
+                                                            color: '#ffffff',
+                                                            fontSize: '0.72rem',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        {index + 1}
                                                     </span>
-                                                )}
+                                                    <span className="fw-bold small text-dark">
+                                                        {isBiz
+                                                            ? (index === 0 ? 'Building / Unit #1 (Primary Site)' : `Neighboring Building / Unit #${index + 1}`)
+                                                            : (index === 0 ? 'Household #1 (Your Home)' : `Neighbor Household #${index + 1}`)}
+                                                    </span>
+                                                    {index === 0 && (
+                                                        <span className="badge" style={{ backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.68rem' }}>
+                                                            {isBiz ? 'Primary Site' : 'Lead Applicant'}
+                                                        </span>
+                                                    )}
+                                                    {index > 0 && (
+                                                        <span className="badge bg-light text-muted border" style={{ fontSize: '0.68rem' }}>
+                                                            {isBiz ? 'Additional Unit' : 'Neighbor Add-on'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {index > 0 && (
-                                                    <span className="badge bg-light text-muted border" style={{ fontSize: '0.68rem' }}>
-                                                        Neighbor Add-on
-                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-solid-danger py-0 px-2"
+                                                        onClick={() => removeHousehold(index)}
+                                                        title={isBiz ? "Remove building / unit" : "Remove neighbor household"}
+                                                        style={{ fontSize: '0.78rem' }}
+                                                    >
+                                                        <i className="fas fa-trash-alt me-1"></i>Remove
+                                                    </button>
                                                 )}
                                             </div>
-                                            {index > 0 && (
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-sm btn-solid-danger py-0 px-2"
-                                                    onClick={() => removeHousehold(index)}
-                                                    title="Remove neighbor household"
-                                                    style={{ fontSize: '0.78rem' }}
-                                                >
-                                                    <i className="fas fa-trash-alt me-1"></i>Remove
-                                                </button>
-                                            )}
-                                        </div>
 
-                                        {/* Input Fields (50% / 50% on sm/md screens) */}
-                                        <div className="row g-2 mx-0">
-                                            <div className="col-12 col-sm-5 px-1">
-                                                <input 
-                                                    type="text"
-                                                    className="form-control form-control-sm w-100"
-                                                    maxLength={80}
-                                                    placeholder="Resident Full Name"
-                                                    value={household.name}
-                                                    onChange={(e) => handleHouseholdChange(index, 'name', e.target.value)}
-                                                    required
-                                                    style={{ minWidth: 0, boxSizing: 'border-box' }}
-                                                />
-                                            </div>
-                                            <div className="col-12 col-sm-7 px-1">
-                                                <input 
-                                                    type="text"
-                                                    className="form-control form-control-sm w-100"
-                                                    maxLength={150}
-                                                    placeholder="House / Lot / Street Address"
-                                                    value={household.address}
-                                                    onChange={(e) => handleHouseholdChange(index, 'address', e.target.value)}
-                                                    required
-                                                    style={{ minWidth: 0, boxSizing: 'border-box' }}
-                                                />
+                                            {/* Input Fields (50% / 50% on sm/md screens) */}
+                                            <div className="row g-2 mx-0">
+                                                <div className="col-12 col-sm-5 px-1">
+                                                    <input 
+                                                        type="text"
+                                                        className="form-control form-control-sm w-100"
+                                                        maxLength={80}
+                                                        placeholder={isBiz ? "Building / Unit Name or Contact" : "Resident Full Name"}
+                                                        value={household.name}
+                                                        onChange={(e) => handleHouseholdChange(index, 'name', e.target.value)}
+                                                        required
+                                                        style={{ minWidth: 0, boxSizing: 'border-box' }}
+                                                    />
+                                                </div>
+                                                <div className="col-12 col-sm-7 px-1">
+                                                    <input 
+                                                        type="text"
+                                                        className="form-control form-control-sm w-100"
+                                                        maxLength={150}
+                                                        placeholder={isBiz ? "Building / Unit / Street Address" : "House / Lot / Street Address"}
+                                                        value={household.address}
+                                                        onChange={(e) => handleHouseholdChange(index, 'address', e.target.value)}
+                                                        required
+                                                        style={{ minWidth: 0, boxSizing: 'border-box' }}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
 
-                            <div className="mt-3 text-end">
-                                <button
-                                    type="button"
-                                    className="btn btn-sm btn-solid-brand rounded-pill fw-bold px-3 py-2 text-white shadow-sm"
-                                    style={{ 
-                                        backgroundColor: '#0D8D1E', 
-                                        border: 'none',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = '#0A6F17';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = '#0D8D1E';
-                                    }}
-                                    onClick={addHousehold}
-                                >
-                                    <i className="fas fa-plus me-1"></i>
-                                    {households.length === 1 ? 'Add Neighboring Household (Optional)' : 'Add Another Neighbor'}
-                                </button>
+                                <div className="mt-3 text-end">
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-solid-brand rounded-pill fw-bold px-3 py-2 text-white shadow-sm"
+                                        disabled={households.length >= 3}
+                                        style={{ 
+                                            backgroundColor: households.length >= 3 ? '#64748b' : '#0D8D1E', 
+                                            border: 'none',
+                                            opacity: households.length >= 3 ? 0.75 : 1,
+                                            cursor: households.length >= 3 ? 'not-allowed' : 'pointer',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (households.length < 3) {
+                                                e.currentTarget.style.backgroundColor = '#0A6F17';
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            if (households.length < 3) {
+                                                e.currentTarget.style.backgroundColor = '#0D8D1E';
+                                            }
+                                        }}
+                                        onClick={addHousehold}
+                                    >
+                                        <i className={`fas ${households.length >= 3 ? 'fa-check-circle' : 'fa-plus'} me-1`}></i>
+                                        {households.length >= 3
+                                            ? (isBiz ? 'Max 3 Buildings / Units Reached' : 'Max 3 Households Reached')
+                                            : (isBiz
+                                                ? (households.length === 1 ? 'Add Neighboring Building / Unit (Optional)' : 'Add 1 More Building / Unit')
+                                                : (households.length === 1 ? 'Add Neighboring Household (Optional)' : 'Add 1 More Neighbor'))}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
 
                     {/* Multi-Service Selection */}
                     <div className="form-group mb-4">
