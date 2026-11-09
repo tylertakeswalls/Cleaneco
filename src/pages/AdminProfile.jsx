@@ -25,6 +25,7 @@ function AdminProfile() {
 
   const userId = sessionStorage.getItem('userId');
   const userRole = sessionStorage.getItem('userRole');
+  const isSubAdmin = (sessionStorage.getItem('adminScope') || localStorage.getItem('adminScope')) === 'sub_admin';
 
   useEffect(() => {
     if (!userId || userRole !== 'admin') {
@@ -135,10 +136,12 @@ function AdminProfile() {
         {/* Page Title */}
         <div className="mb-4 pb-2 border-bottom">
           <h2 className="fw-bold mb-1 text-dark" style={{ letterSpacing: '-0.5px' }}>
-            <i className="fas fa-user-shield text-success me-2"></i>Administrator Profile
+            <i className="fas fa-user-shield text-success me-2"></i>{isSubAdmin ? 'Sub-Admin Profile' : 'Administrator Profile'}
           </h2>
           <p className="text-muted small mb-0">
-            Manage your administrator credentials, contact information, and personal settings.
+            {isSubAdmin
+              ? 'Manage your sub-admin credentials, contact information, and personal settings.'
+              : 'Manage your administrator credentials, contact information, and personal settings.'}
           </p>
         </div>
 

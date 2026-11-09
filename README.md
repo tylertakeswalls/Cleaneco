@@ -515,6 +515,16 @@ Comprehensive resolution of all findings from the 13-page DLSU-D Capstone UI/UX 
 - **Unified Preview-First Admin PDF Experience (`src/utils/helpers.js`, `AdminLanding.jsx`, `ServiceManagement.jsx`, `OrderDatabase.jsx`, `AdminUsers.jsx`)**:
   - Added `previewPdfBlob` in `src/utils/helpers.js` so all Admin PDF exports (Monthly/Quarterly/Yearly Operations & Sales Reports, Service Inspection Report List, Order Database Report, and Registered Users Report) open in the browser's Print / Save-as-PDF preview dialog first, matching the Client portal PDF workflow.
 
+## 52. Scoped Sub-Admin (Operations / Field Inspector & Truck Team) Access Within the 2-Role Architecture
+- **Strict 2-Role Schema Preservation (`backend/models/User.js`, `backend/routes/auth.js`, `backend/routes/users.js`)**:
+  - Preserved the strict `role: { enum: ['admin', 'client'] }` user schema while introducing `admin_scope: { type: String, enum: ['full', 'sub_admin'], default: 'full' }`.
+  - Added `POST /api/users/sub-admin` to allow full administrators to provision pre-verified Sub-Admin accounts directly from `AdminUsers.jsx` (**"+ Add Sub-Admin"** modal) and included `admin_scope` in the `/api/auth/login` response and JWT payload.
+- **Scoped Navigation, Route Guards & Read-Only Operations (`AdminLayout.jsx`, `Login.jsx`, `OrderDatabase.jsx`, `AdminCalendar.jsx`, `ServiceManagement.jsx`, `AdminProfile.jsx`)**:
+  - Redirects `sub_admin` logins directly to `/admin/calendar` and restricts sidebar navigation to **All Orders** (`/admin/orders`), **Calendar** (`/admin/calendar`), and **Services** (`/admin/services`), with route guards redirecting unauthorized `/admin/*` paths.
+  - Hides the Admin notification bell and background message/notification polling for Sub-Admins so main Admin alerts are never prematurely marked as read.
+  - Scopes `OrderDatabase.jsx` for Sub-Admins by replacing the **Gross Sales** KPI card with **In Progress**, hiding **Download Report**, renaming **Manage** / **Manage Order** to **View** / **Order Details** (and **View Order** in `AdminCalendar.jsx`), and rendering a read-only **Details** drawer without **Quotation**, **Scheduling**, or **Documents** tabs.
+  - Scopes `ServiceManagement.jsx` (**"Services & Inspection Checklists"**) to read-only catalog viewing and **"Generate Inspection Report List"** PDF export without add, edit, status-toggle, or delete controls.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

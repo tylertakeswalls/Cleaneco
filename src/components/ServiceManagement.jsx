@@ -358,6 +358,7 @@ function ServiceManagement() {
     const availableServicesCount = services.filter(s => s.status === 'available').length;
     const totalFactorsCount = services.reduce((sum, s) => sum + (Array.isArray(s.fields) ? s.fields.length : 0), 0);
     const unavailableServicesCount = services.filter(s => s.status !== 'available').length;
+    const isSubAdmin = (sessionStorage.getItem("adminScope") || localStorage.getItem("adminScope")) === "sub_admin";
 
     const currentStartingPrice = calculateStartingPrice(formService);
 
@@ -377,8 +378,12 @@ function ServiceManagement() {
                 <section className="section-bg">
                     <div className="table-box">
                         <div className="text-center mb-4">
-                            <h3 className="fw-bold text-dark mb-1">Service Management</h3>
-                            <p className="text-muted small mb-0">Configure operational services, dynamic formula factors, rates, and active catalog availability</p>
+                            <h3 className="fw-bold text-dark mb-1">{isSubAdmin ? 'Services & Inspection Checklists' : 'Service Management'}</h3>
+                            <p className="text-muted small mb-0">
+                                {isSubAdmin
+                                    ? 'View active operational services, standard rates, and generate printable field inspection report checklists'
+                                    : 'Configure operational services, dynamic formula factors, rates, and active catalog availability'}
+                            </p>
                         </div>
 
                         {/* Executive KPI Metric Cards */}
@@ -420,16 +425,16 @@ function ServiceManagement() {
                             <div className="col-12 col-sm-6 col-xl-3">
                                 <div className="db-kpi-card">
                                     <div className="d-flex align-items-center justify-content-between">
-                                        <span className="db-kpi-label">Dynamic Factors</span>
+                                        <span className="db-kpi-label">{isSubAdmin ? 'Inspection Factors' : 'Dynamic Factors'}</span>
                                         <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', color: '#2563eb' }}>
-                                            <i className="fas fa-calculator"></i>
+                                            <i className={`fas ${isSubAdmin ? 'fa-clipboard-check' : 'fa-calculator'}`}></i>
                                         </div>
                                     </div>
                                     <div className="db-kpi-value text-dark">
                                         {totalFactorsCount}
                                     </div>
                                     <p className="db-kpi-subtext">
-                                        Formula Variables Configured
+                                        {isSubAdmin ? 'Checklist Fields to Assess' : 'Formula Variables Configured'}
                                     </p>
                                 </div>
                             </div>
@@ -491,14 +496,16 @@ function ServiceManagement() {
                                 >
                                     <i className="fas fa-file-pdf me-2"></i> Generate Inspection Report List
                                 </button>
-                                <button 
-                                    type="button"
-                                    className="btn btn-primary m-0 d-flex align-items-center justify-content-center" 
-                                    style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
-                                    onClick={openAddModal}
-                                >
-                                    <i className="fas fa-plus me-2"></i> Add New Service
-                                </button>
+                                {!isSubAdmin && (
+                                    <button 
+                                        type="button"
+                                        className="btn btn-primary m-0 d-flex align-items-center justify-content-center" 
+                                        style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
+                                        onClick={openAddModal}
+                                    >
+                                        <i className="fas fa-plus me-2"></i> Add New Service
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -512,13 +519,13 @@ function ServiceManagement() {
                                         <th style={{ whiteSpace: 'nowrap' }}>Pricing Setup</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Starting At</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Status</th>
-                                        <th style={{ whiteSpace: 'nowrap' }}>Actions</th>
+                                        {!isSubAdmin && <th style={{ whiteSpace: 'nowrap' }}>Actions</th>}
                                     </tr>
                                 </thead>
                                         <tbody>
                                             {filteredServices.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="7" className="text-center py-4 text-muted">No services found.</td>
+                                                    <td colSpan={isSubAdmin ? "6" : "7"} className="text-center py-4 text-muted">No services found.</td>
                                                 </tr>
                                             ) : (
                                                 filteredServices.map(service => {
@@ -552,30 +559,32 @@ function ServiceManagement() {
                                                                     {service.status ? service.status.charAt(0).toUpperCase() + service.status.slice(1) : 'Available'}
                                                                 </span>
                                                             </td>
-                                                            <td>
-                                                                <div className="d-flex gap-2 justify-content-center align-items-center">
-                                                                    <button
-                                                                        className="btn btn-sm btn-primary text-nowrap"
-                                                                        onClick={() => openEditModal(service)}
-                                                                    >
-                                                                        <i className="fas fa-edit me-1"></i>Edit
-                                                                    </button>
+                                                            {!isSubAdmin && (
+                                                                <td>
+                                                                    <div className="d-flex gap-2 justify-content-center align-items-center">
+                                                                        <button
+                                                                            className="btn btn-sm btn-primary text-nowrap"
+                                                                            onClick={() => openEditModal(service)}
+                                                                        >
+                                                                            <i className="fas fa-edit me-1"></i>Edit
+                                                                        </button>
 
-                                                                    <button
-                                                                        className={`btn btn-sm text-nowrap ${service.status === 'available' ? 'btn-warning' : 'btn-success'}`}
-                                                                        onClick={() => toggleServiceStatus(service)}
-                                                                    >
-                                                                        {service.status === 'available' ? 'Make Unavailable' : 'Make Available'}
-                                                                    </button>
+                                                                        <button
+                                                                            className={`btn btn-sm text-nowrap ${service.status === 'available' ? 'btn-warning' : 'btn-success'}`}
+                                                                            onClick={() => toggleServiceStatus(service)}
+                                                                        >
+                                                                            {service.status === 'available' ? 'Make Unavailable' : 'Make Available'}
+                                                                        </button>
 
-                                                                    <button
-                                                                        className="btn btn-sm btn-danger text-nowrap"
-                                                                        onClick={() => promptDelete(service.id || service._id)}
-                                                                    >
-                                                                        <i className="fas fa-trash me-1"></i>Delete
-                                                                    </button>
-                                                                </div>
-                                                            </td>
+                                                                        <button
+                                                                            className="btn btn-sm btn-danger text-nowrap"
+                                                                            onClick={() => promptDelete(service.id || service._id)}
+                                                                        >
+                                                                            <i className="fas fa-trash me-1"></i>Delete
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            )}
                                                         </tr>
                                                     );
                                                 })

@@ -10,6 +10,8 @@ function Header() {
   
   const [loggedInUser, setLoggedInUser] = useState(sessionStorage.getItem("loggedInUser"));
   const [userId, setUserId] = useState(sessionStorage.getItem("userId"));
+  const [userRole, setUserRole] = useState(sessionStorage.getItem("userRole"));
+  const [adminScope, setAdminScope] = useState(sessionStorage.getItem("adminScope") || "full");
   
   // States for Profile and Notifications
   const [profilePic, setProfilePic] = useState('');
@@ -22,13 +24,15 @@ function Header() {
   useEffect(() => {
     setLoggedInUser(sessionStorage.getItem("loggedInUser"));
     setUserId(sessionStorage.getItem("userId"));
+    setUserRole(sessionStorage.getItem("userRole"));
+    setAdminScope(sessionStorage.getItem("adminScope") || "full");
   }, [location]);
 
   // Fetch user data and poll notifications when userId changes
   useEffect(() => {
     if (userId) {
       // Poll notifications, messages and avatar for client (Admin avatar and notifications are handled by AdminLayout)
-      if (loggedInUser !== 'admin') {
+      if (userRole !== 'admin' && loggedInUser !== 'admin') {
         api.get(`/users/${userId}`)
           .then(res => {
             if (res.data && res.data.profile_picture) {
@@ -132,13 +136,22 @@ function Header() {
     navigate('/');
   };
 
+  const isAdminAccount = userRole === 'admin' || loggedInUser === 'admin';
+
   const renderNavLinks = () => {
-    if (loggedInUser === 'admin') {
+    if (isAdminAccount) {
       return (
         <>
+          {adminScope !== 'sub_admin' && (
+            <li className="nav-item">
+              <Link className={`nav-link ${location.pathname === '/admin' ? 'active' : ''}`} to="/admin">
+                Dashboard
+              </Link>
+            </li>
+          )}
           <li className="nav-item">
-            <Link className={`nav-link ${location.pathname === '/admin' ? 'active' : ''}`} to="/admin">
-              Dashboard
+            <Link className={`nav-link ${location.pathname === '/admin/calendar' ? 'active' : ''}`} to="/admin/calendar">
+              Calendar
             </Link>
           </li>
           <li className="nav-item">
@@ -150,7 +163,7 @@ function Header() {
       );
     }
     
-    if (loggedInUser && loggedInUser !== 'admin') {
+    if (loggedInUser && !isAdminAccount) {
       return (
         <>
           <li className="nav-item">
@@ -228,8 +241,8 @@ function Header() {
   };
 
   const renderBrandLink = () => {
-    if (loggedInUser === 'admin') return '/admin';
-    if (loggedInUser && loggedInUser !== 'admin') return '/client';
+    if (isAdminAccount) return adminScope === 'sub_admin' ? '/admin/calendar' : '/admin';
+    if (loggedInUser && !isAdminAccount) return '/client';
     return '/';
   };
 
@@ -237,7 +250,7 @@ function Header() {
     if (!loggedInUser) return null;
     return (
       <ul className="navbar-nav flex-row align-items-center mb-0 ms-auto me-2 me-lg-0">
-        {loggedInUser !== 'admin' && (
+        {!isAdminAccount && (
           <li className="nav-item position-relative me-3" style={{ cursor: 'pointer' }} onClick={() => setShowNotifTray(!showNotifTray)} role="button" aria-label="Notifications" tabIndex={0}>
             <div className="nav-link">
               <i className="fas fa-bell fs-5" style={{ color: '#ffffff' }}></i>
@@ -305,7 +318,7 @@ function Header() {
           </div>
           <ul className="dropdown-menu shadow position-absolute" aria-labelledby="profileDropdown" style={{ right: 0, left: 'auto', minWidth: '160px', top: '100%', marginTop: '0.5rem' }}>
             <li>
-              <Link className="dropdown-item fw-bold py-2" to={loggedInUser === 'admin' ? '/admin/profile' : '/client/profile'}>
+              <Link className="dropdown-item fw-bold py-2" to={isAdminAccount ? '/admin/profile' : '/client/profile'}>
                 <i className="fas fa-user-circle me-2 text-success"></i> My Account
               </Link>
             </li>

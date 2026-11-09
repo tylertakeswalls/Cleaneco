@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const router = express.Router();
@@ -6,6 +7,67 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   const users = await User.find();
   res.json(users.map(u => ({ ...u.toObject(), id: u._id })));
+});
+
+router.post('/sub-admin', async (req, res) => {
+  try {
+    const { username, password, email, first_name, middle_name, last_name, phone } = req.body;
+    const trimmedUsername = (username || '').trim();
+    const trimmedEmail = (email || '').trim().toLowerCase();
+    const trimmedFirstName = (first_name || '').trim();
+    const trimmedLastName = (last_name || '').trim();
+
+    if (!trimmedUsername || !password || !trimmedEmail || !trimmedFirstName || !trimmedLastName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username, password, first name, last name, and email are required.'
+      });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long.'
+      });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [{ username: trimmedUsername }, { email: trimmedEmail }]
+    });
+    if (existingUser) {
+      if (existingUser.username === trimmedUsername) {
+        return res.status(400).json({ success: false, message: 'Username already exists.' });
+      }
+      return res.status(400).json({ success: false, message: 'Email already exists.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newSubAdmin = new User({
+      username: trimmedUsername,
+      password: hashedPassword,
+      email: trimmedEmail,
+      first_name: trimmedFirstName,
+      middle_name: (middle_name || '').trim() || undefined,
+      last_name: trimmedLastName,
+      phone: (phone || '').trim() || undefined,
+      role: 'admin',
+      admin_scope: 'sub_admin',
+      isVerified: true,
+      inactive: false,
+      last_login: Date.now()
+    });
+
+    await newSubAdmin.save();
+
+    res.json({
+      success: true,
+      message: 'Sub-Admin account created successfully.',
+      user: { ...newSubAdmin.toObject(), id: newSubAdmin._id }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to create Sub-Admin: ' + error.message });
+  }
 });
 
 router.get('/:id', async (req, res) => {

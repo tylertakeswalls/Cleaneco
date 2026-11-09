@@ -610,6 +610,7 @@ function OrderDatabase() {
   const pendingOrdersCount = orders.filter(o => o.status === 'Pending').length;
   const inProgressOrdersCount = orders.filter(o => o.status === 'In Progress').length;
   const activeOrdersCount = pendingOrdersCount + inProgressOrdersCount;
+  const isSubAdmin = (sessionStorage.getItem("adminScope") || localStorage.getItem("adminScope")) === "sub_admin";
 
   const handleDownloadReport = async () => {
     const doc = new jsPDF('portrait', 'mm', 'a4');
@@ -676,26 +677,47 @@ function OrderDatabase() {
         <div className="table-box">
           <div className="text-center mb-4">
             <h3 className="fw-bold text-dark mb-1">Order Database</h3>
-            <p className="text-muted small mb-0">Overview of all client bookings, operational execution, and financial performance</p>
+            <p className="text-muted small mb-0">
+              {isSubAdmin
+                ? 'Overview of all client bookings, scheduled site inspections, and field dispatch details'
+                : 'Overview of all client bookings, operational execution, and financial performance'}
+            </p>
           </div>
 
           {/* Executive KPI Metric Cards */}
           <div className="row g-3 mb-4">
             <div className="col-12 col-sm-6 col-xl-3">
-              <div className="db-kpi-card">
-                <div className="d-flex align-items-center justify-content-between">
-                  <span className="db-kpi-label">Gross Sales</span>
-                  <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(13, 141, 30, 0.12)', color: '#0D8D1E' }}>
-                    <i className="fas fa-coins"></i>
+              {isSubAdmin ? (
+                <div className="db-kpi-card">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <span className="db-kpi-label">In Progress</span>
+                    <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', color: '#2563eb' }}>
+                      <i className="fas fa-truck"></i>
+                    </div>
                   </div>
+                  <div className="db-kpi-value text-dark">
+                    {inProgressOrdersCount}
+                  </div>
+                  <p className="db-kpi-subtext">
+                    Active Dispatch & Execution
+                  </p>
                 </div>
-                <div className="db-kpi-value text-success">
-                  ₱{currentGrossSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ) : (
+                <div className="db-kpi-card">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <span className="db-kpi-label">Gross Sales</span>
+                    <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(13, 141, 30, 0.12)', color: '#0D8D1E' }}>
+                      <i className="fas fa-coins"></i>
+                    </div>
+                  </div>
+                  <div className="db-kpi-value text-success">
+                    ₱{currentGrossSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <p className="db-kpi-subtext">
+                    {isFiltered ? 'Filtered Total Collected' : 'All-Time Total Collected'}
+                  </p>
                 </div>
-                <p className="db-kpi-subtext">
-                  {isFiltered ? 'Filtered Total Collected' : 'All-Time Total Collected'}
-                </p>
-              </div>
+              )}
             </div>
 
             <div className="col-12 col-sm-6 col-xl-3">
@@ -792,9 +814,11 @@ function OrderDatabase() {
               title="Filter by active schedule date (Inspection or Service Execution)"
             />
             <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }} onClick={() => { setSearchQuery(''); setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
-            <button className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} onClick={handleDownloadReport}>
-              <i className="fas fa-file-pdf me-2"></i> Download Report
-            </button>
+            {!isSubAdmin && (
+              <button className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} onClick={handleDownloadReport}>
+                <i className="fas fa-file-pdf me-2"></i> Download Report
+              </button>
+            )}
           </div>
           
           <div className="table-container">
@@ -926,11 +950,11 @@ function OrderDatabase() {
                       <button 
                         className="btn-edit" 
                         onClick={() => openEditModal(order)}
-                        disabled={order.status === 'Cancelled'}
-                        style={order.status === 'Cancelled' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                        aria-label={`Manage order #${order.order_id}`}
+                        disabled={!isSubAdmin && order.status === 'Cancelled'}
+                        style={!isSubAdmin && order.status === 'Cancelled' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                        aria-label={`${isSubAdmin ? 'View' : 'Manage'} order #${order.order_id}`}
                       >
-                        Manage
+                        {isSubAdmin ? 'View' : 'Manage'}
                       </button>
                     </td>
 
@@ -948,7 +972,7 @@ function OrderDatabase() {
         <div className={`side-drawer-overlay ${isEditDrawerClosing ? 'closing' : ''}`} onClick={closeEditModal}>
           <div className={`side-drawer ${isEditDrawerClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()} onAnimationEnd={handleEditDrawerAnimationEnd}>
             <div className="side-drawer-header">
-              <h5 className="mb-0 text-dark fw-bold"><i className="fas fa-edit me-2" style={{color: '#0D8D1E'}}></i>Manage Order</h5>
+              <h5 className="mb-0 text-dark fw-bold"><i className={`fas ${isSubAdmin ? 'fa-eye' : 'fa-edit'} me-2`} style={{color: '#0D8D1E'}}></i>{isSubAdmin ? 'Order Details' : 'Manage Order'}</h5>
               <button type="button" className="btn-close" onClick={closeEditModal}></button>
             </div>
             
@@ -957,15 +981,19 @@ function OrderDatabase() {
                 <li className="nav-item">
                   <button className={`nav-link fw-bold ${activeTab === 'details' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('details')} style={activeTab === 'details' ? { color: '#0D8D1E' } : {}}>Details</button>
                 </li>
-                <li className="nav-item">
-                  <button className={`nav-link fw-bold ${activeTab === 'quotation' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('quotation')} style={activeTab === 'quotation' ? { color: '#0D8D1E' } : {}}>Quotation</button>
-                </li>
-                <li className="nav-item">
-                  <button className={`nav-link fw-bold ${activeTab === 'scheduling' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('scheduling')} style={activeTab === 'scheduling' ? { color: '#0D8D1E' } : {}}>Scheduling</button>
-                </li>
-                <li className="nav-item">
-                  <button className={`nav-link fw-bold ${activeTab === 'documents' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('documents')} style={activeTab === 'documents' ? { color: '#0D8D1E' } : {}}>Documents</button>
-                </li>
+                {!isSubAdmin && (
+                  <>
+                    <li className="nav-item">
+                      <button className={`nav-link fw-bold ${activeTab === 'quotation' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('quotation')} style={activeTab === 'quotation' ? { color: '#0D8D1E' } : {}}>Quotation</button>
+                    </li>
+                    <li className="nav-item">
+                      <button className={`nav-link fw-bold ${activeTab === 'scheduling' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('scheduling')} style={activeTab === 'scheduling' ? { color: '#0D8D1E' } : {}}>Scheduling</button>
+                    </li>
+                    <li className="nav-item">
+                      <button className={`nav-link fw-bold ${activeTab === 'documents' ? 'active border-bottom-0' : 'text-muted border-0 bg-transparent'}`} onClick={() => setActiveTab('documents')} style={activeTab === 'documents' ? { color: '#0D8D1E' } : {}}>Documents</button>
+                    </li>
+                  </>
+                )}
               </ul>
 
               <div className="tab-content p-4">
@@ -979,6 +1007,7 @@ function OrderDatabase() {
                           className="form-select bg-light border-0 shadow-sm"
                           value={editForm.status}
                           onChange={handleEditChange}
+                          disabled={isSubAdmin}
                         >
                           <option value="Pending">Pending</option>
                           <option value="In Progress">In Progress</option>
@@ -1004,9 +1033,10 @@ function OrderDatabase() {
                           name="internal_notes"
                           maxLength={1000}
                           className="form-control bg-light border-0 shadow-sm" 
-                          placeholder="Private notes (client will not see this)"
+                          placeholder={isSubAdmin ? "No internal notes provided." : "Private notes (client will not see this)"}
                           value={editForm.internal_notes}
                           onChange={handleEditChange}
+                          readOnly={isSubAdmin}
                           rows="2"
                         />
                       </div>
@@ -1018,6 +1048,7 @@ function OrderDatabase() {
                           className="form-select bg-light border-0 shadow-sm"
                           value={editForm.request_type}
                           onChange={handleEditChange}
+                          disabled={isSubAdmin}
                         >
                           <option value="">None</option>
                           <option value="Cancel Requested">Cancel Requested</option>
@@ -1035,14 +1066,16 @@ function OrderDatabase() {
                           <div className="small mb-1"><strong>New Time:</strong> {editModal.order.reschedule_time_slot}</div>
                           <div className="small mb-3"><strong>Reason:</strong> {editModal.order.reschedule_reason}</div>
                           
-                          <div className="d-flex gap-2">
-                            <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => submitRescheduleAction('approve_reschedule')} disabled={isSaving}>
-                              Approve
-                            </button>
-                            <button className="btn btn-danger btn-sm fw-bold w-100" onClick={() => setRejectModalOpen(true)} disabled={isSaving}>
-                              Reject
-                            </button>
-                          </div>
+                          {!isSubAdmin && (
+                            <div className="d-flex gap-2">
+                              <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => submitRescheduleAction('approve_reschedule')} disabled={isSaving}>
+                                Approve
+                              </button>
+                              <button className="btn btn-danger btn-sm fw-bold w-100" onClick={() => setRejectModalOpen(true)} disabled={isSaving}>
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                       
@@ -1063,7 +1096,7 @@ function OrderDatabase() {
                             </div>
                           )}
 
-                          {editModal.order.cheque_status === 'pending_verification' && (
+                          {!isSubAdmin && editModal.order.cheque_status === 'pending_verification' && (
                             <div className="d-flex gap-2 pt-2 border-top">
                               <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => handleVerifyCheque('approve')} disabled={isSaving}>
                                 <i className="fas fa-check me-1"></i>Approve
@@ -1543,19 +1576,21 @@ function OrderDatabase() {
             </div>
 
             <div className="side-drawer-footer d-flex justify-content-between align-items-center">
-              <button
-                type="button"
-                className="btn btn-danger rounded-pill px-4 fw-bold shadow-sm"
-                onClick={() => {
-                  const idToDelete = editModal.order?.id;
-                  closeEditModal();
-                  if (idToDelete) requestDeleteOrder(idToDelete);
-                }}
-                disabled={isSaving}
-                aria-label="Delete this order"
-              >
-                <i className="fas fa-trash-alt me-1"></i> Delete Order
-              </button>
+              {!isSubAdmin ? (
+                <button
+                  type="button"
+                  className="btn btn-danger rounded-pill px-4 fw-bold shadow-sm"
+                  onClick={() => {
+                    const idToDelete = editModal.order?.id;
+                    closeEditModal();
+                    if (idToDelete) requestDeleteOrder(idToDelete);
+                  }}
+                  disabled={isSaving}
+                  aria-label="Delete this order"
+                >
+                  <i className="fas fa-trash-alt me-1"></i> Delete Order
+                </button>
+              ) : <div />}
               <div className="d-flex gap-2">
                 <button 
                   type="button" 
@@ -1563,17 +1598,19 @@ function OrderDatabase() {
                   onClick={closeEditModal}
                   disabled={isSaving}
                 >
-                  Cancel
+                  {isSubAdmin ? 'Close' : 'Cancel'}
                 </button>
-                <button 
-                  type="button" 
-                  className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
-                  onClick={handleSaveChangesClick}
-                  disabled={isSaving}
-                  style={{ display: activeTab === 'quotation' ? 'none' : 'block' }}
-                >
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </button>
+                {!isSubAdmin && (
+                  <button 
+                    type="button" 
+                    className="btn btn-success rounded-pill px-4 fw-bold shadow-sm" 
+                    onClick={handleSaveChangesClick}
+                    disabled={isSaving}
+                    style={{ display: activeTab === 'quotation' ? 'none' : 'block' }}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

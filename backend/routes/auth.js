@@ -131,7 +131,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      { userId: user._id, role: user.role, admin_scope: user.admin_scope || 'full' },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -150,7 +150,8 @@ router.post('/login', loginLimiter, async (req, res) => {
         profile_picture: user.profile_picture,
         clientType: user.clientType,
         companyName: user.companyName,
-        role: user.role
+        role: user.role,
+        admin_scope: user.admin_scope || 'full'
       }
     });
   } catch (error) {

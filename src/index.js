@@ -10,6 +10,7 @@ if (!sessionStorage.getItem("loggedInUser") && localStorage.getItem("loggedInUse
   sessionStorage.setItem("loggedInUser", localStorage.getItem("loggedInUser"));
   if (localStorage.getItem("userId")) sessionStorage.setItem("userId", localStorage.getItem("userId"));
   if (localStorage.getItem("userRole")) sessionStorage.setItem("userRole", localStorage.getItem("userRole"));
+  if (localStorage.getItem("adminScope")) sessionStorage.setItem("adminScope", localStorage.getItem("adminScope"));
   if (localStorage.getItem("userEmail")) sessionStorage.setItem("userEmail", localStorage.getItem("userEmail"));
   if (localStorage.getItem("userName")) sessionStorage.setItem("userName", localStorage.getItem("userName"));
 }

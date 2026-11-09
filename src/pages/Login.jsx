@@ -99,10 +99,11 @@ function Login() {
   useEffect(() => {
     const loggedInUser = localStorage.getItem("loggedInUser") || sessionStorage.getItem("loggedInUser");
     const userRole = localStorage.getItem("userRole") || sessionStorage.getItem("userRole");
+    const adminScope = localStorage.getItem("adminScope") || sessionStorage.getItem("adminScope") || "full";
     
     if (loggedInUser) {
       if (userRole === "admin") {
-        navigate('/admin');
+        navigate(adminScope === "sub_admin" ? '/admin/calendar' : '/admin');
       } else {
         navigate('/client');
       }
@@ -124,10 +125,12 @@ function Login() {
       
       if (data.success) {
         // Store exactly as before, but with no boilerplate
+        const resolvedAdminScope = data.user.admin_scope || 'full';
         const userKeys = {
           loggedInUser: data.user.username,
           userId: data.user.id,
           userRole: data.user.role,
+          adminScope: resolvedAdminScope,
           userEmail: data.user.email,
           userName: [data.user.first_name, data.user.middle_name, data.user.last_name].filter(Boolean).join(' ').trim(),
           ...(data.user.date_of_birth && { userDob: data.user.date_of_birth }),
@@ -146,7 +149,7 @@ function Login() {
         
         setTimeout(() => {
           if (data.user.role === 'admin') {
-            navigate('/admin');
+            navigate(resolvedAdminScope === 'sub_admin' ? '/admin/calendar' : '/admin');
           } else {
             navigate('/client');
           }

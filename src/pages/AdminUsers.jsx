@@ -1,15 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../api/api';
+import '../assets/styles/servicemanagement.css';
 import '../assets/styles/orderdatabase.css'; 
 import carousel4 from '../assets/styles/images/carousel4.webp';
 import AlertModal from '../components/AlertModal';
 import { useConfirm } from '../context/ConfirmContext';
-import { useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import reportHeaderImg from '../assets/styles/images/report_header.png';
 import { formatName } from '../utils/formatName';
-import { previewPdfBlob } from '../utils/helpers';
+import { previewPdfBlob, formatPhoneNumber } from '../utils/helpers';
+
+const emptySubAdminForm = {
+  username: '',
+  password: '',
+  first_name: '',
+  middle_name: '',
+  last_name: '',
+  email: '',
+  phone: ''
+};
 
 function AdminUsers() {
   const confirm = useConfirm();
@@ -21,6 +32,9 @@ function AdminUsers() {
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSubAdminModalOpen, setIsSubAdminModalOpen] = useState(false);
+  const [subAdminForm, setSubAdminForm] = useState(emptySubAdminForm);
+  const [isCreatingSubAdmin, setIsCreatingSubAdmin] = useState(false);
 
 
 
@@ -109,6 +123,53 @@ function AdminUsers() {
     }
   };
 
+  const openSubAdminModal = () => {
+    setSubAdminForm(emptySubAdminForm);
+    setIsSubAdminModalOpen(true);
+  };
+
+  const closeSubAdminModal = () => {
+    setIsSubAdminModalOpen(false);
+    setSubAdminForm(emptySubAdminForm);
+  };
+
+  const handleSubAdminFormChange = (e) => {
+    const { name, value } = e.target;
+    let finalVal = name === 'phone' ? formatPhoneNumber(value) : value;
+    const maxMap = {
+      username: 30,
+      password: 64,
+      first_name: 50,
+      middle_name: 50,
+      last_name: 50,
+      email: 100,
+      phone: 25
+    };
+    if (maxMap[name]) {
+      finalVal = String(finalVal).slice(0, maxMap[name]);
+    }
+    setSubAdminForm(prev => ({ ...prev, [name]: finalVal }));
+  };
+
+  const handleCreateSubAdmin = async (e) => {
+    e.preventDefault();
+    setIsCreatingSubAdmin(true);
+    try {
+      const res = await api.post('/users/sub-admin', subAdminForm);
+      if (res.data.success) {
+        closeSubAdminModal();
+        loadUsers();
+        showAlert("Success", "Sub-Admin account created and ready for login!", "success");
+      } else {
+        showAlert("Warning", res.data.message || "Failed to create Sub-Admin", "warning");
+      }
+    } catch (err) {
+      showAlert("Error", err.response?.data?.message || "Failed to create Sub-Admin account", "error");
+    } finally {
+      setIsCreatingSubAdmin(false);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
     const query = searchQuery.toLowerCase().trim();
@@ -152,12 +213,15 @@ function AdminUsers() {
     const tableRows = [];
 
     filteredUsers.forEach(user => {
+      const roleLabel = user.role === 'admin'
+        ? (user.admin_scope === 'sub_admin' ? 'Admin (Sub-Admin)' : 'Admin')
+        : (user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '-');
       const userData = [
         user.username || '-',
         formatName(user),
         user.email || '-',
         user.phone || '-',
-        user.role || '-'
+        roleLabel
       ];
       tableRows.push(userData);
     });
@@ -300,13 +364,24 @@ function AdminUsers() {
             >
               Clear Filters
             </button>
-            <button 
-              className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" 
-              style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
-              onClick={handleDownloadUsersReport}
-            >
-              <i className="fas fa-file-pdf me-2"></i> Download Report
-            </button>
+            <div className="d-flex align-items-center gap-2 ms-auto flex-wrap">
+              <button
+                type="button"
+                className="btn btn-primary m-0 d-flex align-items-center justify-content-center"
+                style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }}
+                onClick={openSubAdminModal}
+              >
+                <i className="fas fa-user-plus me-2"></i> Add Sub-Admin
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary m-0 d-flex align-items-center justify-content-center" 
+                style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
+                onClick={handleDownloadUsersReport}
+              >
+                <i className="fas fa-file-pdf me-2"></i> Download Report
+              </button>
+            </div>
           </div>
 
           <div className="table-container">
@@ -380,8 +455,15 @@ function AdminUsers() {
                       </td>
 
                       <td>
-                        <span className={`badge rounded-pill px-3 py-1 ${user.role === 'admin' ? 'bg-dark text-white' : 'bg-success text-white'}`} style={{ fontSize: '0.75rem', textTransform: 'capitalize' }}>
-                          {user.role}
+                        <span
+                          className={`badge rounded-pill px-3 py-1 ${
+                            user.role === 'admin'
+                              ? (user.admin_scope === 'sub_admin' ? 'bg-primary text-white' : 'bg-dark text-white')
+                              : 'bg-success text-white'
+                          }`}
+                          style={{ fontSize: '0.75rem', textTransform: 'capitalize' }}
+                        >
+                          {user.role === 'admin' && user.admin_scope === 'sub_admin' ? 'Admin (Sub-Admin)' : user.role}
                         </span>
                       </td>
 
@@ -417,7 +499,7 @@ function AdminUsers() {
                             <button
                               className="btn-delete"
                               onClick={() => handleDelete(user.id)}
-                              disabled={user.role === 'admin'}
+                              disabled={user.role === 'admin' && user.admin_scope !== 'sub_admin'}
                             >
                               Delete
                             </button>
@@ -433,6 +515,162 @@ function AdminUsers() {
         </div>
       </section>
     </div>
+
+    {isSubAdminModalOpen && createPortal(
+      <div
+        className="service-modal-overlay"
+        tabIndex="-1"
+        onClick={closeSubAdminModal}
+      >
+        <div
+          className="service-modal-dialog"
+          style={{ maxWidth: '620px' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="service-modal-content shadow-lg">
+            <div className="service-modal-header">
+              <h5 className="modal-title">
+                <i className="fas fa-user-shield me-2"></i>
+                <span>Create Sub-Admin Account (Operations / Inspector)</span>
+              </h5>
+              <button
+                type="button"
+                className="btn-close btn-close-white"
+                onClick={closeSubAdminModal}
+                aria-label="Close"
+              ></button>
+            </div>
+
+            <form className="service-modal-form" onSubmit={handleCreateSubAdmin}>
+              <div className="service-modal-body">
+                <div className="alert alert-light border small text-secondary mb-3" style={{ backgroundColor: '#f8fafc' }}>
+                  <i className="fas fa-info-circle text-success me-2"></i>
+                  Sub-Admin accounts are assigned the <strong>Admin</strong> role with scoped access to <strong>All Orders</strong>, the <strong>Operations Calendar</strong>, and <strong>Services</strong> (read-only) only.
+                </div>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label fw-bold small text-dark mb-1">Username <span className="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      name="username"
+                      className="form-control"
+                      maxLength={30}
+                      placeholder="e.g. inspector_juan"
+                      value={subAdminForm.username}
+                      onChange={handleSubAdminFormChange}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label fw-bold small text-dark mb-1">Temporary Password <span className="text-danger">*</span></label>
+                    <input
+                      type="password"
+                      name="password"
+                      className="form-control"
+                      minLength={6}
+                      maxLength={64}
+                      placeholder="Min. 6 characters"
+                      value={subAdminForm.password}
+                      onChange={handleSubAdminFormChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-md-4">
+                    <label className="form-label fw-bold small text-dark mb-1">First Name <span className="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      name="first_name"
+                      className="form-control"
+                      maxLength={50}
+                      placeholder="First name"
+                      value={subAdminForm.first_name}
+                      onChange={handleSubAdminFormChange}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label fw-bold small text-dark mb-1">Middle Name</label>
+                    <input
+                      type="text"
+                      name="middle_name"
+                      className="form-control"
+                      maxLength={50}
+                      placeholder="Optional"
+                      value={subAdminForm.middle_name}
+                      onChange={handleSubAdminFormChange}
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label fw-bold small text-dark mb-1">Last Name <span className="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      name="last_name"
+                      className="form-control"
+                      maxLength={50}
+                      placeholder="Last name"
+                      value={subAdminForm.last_name}
+                      onChange={handleSubAdminFormChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="row g-3 mb-2">
+                  <div className="col-md-7">
+                    <label className="form-label fw-bold small text-dark mb-1">Email Address <span className="text-danger">*</span></label>
+                    <input
+                      type="email"
+                      name="email"
+                      className="form-control"
+                      maxLength={100}
+                      placeholder="inspector@cleaneco.com"
+                      value={subAdminForm.email}
+                      onChange={handleSubAdminFormChange}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-5">
+                    <label className="form-label fw-bold small text-dark mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      name="phone"
+                      className="form-control"
+                      maxLength={25}
+                      placeholder="09XX XXX XXXX"
+                      value={subAdminForm.phone}
+                      onChange={handleSubAdminFormChange}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="service-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-light rounded-pill px-4 fw-bold shadow-sm border"
+                  onClick={closeSubAdminModal}
+                  disabled={isCreatingSubAdmin}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-success rounded-pill px-4 fw-bold shadow-sm"
+                  style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}
+                  disabled={isCreatingSubAdmin}
+                >
+                  {isCreatingSubAdmin ? 'Creating...' : 'Create Sub-Admin'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    , document.body)}
     </>
   );
 }

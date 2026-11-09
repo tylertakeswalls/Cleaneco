@@ -17,6 +17,7 @@ export default function AdminCalendar({ orders = [] }) {
     const drawerOpenedAt = useRef(0);
 
     const navigate = useNavigate();
+    const isSubAdmin = (sessionStorage.getItem("adminScope") || localStorage.getItem("adminScope")) === "sub_admin";
 
     // Convert orders into phase-aware date map (Execution Date when scheduled, Confirmed/Preferred Inspection Date otherwise)
     const ordersByDate = orders.reduce((acc, order) => {
@@ -248,7 +249,7 @@ export default function AdminCalendar({ orders = [] }) {
                                         )}
                                         {o.order_id && (
                                             <div className="text-success small mt-2 text-end fw-semibold">
-                                                Manage Order <i className="fas fa-chevron-right ms-1" style={{ fontSize: "0.65rem" }}></i>
+                                                {isSubAdmin ? "View Order" : "Manage Order"} <i className="fas fa-chevron-right ms-1" style={{ fontSize: "0.65rem" }}></i>
                                             </div>
                                         )}
                                     </div>

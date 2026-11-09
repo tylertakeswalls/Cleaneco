@@ -26,6 +26,7 @@ const userSchema = new mongoose.Schema({
   resetPasswordToken: { type: String, index: true, sparse: true },
   resetPasswordExpires: { type: Date },
   role: { type: String, enum: ['admin', 'client'], default: 'client' },
+  admin_scope: { type: String, enum: ['full', 'sub_admin'], default: 'full' },
   loginAttempts: { type: Number, required: true, default: 0 },
   lockUntil: { type: Date }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });

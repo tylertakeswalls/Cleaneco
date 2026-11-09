@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, Link, useLocation, Navigate } from 'react-router-dom';
 import api from '../api/api';
 import logo from '../assets/styles/images/logo_fixed.png';
 import '../assets/styles/admin.css';
 import { getNotificationRoute, getNotificationMeta } from '../utils/notificationRoutes';
+
+const SUB_ADMIN_ALLOWED_PATHS = ['/admin/calendar', '/admin/orders', '/admin/services', '/admin/profile'];
 
 export default function AdminLayout() {
   const [adminFullName, setAdminFullName] = useState(() => {
@@ -14,6 +16,9 @@ export default function AdminLayout() {
     const loggedIn = sessionStorage.getItem("loggedInUser");
     return loggedIn || "Admin";
   });
+  const [adminScope, setAdminScope] = useState(() => {
+    return sessionStorage.getItem("adminScope") || localStorage.getItem("adminScope") || "full";
+  });
   const [profilePic, setProfilePic] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -22,17 +27,21 @@ export default function AdminLayout() {
   
   const navigate = useNavigate();
   const location = useLocation();
+  const isSubAdmin = adminScope === 'sub_admin';
 
   useEffect(() => {
     const loggedInUser = sessionStorage.getItem("loggedInUser");
     const userRole = sessionStorage.getItem("userRole");
     const userId = sessionStorage.getItem("userId");
     const storedName = sessionStorage.getItem("userName");
+    const currentScope = sessionStorage.getItem("adminScope") || localStorage.getItem("adminScope") || "full";
 
     if (!loggedInUser || userRole !== "admin") {
       navigate('/login');
       return;
     }
+
+    setAdminScope(currentScope);
 
     if (storedName && storedName.trim() && storedName !== "undefined" && storedName !== "null") {
       setAdminFullName(storedName.trim());
@@ -41,10 +50,11 @@ export default function AdminLayout() {
     let isMounted = true;
     const fetchInitialLayoutData = async () => {
       try {
-        const promises = [
-          loadNotifications(),
-          loadUnreadMessages()
-        ];
+        const promises = [];
+        if (currentScope !== 'sub_admin') {
+          promises.push(loadNotifications());
+          promises.push(loadUnreadMessages());
+        }
         if (userId) {
           promises.push(
             api.get(`/users/${userId}`)
@@ -52,6 +62,11 @@ export default function AdminLayout() {
                 if (isMounted && res.data) {
                   if (res.data.profile_picture) {
                     setProfilePic(res.data.profile_picture);
+                  }
+                  if (res.data.admin_scope) {
+                    setAdminScope(res.data.admin_scope);
+                    sessionStorage.setItem('adminScope', res.data.admin_scope);
+                    localStorage.setItem('adminScope', res.data.admin_scope);
                   }
                   const nameParts = [res.data.first_name, res.data.middle_name, res.data.last_name].filter(Boolean).join(' ').trim();
                   if (nameParts) {
@@ -87,8 +102,10 @@ export default function AdminLayout() {
     window.addEventListener('storage', handleProfileUpdate);
 
     const interval = setInterval(() => {
-      loadUnreadMessages();
-      loadNotifications();
+      if ((sessionStorage.getItem("adminScope") || "full") !== 'sub_admin') {
+        loadUnreadMessages();
+        loadNotifications();
+      }
     }, 8000);
 
     return () => {
@@ -146,7 +163,16 @@ export default function AdminLayout() {
     setShowNotifTray(false);
     const targetRoute = getNotificationRoute(notif, true);
     if (targetRoute) {
-      navigate(targetRoute);
+      if (isSubAdmin) {
+        const baseRoute = targetRoute.split('?')[0];
+        if (SUB_ADMIN_ALLOWED_PATHS.includes(baseRoute)) {
+          navigate(targetRoute);
+        } else {
+          navigate('/admin/orders');
+        }
+      } else {
+        navigate(targetRoute);
+      }
     }
   };
 
@@ -161,6 +187,7 @@ export default function AdminLayout() {
 
   const renderNavActions = () => (
     <ul className="navbar-nav flex-row align-items-center mb-0">
+      {!isSubAdmin && (
       <li className="nav-item position-relative me-3" style={{ cursor: 'pointer' }} onClick={() => setShowNotifTray(!showNotifTray)} role="button" aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`} tabIndex={0}>
         <div className="nav-link">
           <i className="fas fa-bell fs-5" style={{ color: '#ffffff' }}></i>
@@ -215,6 +242,7 @@ export default function AdminLayout() {
           </div>
         )}
       </li>
+      )}
 
       <li className="nav-item dropdown position-relative">
         <div 
@@ -283,25 +311,31 @@ export default function AdminLayout() {
           />
           <div className="ms-3 overflow-hidden flex-grow-1" style={{ minWidth: 0 }}>
             <h6 className="mb-0 fw-bold text-white text-truncate" title={adminFullName}>{adminFullName}</h6>
-            <small className="text-white" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Company Admin</small>
+            <small className="text-white" style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+              {isSubAdmin ? 'Sub-Admin (Operations)' : 'Company Admin'}
+            </small>
           </div>
         </div>
 
         <div className="p-3 flex-grow-1 overflow-auto">
           <div className="d-flex flex-column gap-1 admin-nav-links">
-            <Link to="/admin" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin' ? '' : 'opacity-75'}`} style={location.pathname === '/admin' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
-              <span className="flex-grow-1">Dashboard</span>
-              <i className="fas fa-home ms-2"></i>
-            </Link>
-            <Link to="/admin/messages" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/messages' ? '' : 'opacity-75'}`} aria-label={`Messages ${unreadMessagesCount > 0 ? `(${unreadMessagesCount} unread)` : ''}`} style={location.pathname === '/admin/messages' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
-              <span className="flex-grow-1">Messages</span>
-              {unreadMessagesCount > 0 && (
-                <span className="badge rounded-pill bg-danger me-2" style={{ fontSize: '0.7rem' }}>
-                  {unreadMessagesCount}
-                </span>
-              )}
-              <i className="fas fa-comments ms-2"></i>
-            </Link>
+            {!isSubAdmin && (
+              <>
+                <Link to="/admin" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin' ? '' : 'opacity-75'}`} style={location.pathname === '/admin' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
+                  <span className="flex-grow-1">Dashboard</span>
+                  <i className="fas fa-home ms-2"></i>
+                </Link>
+                <Link to="/admin/messages" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/messages' ? '' : 'opacity-75'}`} aria-label={`Messages ${unreadMessagesCount > 0 ? `(${unreadMessagesCount} unread)` : ''}`} style={location.pathname === '/admin/messages' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
+                  <span className="flex-grow-1">Messages</span>
+                  {unreadMessagesCount > 0 && (
+                    <span className="badge rounded-pill bg-danger me-2" style={{ fontSize: '0.7rem' }}>
+                      {unreadMessagesCount}
+                    </span>
+                  )}
+                  <i className="fas fa-comments ms-2"></i>
+                </Link>
+              </>
+            )}
             <Link to="/admin/orders" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/orders' ? '' : 'opacity-75'}`} aria-label="Orders Database" style={location.pathname === '/admin/orders' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
               <span className="flex-grow-1">All Orders</span>
               <i className="fas fa-database ms-2"></i>
@@ -314,14 +348,18 @@ export default function AdminLayout() {
               <span className="flex-grow-1">Services</span>
               <i className="fas fa-cogs ms-2"></i>
             </Link>
-            <Link to="/admin/users" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/users' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/users' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
-              <span className="flex-grow-1">Users Setup</span>
-              <i className="fas fa-users ms-2"></i>
-            </Link>
-            <Link to="/admin/settings" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/settings' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/settings' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
-              <span className="flex-grow-1">Site Settings</span>
-              <i className="fas fa-cog ms-2"></i>
-            </Link>
+            {!isSubAdmin && (
+              <>
+                <Link to="/admin/users" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/users' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/users' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
+                  <span className="flex-grow-1">Users Setup</span>
+                  <i className="fas fa-users ms-2"></i>
+                </Link>
+                <Link to="/admin/settings" className={`btn btn-link text-start text-decoration-none d-flex align-items-center px-3 py-2 mb-1 text-white ${location.pathname === '/admin/settings' ? '' : 'opacity-75'}`} style={location.pathname === '/admin/settings' ? { fontWeight: '600', backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: '0.5rem' } : { fontWeight: '500' }}>
+                  <span className="flex-grow-1">Site Settings</span>
+                  <i className="fas fa-cog ms-2"></i>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -338,7 +376,11 @@ export default function AdminLayout() {
 
         {/* PAGE CONTENT */}
         <div className="flex-grow-1 overflow-auto admin-outlet-wrapper" style={{ paddingBottom: '100px' }}>
-          <Outlet />
+          {isSubAdmin && !SUB_ADMIN_ALLOWED_PATHS.includes(location.pathname) ? (
+            <Navigate to="/admin/calendar" replace />
+          ) : (
+            <Outlet />
+          )}
         </div>
       </div>
     </div>
