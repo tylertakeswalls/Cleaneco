@@ -1248,6 +1248,10 @@ function OrderDatabase() {
                                 <tbody>
                                   {displayLocations.map((h, i) => {
                                     const isLast = i === displayLocations.length - 1;
+                                    const resolvedCompany = editModal.order.company_name || '';
+                                    const locationDisplayName = (i === 0 && isBizOrder && resolvedCompany && !String(h.name || '').toLowerCase().includes(resolvedCompany.toLowerCase()))
+                                      ? `${h.name} (${resolvedCompany})`
+                                      : h.name;
                                     return (
                                       <tr key={i}>
                                         <td 
@@ -1270,7 +1274,7 @@ function OrderDatabase() {
                                             wordBreak: 'break-word'
                                           }}
                                         >
-                                          <span>{h.name}</span>{' '}
+                                          <span>{locationDisplayName}</span>{' '}
                                           {i === 0 && <span className="badge bg-success d-inline-block mt-1">{isBizOrder ? 'Primary' : 'Lead'}</span>}
                                         </td>
                                         <td 

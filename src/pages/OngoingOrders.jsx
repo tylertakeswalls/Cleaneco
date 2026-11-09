@@ -32,6 +32,7 @@ function OngoingOrders() {
     accountName: ''
   });
   const [clientType, setClientType] = useState('residential');
+  const [companyName, setCompanyName] = useState('');
 
   const [selectedOrderIdToPay, setSelectedOrderIdToPay] = useState(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
@@ -318,6 +319,9 @@ function OngoingOrders() {
 
         if (userRes.data && userRes.data.clientType) {
           setClientType(userRes.data.clientType);
+        }
+        if (userRes.data && userRes.data.companyName) {
+          setCompanyName(userRes.data.companyName);
         }
         setLoading(false);
       } catch (err) {
@@ -700,85 +704,110 @@ function OngoingOrders() {
                             </button>
                           </div>
                         )}
-                        {order.final_payment_status === 'Paid' && (
-                          <div className="mt-2">
-                            <span className="badge bg-success rounded-pill px-3 py-2"><i className="fas fa-check-circle me-1"></i> Fully Paid</span>
-                          </div>
-                        )}
                       </div>
                     </div>
 
-                    {/* Participating Households (Residential Group Booking) */}
-                    {order.households && order.households.length > 0 && (
-                      <div className="p-4 mb-4 rounded bg-white shadow-sm border border-success">
-                        <h6 className="fw-bold mb-3 text-success border-bottom pb-2 border-opacity-25">
-                          <i className="fas fa-users me-2"></i>Participating Households ({order.num_households || order.households.length})
-                        </h6>
-                        <div 
-                          className="table-responsive bg-white" 
-                          style={{ 
-                            borderRadius: '8px', 
-                            border: '1px solid #dee2e6', 
-                            overflowX: 'auto' 
-                          }}
-                        >
-                          <table 
-                            className="table table-sm table-hover mb-0 small" 
+                    {/* Participating Households (Residential) / Service Locations & Buildings (Commercial & Industrial) */}
+                    {(() => {
+                      const resolvedClientType = String(order.client_type || order.user_clientType || clientType || 'residential').toLowerCase();
+                      const isBizOrder = ['commercial', 'industrial'].includes(resolvedClientType);
+                      const fallbackContactName = `${order.first_name || ''} ${order.last_name || ''}`.trim() || (isBizOrder ? 'Primary Site' : 'Lead Contact');
+                      const displayLocations = (Array.isArray(order.households) && order.households.length > 0)
+                        ? order.households
+                        : (order.address ? [{ name: fallbackContactName, address: order.address }] : []);
+
+                      if (displayLocations.length === 0) return null;
+
+                      return (
+                        <div className="p-4 mb-4 rounded bg-white shadow-sm border border-success">
+                          <h6 className="fw-bold mb-3 text-success border-bottom pb-2 border-opacity-25">
+                            <i className={`fas ${isBizOrder ? 'fa-building' : 'fa-users'} me-2`}></i>
+                            {isBizOrder
+                              ? `Service Locations / Buildings (${displayLocations.length})`
+                              : `Participating Households (${order.num_households || displayLocations.length})`}
+                          </h6>
+                          <div 
+                            className="table-responsive bg-white" 
                             style={{ 
-                              borderCollapse: 'separate', 
-                              borderSpacing: 0, 
-                              width: '100%',
-                              minWidth: '460px',
-                              marginBottom: 0
+                              borderRadius: '8px', 
+                              border: '1px solid #dee2e6', 
+                              overflowX: 'auto' 
                             }}
                           >
-                            <thead className="table-light">
-                              <tr>
-                                <th style={{ width: '40px', borderTopLeftRadius: '7px', borderBottom: '1px solid #dee2e6', borderTop: 'none', borderLeft: 'none' }} className="px-3 py-2">#</th>
-                                <th style={{ borderBottom: '1px solid #dee2e6', borderTop: 'none' }} className="py-2">Household Contact / Name</th>
-                                <th style={{ borderTopRightRadius: '7px', borderBottom: '1px solid #dee2e6', borderTop: 'none', borderRight: 'none' }} className="py-2">Address</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {order.households.map((h, i) => {
-                                const isLast = i === order.households.length - 1;
-                                return (
-                                  <tr key={i}>
-                                    <td 
-                                      className="fw-bold px-3 py-2" 
-                                      style={{ 
-                                        borderBottom: isLast ? 'none' : '1px solid #dee2e6',
-                                        borderBottomLeftRadius: isLast ? '7px' : 0,
-                                        borderLeft: 'none'
-                                      }}
-                                    >
-                                      {i + 1}
-                                    </td>
-                                    <td 
-                                      className="py-2" 
-                                      style={{ borderBottom: isLast ? 'none' : '1px solid #dee2e6' }}
-                                    >
-                                      <span className="fw-semibold text-dark">{h.name}</span>
-                                      {i === 0 && <span className="badge bg-success ms-2">Lead Contact</span>}
-                                    </td>
-                                    <td 
-                                      className="py-2 text-secondary" 
-                                      style={{ 
-                                        borderBottom: isLast ? 'none' : '1px solid #dee2e6',
-                                        borderBottomRightRadius: isLast ? '7px' : 0,
-                                        borderRight: 'none'
-                                      }}
-                                    >
-                                      {h.address}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                            <table 
+                              className="table table-sm table-hover mb-0 small" 
+                              style={{ 
+                                borderCollapse: 'separate', 
+                                borderSpacing: 0, 
+                                width: '100%',
+                                minWidth: '460px',
+                                marginBottom: 0
+                              }}
+                            >
+                              <thead className="table-light">
+                                <tr>
+                                  <th style={{ width: '40px', borderTopLeftRadius: '7px', borderBottom: '1px solid #dee2e6', borderTop: 'none', borderLeft: 'none' }} className="px-3 py-2">#</th>
+                                  <th style={{ borderBottom: '1px solid #dee2e6', borderTop: 'none' }} className="py-2">
+                                    {isBizOrder ? 'Building / Contact' : 'Household Contact / Name'}
+                                  </th>
+                                  <th style={{ borderTopRightRadius: '7px', borderBottom: '1px solid #dee2e6', borderTop: 'none', borderRight: 'none' }} className="py-2">Address</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {displayLocations.map((h, i) => {
+                                  const isLast = i === displayLocations.length - 1;
+                                  const resolvedCompany = order.company_name || companyName || '';
+                                  const locationDisplayName = (i === 0 && isBizOrder && resolvedCompany && !String(h.name || '').toLowerCase().includes(resolvedCompany.toLowerCase()))
+                                    ? `${h.name} (${resolvedCompany})`
+                                    : h.name;
+                                  return (
+                                    <tr key={i}>
+                                      <td 
+                                        className="fw-bold px-3 py-2" 
+                                        style={{ 
+                                          borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                          borderBottomLeftRadius: isLast ? '7px' : 0,
+                                          borderLeft: 'none'
+                                        }}
+                                      >
+                                        {i + 1}
+                                      </td>
+                                      <td 
+                                        className="py-2" 
+                                        style={{ borderBottom: isLast ? 'none' : '1px solid #dee2e6' }}
+                                      >
+                                        <span className="fw-semibold text-dark">{locationDisplayName}</span>
+                                        {i === 0 && (
+                                          <span className="badge bg-success ms-2">
+                                            {isBizOrder ? 'Primary' : 'Lead Contact'}
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td 
+                                        className="py-2 text-secondary" 
+                                        style={{ 
+                                          borderBottom: isLast ? 'none' : '1px solid #dee2e6',
+                                          borderBottomRightRadius: isLast ? '7px' : 0,
+                                          borderRight: 'none'
+                                        }}
+                                      >
+                                        {h.address}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                          {order.landmark && (
+                            <div className="mt-2 small text-muted">
+                              <i className="fas fa-map-pin me-1 text-success"></i>
+                              <strong>Nearest Landmark:</strong> {order.landmark}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Quotation Review & Scheduling Block */}
                     {order.quotation_status !== 'Pending Inspection' && (

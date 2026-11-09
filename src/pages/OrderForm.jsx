@@ -24,7 +24,8 @@ function OrderForm() {
         date: '',
         timeSlot: '',
         notes: '',
-        clientType: 'residential'
+        clientType: 'residential',
+        companyName: ''
     });
     // eslint-disable-next-line no-unused-vars
     const [sitePhoto, setSitePhoto] = useState(null);
@@ -117,7 +118,8 @@ function OrderForm() {
                             phone: formatPhoneNumber(response.data.phone || ''),
                             address: resolvedAddress,
                             region: detectedRegion,
-                            clientType: response.data.clientType || 'residential'
+                            clientType: response.data.clientType || 'residential',
+                            companyName: response.data.companyName || ''
                         }));
                         return;
                     }
@@ -266,7 +268,11 @@ function OrderForm() {
 
     // Keep primary location (Household #1 / Building #1) in sync with lead client info
     useEffect(() => {
-        const leadName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+        const isBiz = formData.clientType === 'commercial' || formData.clientType === 'industrial';
+        const contactName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+        const leadName = isBiz && formData.companyName
+            ? `${formData.companyName}${contactName ? ` (${contactName})` : ''}`
+            : contactName;
         const leadAddress = formData.address || '';
         setHouseholds(prev => {
             const updated = prev && prev.length > 0 ? [...prev] : [{ name: '', address: '' }];
@@ -276,7 +282,7 @@ function OrderForm() {
             };
             return updated;
         });
-    }, [formData.firstName, formData.lastName, formData.address, formData.clientType]);
+    }, [formData.firstName, formData.lastName, formData.address, formData.clientType, formData.companyName]);
 
     const handleHouseholdChange = (index, field, value) => {
         const limit = field === 'name' ? 80 : 150;
