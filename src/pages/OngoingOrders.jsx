@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import { formatDate, getStatusClass, formatCurrency, formatOrderReference } from '../utils/helpers';
@@ -33,6 +33,11 @@ function OngoingOrders() {
   });
   const [clientType, setClientType] = useState('residential');
   const [companyName, setCompanyName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const filterBarRef = useRef(null);
 
   const [selectedOrderIdToPay, setSelectedOrderIdToPay] = useState(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
@@ -333,11 +338,31 @@ function OngoingOrders() {
     loadOrders();
   }, [loggedInUser, navigate, userId]);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filterBarRef.current && !filterBarRef.current.contains(e.target)) {
+        setOpenDropdown(null);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setOpenDropdown(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // Auto-expand and scroll to target order when redirected from a notification
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const targetOrderId = params.get('orderId');
     if (targetOrderId && orders.length > 0) {
+      setSearchTerm('');
+      setServiceFilter('');
+      setStatusFilter('');
       setHighlightedOrderId(targetOrderId);
       setTimeout(() => {
         const el = document.getElementById(`order-card-${targetOrderId}`);
@@ -363,7 +388,11 @@ function OngoingOrders() {
   }, [showConfirmModal, showResultModal, showPaymentModal, showReservationPaymentModal]);
 
   const generateReceipt = (order) => {
-    setReceiptOrder(order);
+    setReceiptOrder({
+      ...order,
+      client_type: order.client_type || order.user_clientType || clientType,
+      company_name: order.company_name || companyName
+    });
     setTimeout(() => {
       window.print();
       setReceiptOrder(null);
@@ -371,11 +400,82 @@ function OngoingOrders() {
   };
 
   const generateBilling = (order) => {
-    setSelectedBillingOrder(order);
+    setSelectedBillingOrder({
+      ...order,
+      client_type: order.client_type || order.user_clientType || clientType,
+      company_name: order.company_name || companyName
+    });
     setTimeout(() => {
       window.print();
       setSelectedBillingOrder(null);
     }, 1000);
+  };
+
+  const handleBookAgain = (order) => {
+    const resolvedServiceIds = Array.isArray(order.service_ids) ? [...order.service_ids] : [];
+    const orderServiceNames = Array.isArray(order.service_names)
+      ? order.service_names
+      : (order.service_name || order.service_type ? [order.service_name || order.service_type] : []);
+
+    orderServiceNames.forEach((sName) => {
+      if (!sName) return;
+      const matched = servicesCatalog.find(
+        (s) => String(s.name || '').trim().toLowerCase() === String(sName).trim().toLowerCase()
+      );
+      const matchedId = matched ? String(matched.id || matched._id || '') : '';
+      if (matchedId && !resolvedServiceIds.includes(matchedId)) {
+        resolvedServiceIds.push(matchedId);
+      }
+    });
+
+    const isBizOrder = ['commercial', 'industrial'].includes(
+      String(order.client_type || order.user_clientType || clientType || 'residential').toLowerCase()
+    );
+    const fallbackContactName = `${order.first_name || ''} ${order.last_name || ''}`.trim()
+      || (isBizOrder ? 'Primary Site' : 'Lead Contact');
+    const resolvedHouseholds = (Array.isArray(order.households) && order.households.length > 0)
+      ? order.households.slice(0, 3).map((h) => ({
+          name: h.name || fallbackContactName,
+          address: h.address || order.address || ''
+        }))
+      : (order.address ? [{ name: fallbackContactName, address: order.address }] : []);
+
+    let parsedEstimateInputs = {};
+    if (order.estimate_inputs) {
+      if (typeof order.estimate_inputs === 'string') {
+        try {
+          parsedEstimateInputs = JSON.parse(order.estimate_inputs);
+        } catch {
+          parsedEstimateInputs = {};
+        }
+      } else if (typeof order.estimate_inputs === 'object') {
+        parsedEstimateInputs = order.estimate_inputs;
+      }
+    }
+
+    const reorderDraft = {
+      reorderFromOrderRef: formatOrderReference(order.order_id || order.id),
+      service_names: orderServiceNames,
+      formData: {
+        region: order.region || 'NCR',
+        address: resolvedHouseholds[0]?.address || order.address || '',
+        landmark: order.landmark || '',
+        date: '',
+        timeSlot: '',
+        notes: order.notes || '',
+        service_ids: resolvedServiceIds
+      },
+      estimateInputs: parsedEstimateInputs,
+      households: resolvedHouseholds
+    };
+
+    try {
+      sessionStorage.setItem('cleaneco_booking_draft_v1', JSON.stringify(reorderDraft));
+    } catch (err) {
+      console.error('Failed to store reorder draft:', err);
+    }
+
+    navigate('/order', { state: { reorderDraft } });
   };
 
   const steps = [
@@ -385,6 +485,65 @@ function OngoingOrders() {
     { title: "Stage 4: For Service Execution", desc: "Our vacuum truck crew is deployed on your confirmed service execution date to complete siphoning, desludging, or cleaning." },
     { title: "Stage 5: Completed", desc: "Inspect completed works with our lead technician, settle remaining balance (with full ₱1,100.00 reservation credit), and access official reports." }
   ];
+
+  const isOrderActionNeeded = (order) => {
+    if (!order || order.status === 'Cancelled') return false;
+    if (order.status === 'Pending') return true;
+    if (order.quotation_status === 'Pending Client Approval') return true;
+    if (order.quotation_status === 'Approved' && !order.service_execution_date && order.status !== 'Completed') return true;
+    if (order.status === 'Completed' && order.final_payment_status !== 'Paid') return true;
+    if (order.payment_method === 'cheque' && order.cheque_status === 'rejected') return true;
+    return false;
+  };
+
+  const uniqueServices = [...new Set(
+    orders.flatMap(order =>
+      (Array.isArray(order.service_names) && order.service_names.length > 0)
+        ? order.service_names
+        : [order.service_name || order.service_type]
+    ).filter(Boolean)
+  )];
+
+  const filteredOrders = orders.filter((order) => {
+    // Service filter
+    if (serviceFilter) {
+      const orderServicesList = (Array.isArray(order.service_names) && order.service_names.length > 0)
+        ? order.service_names
+        : [order.service_name || order.service_type].filter(Boolean);
+      if (!orderServicesList.includes(serviceFilter)) return false;
+    }
+
+    // Status filter
+    if (statusFilter === 'action_needed') {
+      if (!isOrderActionNeeded(order)) return false;
+    } else if (statusFilter) {
+      if (order.status !== statusFilter) return false;
+    }
+
+    // Search term filter
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return true;
+
+    const refCode = formatOrderReference(order.order_id).toLowerCase();
+    const rawId = String(order.order_id || '').toLowerCase();
+    const serviceNames = (Array.isArray(order.service_names) && order.service_names.length > 0)
+      ? order.service_names.join(' ').toLowerCase()
+      : String(order.service_name || order.service_type || '').toLowerCase();
+    const primaryAddr = String(order.address || '').toLowerCase();
+    const landmarkStr = String(order.landmark || '').toLowerCase();
+    const locationsStr = Array.isArray(order.households)
+      ? order.households.map(h => `${h.name || ''} ${h.address || ''}`).join(' ').toLowerCase()
+      : '';
+
+    return (
+      refCode.includes(q) ||
+      rawId.includes(q) ||
+      serviceNames.includes(q) ||
+      primaryAddr.includes(q) ||
+      landmarkStr.includes(q) ||
+      locationsStr.includes(q)
+    );
+  });
 
   if (loading) {
     return (
@@ -401,13 +560,164 @@ function OngoingOrders() {
         <img src={carousel6} alt="Banner" className="img-fluid banner-img w-100" />
 
       <div className="container py-3 py-sm-5">
-        <h3 className="fw-bold mb-4 text-success">My Ongoing Orders</h3>
+        <div className="client-orders-header">
+          <h3 className="fw-bold mb-0 text-success">My Ongoing Orders</h3>
+          {orders.length > 0 && (
+            <span className="client-orders-count-badge">
+              {(searchTerm || serviceFilter || statusFilter)
+                ? <>Showing <strong className="text-dark">{filteredOrders.length}</strong> of <strong className="text-dark">{orders.length}</strong> orders</>
+                : <><strong className="text-dark">{orders.length}</strong> {orders.length === 1 ? 'Order' : 'Total Orders'}</>}
+            </span>
+          )}
+        </div>
+
+        {orders.length > 0 && (
+          <div className="client-filter-bar" ref={filterBarRef} role="search" aria-label="Filter ongoing orders">
+            <div className="client-filter-segment client-filter-segment--search">
+              <i className="fas fa-search client-filter-icon" aria-hidden="true"></i>
+              <input
+                type="text"
+                className="form-control client-filter-input"
+                maxLength={100}
+                placeholder="Search by order #CLN-..., service, or address..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value.slice(0, 100))}
+                onFocus={() => setOpenDropdown(null)}
+                aria-label="Search orders"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="btn btn-link p-0 text-muted"
+                  style={{ fontSize: '0.85rem', lineHeight: 1 }}
+                  title="Clear search text"
+                  aria-label="Clear search text"
+                >
+                  <i className="fas fa-times-circle"></i>
+                </button>
+              )}
+            </div>
+
+            {/* Service Dropdown Segment */}
+            <div className="client-filter-segment client-filter-segment--select">
+              <button
+                type="button"
+                className="client-filter-dropdown-trigger"
+                onClick={() => setOpenDropdown(openDropdown === 'service' ? null : 'service')}
+                aria-expanded={openDropdown === 'service'}
+                aria-haspopup="listbox"
+              >
+                <span className="d-flex align-items-center gap-2 text-truncate">
+                  <i className="fas fa-concierge-bell client-filter-icon" aria-hidden="true"></i>
+                  <span className="text-truncate">{serviceFilter || 'All Services'}</span>
+                </span>
+                <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'service' ? 'open' : ''}`} aria-hidden="true"></i>
+              </button>
+              {openDropdown === 'service' && (
+                <ul className="client-filter-dropdown-menu" role="listbox" aria-label="Filter by service">
+                  <li>
+                    <button
+                      type="button"
+                      className={`client-filter-dropdown-item ${serviceFilter === '' ? 'active' : ''}`}
+                      onClick={() => { setServiceFilter(''); setOpenDropdown(null); }}
+                    >
+                      <span>All Services</span>
+                      {serviceFilter === '' && <i className="fas fa-check small"></i>}
+                    </button>
+                  </li>
+                  {uniqueServices.map((service) => (
+                    <li key={service}>
+                      <button
+                        type="button"
+                        className={`client-filter-dropdown-item ${serviceFilter === service ? 'active' : ''}`}
+                        onClick={() => { setServiceFilter(service); setOpenDropdown(null); }}
+                      >
+                        <span>{service}</span>
+                        {serviceFilter === service && <i className="fas fa-check small"></i>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Status Dropdown Segment */}
+            <div className="client-filter-segment client-filter-segment--select">
+              {(() => {
+                const statusOptions = [
+                  { value: '', label: 'All Statuses', icon: 'fa-filter' },
+                  { value: 'action_needed', label: 'Action Needed', icon: 'fa-exclamation-circle text-warning' },
+                  { value: 'Pending', label: 'Pending', icon: 'fa-clock text-warning' },
+                  { value: 'In Progress', label: 'In Progress', icon: 'fa-spinner text-primary' },
+                  { value: 'Completed', label: 'Completed', icon: 'fa-check-circle text-success' },
+                  { value: 'Cancelled', label: 'Cancelled', icon: 'fa-ban text-danger' }
+                ];
+                const currentStatusObj = statusOptions.find(o => o.value === statusFilter) || statusOptions[0];
+                return (
+                  <>
+                    <button
+                      type="button"
+                      className="client-filter-dropdown-trigger"
+                      onClick={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
+                      aria-expanded={openDropdown === 'status'}
+                      aria-haspopup="listbox"
+                    >
+                      <span className="d-flex align-items-center gap-2 text-truncate">
+                        <i className={`fas ${currentStatusObj.icon} client-filter-icon`} aria-hidden="true"></i>
+                        <span className="text-truncate">{currentStatusObj.label}</span>
+                      </span>
+                      <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'status' ? 'open' : ''}`} aria-hidden="true"></i>
+                    </button>
+                    {openDropdown === 'status' && (
+                      <ul className="client-filter-dropdown-menu" role="listbox" aria-label="Filter by status">
+                        {statusOptions.map((opt) => (
+                          <li key={opt.value || 'all'}>
+                            <button
+                              type="button"
+                              className={`client-filter-dropdown-item ${statusFilter === opt.value ? 'active' : ''}`}
+                              onClick={() => { setStatusFilter(opt.value); setOpenDropdown(null); }}
+                            >
+                              <span>{opt.label}</span>
+                              {statusFilter === opt.value && <i className="fas fa-check small"></i>}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            {(searchTerm || serviceFilter || statusFilter) && (
+              <button
+                type="button"
+                className="client-filter-clear-btn"
+                onClick={() => {
+                  setSearchTerm('');
+                  setServiceFilter('');
+                  setStatusFilter('');
+                  setOpenDropdown(null);
+                }}
+              >
+                <i className="fas fa-undo-alt" style={{ fontSize: '0.78rem' }}></i>
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {orders.length === 0 ? (
           <div className="alert alert-info shadow-sm">No ongoing orders found.</div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="alert alert-light border text-center py-4 shadow-sm mb-5">
+            <p className="fw-semibold text-dark mb-1">No matching orders found.</p>
+            <p className="text-muted small mb-0">Try adjusting your search or click <strong>Clear Filters</strong> above.</p>
+          </div>
         ) : (
           <div className="accordion mb-5 shadow-sm" id="ordersAccordion" style={{ borderRadius: '1rem', overflow: 'hidden' }}>
-            {orders.map((order, index) => {
+            {filteredOrders.map((order, index) => {
               const isTarget = highlightedOrderId === order.order_id;
               const isDefaultExpanded = !highlightedOrderId && index === 0;
               const isExpanded = isTarget || isDefaultExpanded;
@@ -1070,9 +1380,18 @@ function OngoingOrders() {
                         <i className="fas fa-comment-dots me-1"></i> Message Support
                       </button>
                       {order.status === 'Completed' && (
-                        <button className="btn btn-cleaneco rounded-pill fw-bold shadow-sm" onClick={() => generateReceipt(order)}>
-                          <i className="fas fa-download me-1"></i> Download Receipt
-                        </button>
+                        <>
+                          <button className="btn btn-cleaneco rounded-pill fw-bold shadow-sm" onClick={() => generateReceipt(order)}>
+                            <i className="fas fa-download me-1"></i> Download Receipt
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary-solid rounded-pill fw-bold shadow-sm"
+                            onClick={() => handleBookAgain(order)}
+                          >
+                            <i className="fas fa-redo-alt me-1"></i> Book Again
+                          </button>
+                        </>
                       )}
                     </div>
                     {order.request_type && (

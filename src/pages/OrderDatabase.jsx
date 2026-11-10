@@ -48,9 +48,31 @@ function OrderDatabase() {
   const [isSaving, setIsSaving] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReasonText, setRejectReasonText] = useState('');
+  const [isGeneratingInspectionSheet, setIsGeneratingInspectionSheet] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const filterBarRef = useRef(null);
   
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterBarRef.current && !filterBarRef.current.contains(event.target)) {
+        setOpenDropdown(null);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const showAlert = (title, message, type = 'info') => {
       setModalConfig({ isOpen: true, title, message, type });
@@ -58,6 +80,25 @@ function OrderDatabase() {
 
   const closeAlert = () => {
       setModalConfig(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handlePrintOrderInspectionSheet = async (order) => {
+    if (!order || !order.order_id || isGeneratingInspectionSheet) return;
+    setIsGeneratingInspectionSheet(true);
+    try {
+      const response = await api.get('/reports/inspection-list', {
+        params: { orderId: order.order_id },
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const refCode = formatOrderReference(order.order_id) || order.order_id;
+      previewPdfBlob(blob, `Cleaneco_Inspection_Sheet_${refCode}.pdf`);
+    } catch (error) {
+      console.error('Error generating order inspection sheet:', error);
+      showAlert('Error', 'Failed to generate the inspection sheet PDF for this order.', 'error');
+    } finally {
+      setIsGeneratingInspectionSheet(false);
+    }
   };
 
   const calculateRevenue = (ordersData) => {
@@ -772,52 +813,167 @@ function OrderDatabase() {
             </div>
           </div>
           
-          <div className="filters-container mb-3 d-flex gap-3 align-items-center flex-wrap">
-            <input 
-              type="text" 
-              className="form-control m-0" 
-              style={{ width: '260px', height: '52px' }}
-              maxLength={100}
-              placeholder="Search order #, customer, phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value.slice(0, 100))}
-            />
-            <select 
-              className="form-select m-0" 
-              style={{ width: '200px', height: '52px' }}
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="">Filter by Service</option>
-              {uniqueServices.map(service => (
-                <option key={service} value={service}>{service}</option>
-              ))}
-            </select>
-            <select 
-              className="form-select m-0" 
-              style={{ width: '180px', height: '52px' }}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
-            <input 
-              type="date" 
-              className="form-control m-0" 
-              style={{ width: '180px', height: '52px' }}
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              title="Filter by active schedule date (Inspection or Service Execution)"
-            />
-            <button className="btn btn-secondary m-0 d-flex align-items-center justify-content-center" style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }} onClick={() => { setSearchQuery(''); setFilterType(''); setFilterStatus(''); setFilterDate(''); }}>Clear Filters</button>
+          <div className="admin-filter-toolbar">
+            <div className="client-filter-bar" ref={filterBarRef} role="search" aria-label="Filter order database">
+              {/* Search Segment */}
+              <div className="client-filter-segment client-filter-segment--search">
+                <i className="fas fa-search client-filter-icon" aria-hidden="true"></i>
+                <input
+                  type="text"
+                  className="form-control client-filter-input"
+                  maxLength={100}
+                  placeholder="Search order #CLN-..., customer, or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value.slice(0, 100))}
+                  onFocus={() => setOpenDropdown(null)}
+                  aria-label="Search orders"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="btn btn-link p-0 text-muted"
+                    style={{ fontSize: '0.85rem', lineHeight: 1 }}
+                    title="Clear search text"
+                    aria-label="Clear search text"
+                  >
+                    <i className="fas fa-times-circle"></i>
+                  </button>
+                )}
+              </div>
+
+              {/* Service Dropdown Segment */}
+              <div className="client-filter-segment client-filter-segment--select">
+                <button
+                  type="button"
+                  className="client-filter-dropdown-trigger"
+                  onClick={() => setOpenDropdown(openDropdown === 'service' ? null : 'service')}
+                  aria-expanded={openDropdown === 'service'}
+                  aria-haspopup="listbox"
+                >
+                  <span className="d-flex align-items-center gap-2 text-truncate">
+                    <i className="fas fa-concierge-bell client-filter-icon" aria-hidden="true"></i>
+                    <span className="text-truncate">{filterType || 'All Services'}</span>
+                  </span>
+                  <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'service' ? 'open' : ''}`} aria-hidden="true"></i>
+                </button>
+                {openDropdown === 'service' && (
+                  <ul className="client-filter-dropdown-menu" role="listbox" aria-label="Filter by service">
+                    <li>
+                      <button
+                        type="button"
+                        className={`client-filter-dropdown-item ${filterType === '' ? 'active' : ''}`}
+                        onClick={() => { setFilterType(''); setOpenDropdown(null); }}
+                      >
+                        <span>All Services</span>
+                        {filterType === '' && <i className="fas fa-check small"></i>}
+                      </button>
+                    </li>
+                    {uniqueServices.map((service) => (
+                      <li key={service}>
+                        <button
+                          type="button"
+                          className={`client-filter-dropdown-item ${filterType === service ? 'active' : ''}`}
+                          onClick={() => { setFilterType(service); setOpenDropdown(null); }}
+                        >
+                          <span>{service}</span>
+                          {filterType === service && <i className="fas fa-check small"></i>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Status Dropdown Segment */}
+              <div className="client-filter-segment client-filter-segment--select">
+                <button
+                  type="button"
+                  className="client-filter-dropdown-trigger"
+                  onClick={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
+                  aria-expanded={openDropdown === 'status'}
+                  aria-haspopup="listbox"
+                >
+                  <span className="d-flex align-items-center gap-2 text-truncate">
+                    <i className="fas fa-filter client-filter-icon" aria-hidden="true"></i>
+                    <span className="text-truncate">{filterStatus || 'All Statuses'}</span>
+                  </span>
+                  <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'status' ? 'open' : ''}`} aria-hidden="true"></i>
+                </button>
+                {openDropdown === 'status' && (
+                  <ul className="client-filter-dropdown-menu" role="listbox" aria-label="Filter by status">
+                    {[
+                      { value: '', label: 'All Statuses' },
+                      { value: 'Pending', label: 'Pending' },
+                      { value: 'In Progress', label: 'In Progress' },
+                      { value: 'Completed', label: 'Completed' },
+                      { value: 'Cancelled', label: 'Cancelled' }
+                    ].map((opt) => (
+                      <li key={opt.value || 'all'}>
+                        <button
+                          type="button"
+                          className={`client-filter-dropdown-item ${filterStatus === opt.value ? 'active' : ''}`}
+                          onClick={() => { setFilterStatus(opt.value); setOpenDropdown(null); }}
+                        >
+                          <span>{opt.label}</span>
+                          {filterStatus === opt.value && <i className="fas fa-check small"></i>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Date Segment */}
+              <div className="client-filter-segment client-filter-segment--date" title="Filter by active schedule date (Inspection or Service Execution)">
+                <i className="far fa-calendar-alt client-filter-icon" aria-hidden="true"></i>
+                <input
+                  type="date"
+                  className="form-control client-filter-date-input"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  onFocus={() => setOpenDropdown(null)}
+                  aria-label="Filter by schedule date"
+                />
+                {filterDate && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterDate('')}
+                    className="btn btn-link p-0 text-muted"
+                    style={{ fontSize: '0.85rem', lineHeight: 1 }}
+                    title="Clear date filter"
+                    aria-label="Clear date filter"
+                  >
+                    <i className="fas fa-times-circle"></i>
+                  </button>
+                )}
+              </div>
+
+              {/* Contextual Reset Segment */}
+              {(searchQuery || filterType || filterStatus || filterDate) && (
+                <button
+                  type="button"
+                  className="client-filter-clear-btn"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterType('');
+                    setFilterStatus('');
+                    setFilterDate('');
+                    setOpenDropdown(null);
+                  }}
+                >
+                  <i className="fas fa-undo-alt"></i>
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+
             {!isSubAdmin && (
-              <button className="btn btn-primary m-0 d-flex align-items-center justify-content-center ms-auto" style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} onClick={handleDownloadReport}>
-                <i className="fas fa-file-pdf me-2"></i> Download Report
-              </button>
+              <div className="admin-toolbar-actions">
+                <button type="button" className="btn admin-toolbar-btn" onClick={handleDownloadReport}>
+                  <i className="fas fa-file-pdf me-2"></i> Download Report
+                </button>
+              </div>
             )}
           </div>
           
@@ -1057,25 +1213,26 @@ function OrderDatabase() {
                       </div>
                       
                       {editModal.order.request_type === 'Reschedule Requested' && editModal.order.reschedule_date && (
-                        <div className="alert alert-warning border-0 shadow-sm p-3 mb-4">
-                          <h6 className="fw-bold text-dark mb-2">
-                            <i className="fas fa-calendar-alt me-2 text-warning"></i>
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">
                             Reschedule Request Details ({editModal.order.reschedule_target === 'execution' ? 'Service Execution' : 'Site Inspection'})
-                          </h6>
-                          <div className="small mb-1"><strong>New Date:</strong> {formatDate(editModal.order.reschedule_date)}</div>
-                          <div className="small mb-1"><strong>New Time:</strong> {editModal.order.reschedule_time_slot}</div>
-                          <div className="small mb-3"><strong>Reason:</strong> {editModal.order.reschedule_reason}</div>
-                          
-                          {!isSubAdmin && (
-                            <div className="d-flex gap-2">
-                              <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => submitRescheduleAction('approve_reschedule')} disabled={isSaving}>
-                                Approve
-                              </button>
-                              <button className="btn btn-danger btn-sm fw-bold w-100" onClick={() => setRejectModalOpen(true)} disabled={isSaving}>
-                                Reject
-                              </button>
-                            </div>
-                          )}
+                          </label>
+                          <div className="card border-0 shadow-sm p-3 bg-light">
+                            <div className="small mb-1"><span className="text-muted fw-semibold">New Date:</span> {formatDate(editModal.order.reschedule_date)}</div>
+                            <div className="small mb-1"><span className="text-muted fw-semibold">New Time:</span> {editModal.order.reschedule_time_slot}</div>
+                            <div className="small mb-3"><span className="text-muted fw-semibold">Reason:</span> {editModal.order.reschedule_reason}</div>
+                            
+                            {!isSubAdmin && (
+                              <div className="d-flex gap-2">
+                                <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => submitRescheduleAction('approve_reschedule')} disabled={isSaving}>
+                                  Approve
+                                </button>
+                                <button className="btn btn-danger btn-sm fw-bold w-100" onClick={() => setRejectModalOpen(true)} disabled={isSaving}>
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                       
@@ -1100,68 +1257,70 @@ function OrderDatabase() {
                           : 'Difficult Site Accessibility';
 
                         return (
-                          <div className="alert alert-secondary border-0 shadow-sm p-3 mb-4">
-                            <h6 className="fw-bold text-dark mb-2">
-                              <i className="fas fa-camera me-2 text-success"></i>Site Accessibility Details
-                            </h6>
-                            <div className="small mb-2">
-                              <strong className="d-block mb-1">Condition:</strong>
-                              <span
-                                className="badge bg-warning text-dark text-wrap text-start lh-base"
-                                style={{ maxWidth: '100%', whiteSpace: 'normal', wordBreak: 'break-word', padding: '6px 10px' }}
-                              >
-                                {conditionLabel}
-                              </span>
-                            </div>
-                            <div className="small text-muted mb-3">
-                              Client uploaded a site photo during booking to help the inspection and truck team prepare necessary equipment.
-                            </div>
-                            <div className="mb-3">
-                              <a href={sitePhotoHref} target="_blank" rel="noopener noreferrer" className="d-inline-block">
-                                <img
-                                  src={sitePhotoHref}
-                                  alt="Client Uploaded Site Accessibility"
-                                  className="img-fluid rounded border bg-white shadow-sm"
-                                  style={{ maxHeight: '160px', objectFit: 'cover' }}
-                                />
-                              </a>
-                            </div>
-                            <div>
-                              <a href={sitePhotoHref} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-solid-primary fw-bold">
-                                <i className="fas fa-image me-1"></i>View Site Photo
-                              </a>
+                          <div className="form-group mb-3">
+                            <label className="form-label fw-bold small text-muted">Site Accessibility Details</label>
+                            <div className="card border-0 shadow-sm p-3 bg-light">
+                              <div className="small mb-2">
+                                <span className="text-muted fw-semibold d-block mb-1">Condition</span>
+                                <span
+                                  className="badge bg-warning text-dark text-wrap text-start lh-base"
+                                  style={{ maxWidth: '100%', whiteSpace: 'normal', wordBreak: 'break-word', padding: '6px 10px' }}
+                                >
+                                  {conditionLabel}
+                                </span>
+                              </div>
+                              <div className="small text-muted mb-3">
+                                Client uploaded a site photo during booking to help the inspection and truck team prepare necessary equipment.
+                              </div>
+                              <div className="mb-3">
+                                <a href={sitePhotoHref} target="_blank" rel="noopener noreferrer" className="d-inline-block">
+                                  <img
+                                    src={sitePhotoHref}
+                                    alt="Client Uploaded Site Accessibility"
+                                    className="img-fluid rounded border bg-white shadow-sm"
+                                    style={{ maxHeight: '160px', objectFit: 'cover' }}
+                                  />
+                                </a>
+                              </div>
+                              <div>
+                                <a href={sitePhotoHref} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-solid-primary fw-bold">
+                                  View Site Photo
+                                </a>
+                              </div>
                             </div>
                           </div>
                         );
                       })()}
 
                       {!isSubAdmin && editModal.order.payment_method === 'cheque' && (
-                        <div className="alert alert-secondary border-0 shadow-sm p-3 mb-4">
-                          <h6 className="fw-bold text-dark mb-2"><i className="fas fa-money-check-alt me-2 text-primary"></i>Cheque Payment Details</h6>
-                          <div className="small mb-1"><strong>Status:</strong> <span className={`badge ${editModal.order.cheque_status === 'approved' ? 'bg-success' : editModal.order.cheque_status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'}`}>{editModal.order.cheque_status?.replace('_', ' ').toUpperCase()}</span></div>
-                          <div className="small mb-1"><strong>Bank:</strong> {editModal.order.cheque_issuing_bank || editModal.order.cheque_bank_name || 'N/A'}</div>
-                          <div className="small mb-1"><strong>Cheque No:</strong> {editModal.order.cheque_number || 'N/A'}</div>
-                          <div className="small mb-1"><strong>Account Name:</strong> {editModal.order.cheque_payer_name || editModal.order.cheque_account_name || 'N/A'}</div>
-                          <div className="small mb-3"><strong>Amount:</strong> ₱{editModal.order.cheque_amount || '1100'}</div>
-                          
-                          {editModal.order.cheque_image_url && (
-                            <div className="mb-3">
-                              <a href={`${(process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/+$/, '')}${editModal.order.cheque_image_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-solid-primary fw-bold">
-                                <i className="fas fa-image me-1"></i>View Cheque Image
-                              </a>
-                            </div>
-                          )}
+                        <div className="form-group mb-3">
+                          <label className="form-label fw-bold small text-muted">Cheque Payment Details</label>
+                          <div className="card border-0 shadow-sm p-3 bg-light">
+                            <div className="small mb-1"><span className="text-muted fw-semibold">Status:</span> <span className={`badge ${editModal.order.cheque_status === 'approved' ? 'bg-success' : editModal.order.cheque_status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'}`}>{editModal.order.cheque_status?.replace('_', ' ').toUpperCase()}</span></div>
+                            <div className="small mb-1"><span className="text-muted fw-semibold">Bank:</span> {editModal.order.cheque_issuing_bank || editModal.order.cheque_bank_name || 'N/A'}</div>
+                            <div className="small mb-1"><span className="text-muted fw-semibold">Cheque No:</span> {editModal.order.cheque_number || 'N/A'}</div>
+                            <div className="small mb-1"><span className="text-muted fw-semibold">Account Name:</span> {editModal.order.cheque_payer_name || editModal.order.cheque_account_name || 'N/A'}</div>
+                            <div className="small mb-3"><span className="text-muted fw-semibold">Amount:</span> ₱{editModal.order.cheque_amount || '1100'}</div>
+                            
+                            {editModal.order.cheque_image_url && (
+                              <div className="mb-3">
+                                <a href={`${(process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/+$/, '')}${editModal.order.cheque_image_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-solid-primary fw-bold">
+                                  View Cheque Image
+                                </a>
+                              </div>
+                            )}
 
-                          {editModal.order.cheque_status === 'pending_verification' && (
-                            <div className="d-flex gap-2 pt-2 border-top">
-                              <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => handleVerifyCheque('approve')} disabled={isSaving}>
-                                <i className="fas fa-check me-1"></i>Approve
-                              </button>
-                              <button className="btn btn-danger btn-sm fw-bold w-100" onClick={() => handleVerifyCheque('reject')} disabled={isSaving}>
-                                <i className="fas fa-times me-1"></i>Reject
-                              </button>
-                            </div>
-                          )}
+                            {editModal.order.cheque_status === 'pending_verification' && (
+                              <div className="d-flex gap-2 pt-2 border-top">
+                                <button className="btn btn-success btn-sm fw-bold w-100" onClick={() => handleVerifyCheque('approve')} disabled={isSaving}>
+                                  Approve
+                                </button>
+                                <button className="btn btn-danger btn-sm fw-bold w-100" onClick={() => handleVerifyCheque('reject')} disabled={isSaving}>
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -1175,13 +1334,13 @@ function OrderDatabase() {
                         if (displayLocations.length === 0) return null;
 
                         return (
-                          <div className="card border-0 shadow-sm p-3 mb-4 bg-light">
-                            <h6 className="fw-bold text-dark mb-2">
-                              <i className={`fas ${isBizOrder ? 'fa-building' : 'fa-users'} me-2 text-success`}></i>
+                          <div className="form-group mb-2">
+                            <label className="form-label fw-bold small text-muted">
                               {isBizOrder
                                 ? `Service Locations / Buildings (${displayLocations.length})`
                                 : `Participating Households (${editModal.order.num_households || displayLocations.length})`}
-                            </h6>
+                            </label>
+                            <div className="card border-0 shadow-sm p-3 bg-light">
                             <div 
                               className="bg-white" 
                               style={{ 
@@ -1287,7 +1446,29 @@ function OrderDatabase() {
                                             wordBreak: 'break-word'
                                           }}
                                         >
-                                          {h.address}
+                                          <div>{h.address}</div>
+                                          {h.address && (
+                                            <div className="mt-1">
+                                              <a
+                                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.address)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="d-inline-flex align-items-center gap-1 text-decoration-none fw-semibold"
+                                                style={{
+                                                  fontSize: '0.73rem',
+                                                  color: '#0D8D1E',
+                                                  backgroundColor: 'rgba(13, 141, 30, 0.08)',
+                                                  border: '1px solid rgba(13, 141, 30, 0.22)',
+                                                  borderRadius: '999px',
+                                                  padding: '2px 9px'
+                                                }}
+                                                title={`Open "${h.address}" in Google Maps`}
+                                              >
+                                                <span>Open in Maps</span>
+                                                <i className="fas fa-external-link-alt" style={{ fontSize: '0.58rem', opacity: 0.75 }}></i>
+                                              </a>
+                                            </div>
+                                          )}
                                         </td>
                                       </tr>
                                     );
@@ -1297,10 +1478,24 @@ function OrderDatabase() {
                             </div>
                             {editModal.order.landmark && (
                               <div className="small text-muted mt-2">
-                                <i className="fas fa-map-pin me-1 text-success"></i>
-                                <strong>Nearest Landmark:</strong> {editModal.order.landmark}
+                                <span className="fw-semibold">Nearest Landmark:</span> {editModal.order.landmark}
                               </div>
                             )}
+                            <div className="mt-3 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                              <span className="small text-muted">
+                                Pre-filled checklist for this order's booked services &amp; sites
+                              </span>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-solid-brand rounded-pill fw-bold px-3 shadow-sm"
+                                onClick={() => handlePrintOrderInspectionSheet(editModal.order)}
+                                disabled={isGeneratingInspectionSheet}
+                              >
+                                <i className={`fas ${isGeneratingInspectionSheet ? 'fa-spinner fa-spin' : 'fa-file-pdf'} me-1`}></i>
+                                {isGeneratingInspectionSheet ? 'Preparing PDF...' : 'Print Inspection Sheet'}
+                              </button>
+                            </div>
+                            </div>
                           </div>
                         );
                       })()}
@@ -1316,7 +1511,7 @@ function OrderDatabase() {
                         Build the hierarchical quotation based on inspection findings. This will be sent to the client for approval.
                       </div>
                       <div className="mb-3 d-flex justify-content-between align-items-center">
-                        <span className="fw-bold text-dark">Quotation Status: </span>
+                        <label className="form-label fw-bold text-muted mb-0">Quotation Status</label>
                         <span className={`badge ${editModal.order.quotation_status === 'Approved' ? 'bg-success' : editModal.order.quotation_status === 'Clarification Requested' ? 'bg-warning text-dark' : editModal.order.quotation_status === 'Client Declined' ? 'bg-danger' : 'bg-secondary'}`}>{editModal.order.quotation_status || 'Pending Inspection'}</span>
                       </div>
                       
@@ -1325,7 +1520,7 @@ function OrderDatabase() {
                         return (
                           <div key={serviceId} className="card border-0 shadow-sm mb-4">
                             <div className="card-header bg-light border-0 py-3">
-                              <h6 className="mb-0 fw-bold text-success">{service.name}</h6>
+                              <label className="form-label fw-bold text-muted mb-0">{service.name}</label>
                             </div>
                             <div className="card-body bg-white pt-3 pb-3 px-4">
                               <ServicePricingFields
@@ -1344,7 +1539,7 @@ function OrderDatabase() {
                       <div className="card shadow-sm border mb-4" style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
                         <div className="card-body p-3">
                           <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="fw-bold text-secondary">Estimated Total Trips:</span>
+                            <label className="form-label fw-bold text-muted mb-0">Estimated Total Trips:</label>
                             <span className="fw-bold text-dark">
                               {estimatedTrips} {estimatedTrips === 1 ? 'Trip' : 'Trips'}
                               {estimatedTrips >= 5 ? (
@@ -1355,16 +1550,16 @@ function OrderDatabase() {
                             </span>
                           </div>
                           <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="fw-bold text-secondary">Total (Before Discount):</span>
+                            <label className="form-label fw-bold text-muted mb-0">Total (Before Discount):</label>
                             <span className="fw-bold text-dark">₱{quotationSubtotal.toLocaleString()}</span>
                           </div>
                           <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="fw-bold text-secondary">Discount Applied (₱):</span>
+                            <label className="form-label fw-bold text-muted mb-0">Discount Applied (₱):</label>
                             <input type="number" className="form-control form-control-sm text-end shadow-sm" style={{ width: '120px', borderColor: '#86efac' }} value={quotationForm.discount_amount} onChange={(e) => setQuotationForm(prev => ({ ...prev, discount_amount: e.target.value }))} />
                           </div>
                           <hr className="my-2" style={{ borderColor: '#86efac' }} />
                           <div className="d-flex justify-content-between align-items-center mt-2">
-                            <span className="fw-bold text-dark">Final Quotation Total:</span>
+                            <label className="form-label fw-bold text-muted mb-0">Final Quotation Total:</label>
                             <span className="fw-bold" style={{ color: '#166534', fontSize: '1.25rem' }}>₱{quotationTotal.toLocaleString()}</span>
                           </div>
                         </div>
@@ -1382,7 +1577,7 @@ function OrderDatabase() {
                     <div className="col-md-12 d-flex flex-column">
                       {isInspectionComplete && !showExecutionScheduleCard && editModal.order.status !== 'Cancelled' && editModal.order.status !== 'Completed' && (
                         <div className="order-1">
-                          <h6 className="fw-bold text-success mb-3"><i className="fas fa-truck-loading me-2"></i>Service Execution Scheduling</h6>
+                          <label className="form-label fw-bold small text-muted mb-2">Service Execution Scheduling</label>
                           <div className="card shadow-sm border-info border-opacity-25 mb-4" style={{ backgroundColor: '#f0f9ff' }}>
                             <div className="card-body">
                               <div className="d-flex align-items-start gap-2">
@@ -1400,10 +1595,10 @@ function OrderDatabase() {
                       )}
 
                       <div className={isInspectionComplete ? 'order-2' : 'order-1'}>
-                        <div className="d-flex align-items-center justify-content-between mb-3">
-                          <h6 className={`fw-bold mb-0 ${isInspectionComplete ? 'text-secondary' : 'text-primary'}`}>
-                            <i className="fas fa-search me-2"></i>Inspection Scheduling
-                          </h6>
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                          <label className="form-label fw-bold small text-muted mb-0">
+                            Inspection Scheduling
+                          </label>
                           {isInspectionComplete && (
                             <span className="badge rounded-pill" style={{ backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>
                               <i className="fas fa-check-circle me-1"></i>Inspection Completed
@@ -1464,11 +1659,11 @@ function OrderDatabase() {
 
                       {showExecutionScheduleCard && (
                         <div className={isInspectionComplete ? 'order-1' : 'order-2'}>
-                          <h6 className="fw-bold text-success mb-3"><i className="fas fa-truck-loading me-2"></i>Service Execution Scheduling</h6>
+                          <label className="form-label fw-bold small text-muted mb-2">Service Execution Scheduling</label>
                           <div className="card shadow-sm border-success border-opacity-25 mb-4" style={{ backgroundColor: '#f0fdf4' }}>
                             <div className="card-body">
                               <div className="form-group mb-3">
-                                <label className="form-label fw-bold small text-secondary">Service Execution Date</label>
+                                <label className="form-label fw-bold small text-muted">Service Execution Date</label>
                                 <input 
                                   type="date" 
                                   className="form-control shadow-sm" 
@@ -1478,7 +1673,7 @@ function OrderDatabase() {
                                 <small className="text-muted mt-1 d-block">Auto-confirmed by client</small>
                               </div>
                               <div className="form-group mb-3">
-                                <label className="form-label fw-bold small text-secondary">Service Execution Time Slot</label>
+                                <label className="form-label fw-bold small text-muted">Service Execution Time Slot</label>
                                 <input 
                                   type="text" 
                                   className="form-control shadow-sm" 
@@ -1489,7 +1684,7 @@ function OrderDatabase() {
                               {isHighCapacityOrder ? (
                                 <div className="form-group mb-0">
                                   <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                                    <label className="form-label fw-bold small text-secondary mb-0">
+                                    <label className="form-label fw-bold small text-muted mb-0">
                                       Assign 2 Vacuum Trucks <span className="badge bg-danger ms-1">Whole-Day (5+ Trips)</span>
                                     </label>
                                     {selectedHighCapTrucks.length === 2 ? (
@@ -1532,8 +1727,13 @@ function OrderDatabase() {
                                         return (
                                           <div 
                                             key={(typeof team === 'object' && team.id) || idx}
-                                            className={`d-flex align-items-center justify-content-between p-2 px-3 rounded border ${isChecked ? 'bg-success bg-opacity-10 border-success' : 'border-light-subtle'}`}
-                                            style={{ opacity: (!isAvailable || (conflict && !isChecked)) ? 0.6 : 1 }}
+                                            className="d-flex align-items-center justify-content-between p-2 px-3 rounded"
+                                            style={{
+                                              backgroundColor: isChecked ? '#f0fdf4' : '#f8fafc',
+                                              border: isChecked ? '1.5px solid #86efac' : '1px solid #e2e8f0',
+                                              opacity: (!isAvailable || (conflict && !isChecked)) ? 0.6 : 1,
+                                              transition: 'all 0.15s ease'
+                                            }}
                                           >
                                             <div className="form-check mb-0 d-flex align-items-center">
                                               <input
@@ -1543,14 +1743,28 @@ function OrderDatabase() {
                                                 checked={isChecked}
                                                 disabled={!isSelectable}
                                                 onChange={() => handleToggleHighCapacityTruck(teamName)}
-                                                style={{ cursor: isSelectable ? 'pointer' : 'not-allowed' }}
+                                                style={{ cursor: isSelectable ? 'pointer' : 'not-allowed', accentColor: '#0D8D1E' }}
                                               />
-                                              <label className="form-check-label fw-bold text-dark mb-0" htmlFor={`truck-team-cb-${idx}`} style={{ cursor: isSelectable ? 'pointer' : 'not-allowed' }}>
-                                                <i className="fas fa-truck me-2 text-success"></i>
+                                              <label
+                                                className="form-check-label fw-bold mb-0"
+                                                htmlFor={`truck-team-cb-${idx}`}
+                                                style={{
+                                                  cursor: isSelectable ? 'pointer' : 'not-allowed',
+                                                  color: isChecked ? '#166534' : '#334155'
+                                                }}
+                                              >
+                                                <i className="fas fa-truck me-2" style={{ color: isChecked ? '#0D8D1E' : '#64748b' }}></i>
                                                 {teamName}
                                               </label>
                                             </div>
-                                            <span className={`badge ${conflict ? 'bg-warning text-dark' : isAvailable ? (isChecked ? 'bg-success' : 'bg-secondary') : 'bg-danger'}`} style={{ fontSize: '0.72rem' }}>
+                                            <span
+                                              className={`badge rounded-pill ${conflict ? 'bg-warning text-dark' : !isAvailable ? 'bg-danger' : !isChecked ? 'bg-secondary' : ''}`}
+                                              style={
+                                                !conflict && isAvailable && isChecked
+                                                  ? { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.72rem' }
+                                                  : { fontSize: '0.72rem' }
+                                              }
+                                            >
                                               {conflict ? `Booked (#${conflict.orderId}, ${conflict.slot})` : !isAvailable ? 'Unavailable (Maintenance)' : isChecked ? 'Assigned' : 'Available'}
                                             </span>
                                           </div>
@@ -1589,7 +1803,7 @@ function OrderDatabase() {
                                 </div>
                               ) : (
                                 <div className="form-group mb-0">
-                                  <label className="form-label fw-bold small text-secondary">Assign Truck Team</label>
+                                  <label className="form-label fw-bold small text-muted">Assign Truck Team</label>
                                   <select 
                                     name="truck_team"
                                     className="form-select shadow-sm border-success"
@@ -1640,6 +1854,11 @@ function OrderDatabase() {
                 {activeTab === 'documents' && (
                   <div className="row">
                     <div className="col-md-12 d-flex flex-column">
+                      <div className="alert alert-info border-0 shadow-sm p-3 mb-4 small">
+                        <i className="fas fa-info-circle me-2"></i>
+                        Uploaded documents will be immediately visible on the client's dashboard under this order.
+                      </div>
+
                       <div className="form-group mb-4">
                         <label className="form-label fw-bold small text-muted">Upload Service Report / Invoice</label>
                         <input 
@@ -1655,11 +1874,6 @@ function OrderDatabase() {
                             </a>
                           </div>
                         )}
-                      </div>
-                      
-                      <div className="alert alert-info mt-4 small border-0 shadow-sm">
-                        <i className="fas fa-info-circle me-2"></i>
-                        Uploaded documents will be immediately visible on the client's dashboard under this order.
                       </div>
                     </div>
                   </div>

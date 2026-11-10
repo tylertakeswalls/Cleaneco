@@ -32,9 +32,30 @@ function AdminUsers() {
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const filterBarRef = useRef(null);
   const [isSubAdminModalOpen, setIsSubAdminModalOpen] = useState(false);
   const [subAdminForm, setSubAdminForm] = useState(emptySubAdminForm);
   const [isCreatingSubAdmin, setIsCreatingSubAdmin] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterBarRef.current && !filterBarRef.current.contains(event.target)) {
+        setOpenDropdown(null);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
 
 
@@ -327,56 +348,142 @@ function AdminUsers() {
             </div>
           </div>
 
-          <div className="filters-container mb-3 d-flex gap-3 align-items-center flex-wrap">
-            <input
-              type="text"
-              className="form-control m-0"
-              style={{ width: '250px', height: '52px' }}
-              maxLength={100}
-              placeholder="Search user, name, email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value.slice(0, 100))}
-            />
-            <select
-              className="form-select m-0"
-              style={{ width: '180px', height: '52px' }}
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-            >
-              <option value="">All Roles</option>
-              <option value="client">Client</option>
-              <option value="admin">Admin</option>
-            </select>
-            <select
-              className="form-select m-0"
-              style={{ width: '180px', height: '52px' }}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <button
-              className="btn btn-secondary m-0 d-flex align-items-center justify-content-center"
-              style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }}
-              onClick={() => { setSearchQuery(''); setFilterRole(''); setFilterStatus(''); }}
-            >
-              Clear Filters
-            </button>
-            <div className="d-flex align-items-center gap-2 ms-auto flex-wrap">
+          <div className="admin-filter-toolbar">
+            <div className="client-filter-bar" ref={filterBarRef} role="search" aria-label="Filter registered users">
+              {/* Search Segment */}
+              <div className="client-filter-segment client-filter-segment--search">
+                <i className="fas fa-search client-filter-icon" aria-hidden="true"></i>
+                <input
+                  type="text"
+                  className="form-control client-filter-input"
+                  maxLength={100}
+                  placeholder="Search user, name, or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value.slice(0, 100))}
+                  onFocus={() => setOpenDropdown(null)}
+                  aria-label="Search registered users"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="btn btn-link p-0 text-muted"
+                    style={{ fontSize: '0.85rem', lineHeight: 1 }}
+                    title="Clear search text"
+                    aria-label="Clear search text"
+                  >
+                    <i className="fas fa-times-circle"></i>
+                  </button>
+                )}
+              </div>
+
+              {/* Role Dropdown Segment */}
+              <div className="client-filter-segment client-filter-segment--select">
+                <button
+                  type="button"
+                  className="client-filter-dropdown-trigger"
+                  onClick={() => setOpenDropdown(openDropdown === 'role' ? null : 'role')}
+                  aria-expanded={openDropdown === 'role'}
+                  aria-haspopup="listbox"
+                >
+                  <span className="d-flex align-items-center gap-2 text-truncate">
+                    <i className="fas fa-user-tag client-filter-icon" aria-hidden="true"></i>
+                    <span className="text-truncate">
+                      {filterRole === 'client' ? 'Client' : filterRole === 'admin' ? 'Admin' : 'All Roles'}
+                    </span>
+                  </span>
+                  <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'role' ? 'open' : ''}`} aria-hidden="true"></i>
+                </button>
+                {openDropdown === 'role' && (
+                  <ul className="client-filter-dropdown-menu" role="listbox" aria-label="Filter by role">
+                    {[
+                      { value: '', label: 'All Roles' },
+                      { value: 'client', label: 'Client' },
+                      { value: 'admin', label: 'Admin' }
+                    ].map((opt) => (
+                      <li key={opt.value || 'all'}>
+                        <button
+                          type="button"
+                          className={`client-filter-dropdown-item ${filterRole === opt.value ? 'active' : ''}`}
+                          onClick={() => { setFilterRole(opt.value); setOpenDropdown(null); }}
+                        >
+                          <span>{opt.label}</span>
+                          {filterRole === opt.value && <i className="fas fa-check small"></i>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Status Dropdown Segment */}
+              <div className="client-filter-segment client-filter-segment--select">
+                <button
+                  type="button"
+                  className="client-filter-dropdown-trigger"
+                  onClick={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
+                  aria-expanded={openDropdown === 'status'}
+                  aria-haspopup="listbox"
+                >
+                  <span className="d-flex align-items-center gap-2 text-truncate">
+                    <i className="fas fa-filter client-filter-icon" aria-hidden="true"></i>
+                    <span className="text-truncate">
+                      {filterStatus === 'active' ? 'Active' : filterStatus === 'inactive' ? 'Inactive' : 'All Statuses'}
+                    </span>
+                  </span>
+                  <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'status' ? 'open' : ''}`} aria-hidden="true"></i>
+                </button>
+                {openDropdown === 'status' && (
+                  <ul className="client-filter-dropdown-menu" role="listbox" aria-label="Filter by status">
+                    {[
+                      { value: '', label: 'All Statuses' },
+                      { value: 'active', label: 'Active' },
+                      { value: 'inactive', label: 'Inactive' }
+                    ].map((opt) => (
+                      <li key={opt.value || 'all'}>
+                        <button
+                          type="button"
+                          className={`client-filter-dropdown-item ${filterStatus === opt.value ? 'active' : ''}`}
+                          onClick={() => { setFilterStatus(opt.value); setOpenDropdown(null); }}
+                        >
+                          <span>{opt.label}</span>
+                          {filterStatus === opt.value && <i className="fas fa-check small"></i>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Contextual Reset Segment */}
+              {(searchQuery || filterRole || filterStatus) && (
+                <button
+                  type="button"
+                  className="client-filter-clear-btn"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterRole('');
+                    setFilterStatus('');
+                    setOpenDropdown(null);
+                  }}
+                >
+                  <i className="fas fa-undo-alt"></i>
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+
+            <div className="admin-toolbar-actions">
               <button
                 type="button"
-                className="btn btn-primary m-0 d-flex align-items-center justify-content-center"
-                style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }}
+                className="btn admin-toolbar-btn"
                 onClick={openSubAdminModal}
               >
                 <i className="fas fa-user-plus me-2"></i> Add Sub-Admin
               </button>
               <button 
                 type="button"
-                className="btn btn-primary m-0 d-flex align-items-center justify-content-center" 
-                style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
+                className="btn admin-toolbar-btn" 
                 onClick={handleDownloadUsersReport}
               >
                 <i className="fas fa-file-pdf me-2"></i> Download Report

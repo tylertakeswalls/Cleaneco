@@ -247,11 +247,39 @@ export default function AdminCalendar({ orders = [] }) {
                                                 {o.truck_team && <span>{o.truck_team}</span>}
                                             </div>
                                         )}
-                                        {o.order_id && (
-                                            <div className="text-success small mt-2 text-end fw-semibold">
-                                                {isSubAdmin ? "View Order" : "Manage Order"} <i className="fas fa-chevron-right ms-1" style={{ fontSize: "0.65rem" }}></i>
+                                        {o.address && (
+                                            <div className="text-muted small text-truncate mt-1" title={o.address}>
+                                                {o.address}
                                             </div>
                                         )}
+                                        <div className="d-flex justify-content-between align-items-center mt-2 pt-1">
+                                            {o.address ? (
+                                                <a
+                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="d-inline-flex align-items-center gap-1 text-decoration-none fw-semibold"
+                                                    style={{
+                                                        fontSize: "0.72rem",
+                                                        color: "#0D8D1E",
+                                                        backgroundColor: "rgba(13, 141, 30, 0.08)",
+                                                        border: "1px solid rgba(13, 141, 30, 0.22)",
+                                                        borderRadius: "999px",
+                                                        padding: "2px 8px"
+                                                    }}
+                                                    title={`Open "${o.address}" in Google Maps`}
+                                                >
+                                                    <span>Open in Maps</span>
+                                                    <i className="fas fa-external-link-alt" style={{ fontSize: "0.58rem", opacity: 0.75 }}></i>
+                                                </a>
+                                            ) : <span />}
+                                            {o.order_id && (
+                                                <div className="text-success small fw-semibold">
+                                                    {isSubAdmin ? "View Order" : "Manage Order"} <i className="fas fa-chevron-right ms-1" style={{ fontSize: "0.65rem" }}></i>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>

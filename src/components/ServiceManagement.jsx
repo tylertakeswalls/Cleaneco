@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../api/api';
 import '../assets/styles/servicemanagement.css';
@@ -31,6 +31,28 @@ function ServiceManagement() {
 
     const [filterName, setFilterName] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [openDropdown, setOpenDropdown] = useState(null);
+    const filterBarRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (filterBarRef.current && !filterBarRef.current.contains(event.target)) {
+                setOpenDropdown(null);
+            }
+        };
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                setOpenDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
 
     const showAlert = (title, message, type = 'info') => {
         setModalConfig({ isOpen: true, title, message, type });
@@ -351,7 +373,12 @@ function ServiceManagement() {
     const filteredServices = services.filter(service => {
         const matchName = filterName === '' || service.name === filterName;
         const matchStatus = filterStatus === '' || service.status === filterStatus;
-        return matchName && matchStatus;
+        const q = searchQuery.trim().toLowerCase();
+        const matchSearch = !q ||
+            String(service.name || '').toLowerCase().includes(q) ||
+            String(service.description || '').toLowerCase().includes(q) ||
+            String(service.id || service._id || '').toLowerCase().includes(q);
+        return matchName && matchStatus && matchSearch;
     });
 
     const totalServicesCount = services.length;
@@ -457,40 +484,139 @@ function ServiceManagement() {
                             </div>
                         </div>
 
-                        <div className="filters-container mb-3 d-flex gap-3 align-items-center flex-wrap">
-                            <select
-                                className="form-select m-0"
-                                style={{ width: '250px', height: '52px' }}
-                                value={filterName}
-                                onChange={(e) => setFilterName(e.target.value)}
-                            >
-                                <option value="">Filter by Service Name</option>
-                                {uniqueServiceNames.map(name => (
-                                    <option key={name} value={name}>{name}</option>
-                                ))}
-                            </select>
-                            <select
-                                className="form-select m-0"
-                                style={{ width: '200px', height: '52px' }}
-                                value={filterStatus}
-                                onChange={(e) => setFilterStatus(e.target.value)}
-                            >
-                                <option value="">All Statuses</option>
-                                <option value="available">Available</option>
-                                <option value="unavailable">Unavailable</option>
-                            </select>
-                            <button
-                                className="btn btn-secondary m-0 d-flex align-items-center justify-content-center"
-                                style={{ borderRadius: '10px', padding: '0 20px', height: '52px' }}
-                                onClick={() => { setFilterName(''); setFilterStatus(''); }}
-                            >
-                                Clear Filters
-                            </button>
-                            <div className="d-flex align-items-center gap-2 ms-auto flex-wrap">
+                        <div className="admin-filter-toolbar">
+                            <div className="client-filter-bar" ref={filterBarRef} role="search" aria-label="Filter services">
+                                {/* Search Segment */}
+                                <div className="client-filter-segment client-filter-segment--search">
+                                    <i className="fas fa-search client-filter-icon" aria-hidden="true"></i>
+                                    <input
+                                        type="text"
+                                        className="form-control client-filter-input"
+                                        maxLength={100}
+                                        placeholder="Search service name, description, or ID..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value.slice(0, 100))}
+                                        onFocus={() => setOpenDropdown(null)}
+                                        aria-label="Search services"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSearchQuery('')}
+                                            className="btn btn-link p-0 text-muted"
+                                            style={{ fontSize: '0.85rem', lineHeight: 1 }}
+                                            title="Clear search text"
+                                            aria-label="Clear search text"
+                                        >
+                                            <i className="fas fa-times-circle"></i>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Service Name Dropdown Segment */}
+                                <div className="client-filter-segment client-filter-segment--select">
+                                    <button
+                                        type="button"
+                                        className="client-filter-dropdown-trigger"
+                                        onClick={() => setOpenDropdown(openDropdown === 'service' ? null : 'service')}
+                                        aria-expanded={openDropdown === 'service'}
+                                        aria-haspopup="listbox"
+                                    >
+                                        <span className="d-flex align-items-center gap-2 text-truncate">
+                                            <i className="fas fa-concierge-bell client-filter-icon" aria-hidden="true"></i>
+                                            <span className="text-truncate">{filterName || 'All Services'}</span>
+                                        </span>
+                                        <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'service' ? 'open' : ''}`} aria-hidden="true"></i>
+                                    </button>
+                                    {openDropdown === 'service' && (
+                                        <ul className="client-filter-dropdown-menu" role="listbox" aria-label="Filter by service name">
+                                            <li>
+                                                <button
+                                                    type="button"
+                                                    className={`client-filter-dropdown-item ${filterName === '' ? 'active' : ''}`}
+                                                    onClick={() => { setFilterName(''); setOpenDropdown(null); }}
+                                                >
+                                                    <span>All Services</span>
+                                                    {filterName === '' && <i className="fas fa-check small"></i>}
+                                                </button>
+                                            </li>
+                                            {uniqueServiceNames.map((name) => (
+                                                <li key={name}>
+                                                    <button
+                                                        type="button"
+                                                        className={`client-filter-dropdown-item ${filterName === name ? 'active' : ''}`}
+                                                        onClick={() => { setFilterName(name); setOpenDropdown(null); }}
+                                                    >
+                                                        <span>{name}</span>
+                                                        {filterName === name && <i className="fas fa-check small"></i>}
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                {/* Status Dropdown Segment */}
+                                <div className="client-filter-segment client-filter-segment--select">
+                                    <button
+                                        type="button"
+                                        className="client-filter-dropdown-trigger"
+                                        onClick={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
+                                        aria-expanded={openDropdown === 'status'}
+                                        aria-haspopup="listbox"
+                                    >
+                                        <span className="d-flex align-items-center gap-2 text-truncate">
+                                            <i className="fas fa-filter client-filter-icon" aria-hidden="true"></i>
+                                            <span className="text-truncate">
+                                                {filterStatus === 'available' ? 'Available' : filterStatus === 'unavailable' ? 'Unavailable' : 'All Statuses'}
+                                            </span>
+                                        </span>
+                                        <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'status' ? 'open' : ''}`} aria-hidden="true"></i>
+                                    </button>
+                                    {openDropdown === 'status' && (
+                                        <ul className="client-filter-dropdown-menu" role="listbox" aria-label="Filter by status">
+                                            {[
+                                                { value: '', label: 'All Statuses' },
+                                                { value: 'available', label: 'Available' },
+                                                { value: 'unavailable', label: 'Unavailable' }
+                                            ].map((opt) => (
+                                                <li key={opt.value || 'all'}>
+                                                    <button
+                                                        type="button"
+                                                        className={`client-filter-dropdown-item ${filterStatus === opt.value ? 'active' : ''}`}
+                                                        onClick={() => { setFilterStatus(opt.value); setOpenDropdown(null); }}
+                                                    >
+                                                        <span>{opt.label}</span>
+                                                        {filterStatus === opt.value && <i className="fas fa-check small"></i>}
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                {/* Contextual Reset Segment */}
+                                {(searchQuery || filterName || filterStatus) && (
+                                    <button
+                                        type="button"
+                                        className="client-filter-clear-btn"
+                                        onClick={() => {
+                                            setSearchQuery('');
+                                            setFilterName('');
+                                            setFilterStatus('');
+                                            setOpenDropdown(null);
+                                        }}
+                                    >
+                                        <i className="fas fa-undo-alt"></i>
+                                        <span>Reset</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="admin-toolbar-actions">
                                 <button
                                     type="button"
-                                    className="btn btn-primary m-0 d-flex align-items-center justify-content-center"
-                                    style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }}
+                                    className="btn admin-toolbar-btn"
                                     onClick={() => handleGenerateInspectionList()}
                                     title="Generate and download real-time PDF inspection checklist of service factors"
                                 >
@@ -499,8 +625,7 @@ function ServiceManagement() {
                                 {!isSubAdmin && (
                                     <button 
                                         type="button"
-                                        className="btn btn-primary m-0 d-flex align-items-center justify-content-center" 
-                                        style={{ borderRadius: '10px', padding: '0 20px', height: '52px', background: '#0D8D1E', border: 'none' }} 
+                                        className="btn admin-toolbar-btn" 
                                         onClick={openAddModal}
                                     >
                                         <i className="fas fa-plus me-2"></i> Add New Service

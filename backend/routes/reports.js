@@ -268,10 +268,10 @@ router.get('/generate', async (req, res) => {
   }
 });
 
-// GET /api/reports/inspection-list?serviceId=<optional>&status=<optional>
+// GET /api/reports/inspection-list?serviceId=<optional>&status=<optional>&orderId=<optional>
 router.get('/inspection-list', async (req, res) => {
   try {
-    const { serviceId, name, status } = req.query;
+    const { serviceId, name, status, orderId } = req.query;
     const query = {};
     if (serviceId) {
       query._id = serviceId;
@@ -283,17 +283,68 @@ router.get('/inspection-list', async (req, res) => {
       query.status = status;
     }
 
-    const services = await Service.find(query).sort({ created_at: 1, _id: 1 }).lean();
+    let orderDocs = [];
+    let primaryOrder = null;
+    if (orderId) {
+      orderDocs = await Order.find({ order_id: String(orderId).trim() })
+        .populate('user_id', 'first_name middle_name last_name companyName clientType phone email address')
+        .sort({ created_at: 1, _id: 1 })
+        .lean();
+      if (orderDocs.length > 0) {
+        primaryOrder = orderDocs[0];
+        const bookedServiceIds = orderDocs
+          .map(o => o.service_id)
+          .filter(Boolean)
+          .map(id => String(id));
+        const bookedServiceNames = orderDocs
+          .map(o => o.service_name || o.service_type)
+          .filter(Boolean);
+
+        const orFilters = [];
+        if (bookedServiceIds.length > 0) {
+          orFilters.push({ _id: { $in: bookedServiceIds } });
+        }
+        if (bookedServiceNames.length > 0) {
+          orFilters.push({ name: { $in: bookedServiceNames } });
+        }
+        if (orFilters.length > 0) {
+          query.$or = orFilters;
+        }
+      }
+    }
+
+    let services = await Service.find(query).sort({ created_at: 1, _id: 1 }).lean();
+    if (orderId && services.length === 0 && orderDocs.length > 0) {
+      services = orderDocs.map((o, idx) => ({
+        _id: o.service_id || `order_srv_${idx}`,
+        name: o.service_name || o.service_type || 'Requested Service',
+        description: '',
+        fields: []
+      }));
+    }
     const now = new Date();
+
+    const formatOrderRef = (rawId) => {
+      if (!rawId) return '';
+      const str = String(rawId).trim();
+      if (/^CLN-\d{4}-\d{4}$/i.test(str)) return str.toUpperCase();
+      const digits = str.replace(/\D/g, '');
+      if (digits.length >= 4) {
+        return `CLN-${now.getFullYear()}-${digits.slice(-4)}`;
+      }
+      return str;
+    };
 
     const doc = new PDFDocument({
       size: 'LETTER',
       margins: { top: 45, bottom: 55, left: 72, right: 72 }
     });
 
-    const safeFileSuffix = services.length === 1
-      ? services[0].name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
-      : `All_Services_${now.getFullYear()}`;
+    const safeFileSuffix = primaryOrder
+      ? `Order_${formatOrderRef(primaryOrder.order_id)}`
+      : (services.length === 1
+        ? services[0].name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+        : `All_Services_${now.getFullYear()}`);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename=Cleaneco_Inspection_Report_List_${safeFileSuffix}.pdf`);
@@ -303,9 +354,9 @@ router.get('/inspection-list', async (req, res) => {
     const headerPath = path.join(__dirname, '../../public/header.png');
     const leftMargin = 72;
     const contentWidth = 468; // 612 - 72 - 72
-    const pageBottomLimit = 720;
+    const pageBottomLimit = 742;
 
-    const ensureSpace = (neededHeight = 60) => {
+    const ensureSpace = (neededHeight = 50) => {
       if (doc.y + neededHeight > pageBottomLimit) {
         doc.addPage();
       }
@@ -313,17 +364,17 @@ router.get('/inspection-list', async (req, res) => {
 
     // -- HEADER IMAGE (Matches sample PDF reference) --
     try {
-      doc.image(headerPath, 55, 35, { width: 502 });
+      doc.image(headerPath, 55, 32, { width: 502 });
     } catch (err) {
       console.warn('header.png not found at ' + headerPath);
     }
 
-    doc.y = 115;
+    doc.y = primaryOrder ? 108 : 115;
 
     // -- SUB-HEADER COMPANY BLOCK --
     const headerFont = 'Helvetica-Bold';
     doc.font(headerFont).fontSize(10.5).fillColor('#7F7F7F').text('CLEANECO WASTE MANAGEMENT SERVICES', leftMargin, doc.y, { align: 'left' });
-    doc.moveDown(0.55);
+    doc.moveDown(0.4);
     doc.font(headerFont).fontSize(9).fillColor('#0D8D1E');
     doc.text('Blk 12 Lot 2 and 4 Royal Salute Street, Addas Greenfields, Brgy. Mambog IV, Bacoor City, Cavite', leftMargin);
     doc.text('Tel. Nos.: (046) 477-0354 • 09173044157', leftMargin);
@@ -331,17 +382,140 @@ router.get('/inspection-list', async (req, res) => {
     doc.text('Website: www.cwms.com.ph', leftMargin);
 
     doc.fillColor('#000000');
-    doc.moveDown(1.6);
+    doc.moveDown(primaryOrder ? 0.85 : 1.6);
 
     // -- DATE & SUBJECT --
     const dateStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
     doc.font('Times-Roman').fontSize(10.5).text(`Date: ${dateStr}`, leftMargin);
-    doc.moveDown(0.8);
-    doc.font('Times-Bold').fontSize(10.5).text('SUBJECT: On-Site Service Inspection & Assessment', leftMargin);
+    doc.moveDown(primaryOrder ? 0.35 : 0.6);
+    const subjectLine = primaryOrder
+      ? `SUBJECT: On-Site Service Inspection & Assessment (Order #${formatOrderRef(primaryOrder.order_id)})`
+      : 'SUBJECT: On-Site Service Inspection & Assessment';
+    doc.font('Times-Bold').fontSize(10.5).text(subjectLine, leftMargin);
 
-    doc.moveDown(1.4);
+    if (primaryOrder) {
+      const userObj = (primaryOrder.user_id && typeof primaryOrder.user_id === 'object') ? primaryOrder.user_id : {};
+      const clientTypeRaw = String(userObj.clientType || primaryOrder.client_type || 'residential').toLowerCase();
+      const isBizOrder = ['commercial', 'industrial'].includes(clientTypeRaw);
+      const clientTypeLabel = clientTypeRaw.charAt(0).toUpperCase() + clientTypeRaw.slice(1);
+      const fullName = [
+        primaryOrder.first_name || userObj.first_name || '',
+        primaryOrder.middle_name || userObj.middle_name || '',
+        primaryOrder.last_name || userObj.last_name || ''
+      ].filter(Boolean).join(' ').trim() || 'Client';
+      const companyName = (userObj.companyName || primaryOrder.company_name || '').trim();
+      const clientDisplay = isBizOrder && companyName && !fullName.toLowerCase().includes(companyName.toLowerCase())
+        ? `${fullName} (${companyName})`
+        : fullName;
+      const phoneDisplay = primaryOrder.phone || userObj.phone || 'N/A';
+      const inspDateRaw = primaryOrder.confirmed_date || primaryOrder.date || '';
+      const inspDateFormatted = inspDateRaw ? new Date(inspDateRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'TBD';
+      const inspSlot = primaryOrder.confirmed_time_slot || primaryOrder.time_slot || '';
+      const crewDisplay = primaryOrder.truck_team || 'Pending Assignment';
+
+      const locations = (Array.isArray(primaryOrder.households) && primaryOrder.households.length > 0)
+        ? primaryOrder.households
+        : ((primaryOrder.address || userObj.address)
+          ? [{ name: clientDisplay, address: primaryOrder.address || userObj.address }]
+          : []);
+
+      doc.moveDown(0.45);
+      doc.font('Times-Bold').fontSize(9.5).fillColor('#000000')
+        .text(`Client / Account (${clientTypeLabel}): `, leftMargin, doc.y, { continued: true })
+        .font('Times-Roman').text(`${clientDisplay}   |   `, { continued: true })
+        .font('Times-Bold').text('Contact: ', { continued: true })
+        .font('Times-Roman').text(phoneDisplay);
+
+      doc.font('Times-Bold').fontSize(9.5)
+        .text('Inspection Schedule: ', leftMargin, doc.y + 1, { continued: true })
+        .font('Times-Roman').text(`${inspDateFormatted}${inspSlot ? ` (${inspSlot})` : ''}   |   `, { continued: true })
+        .font('Times-Bold').text('Assigned Crew: ', { continued: true })
+        .font('Times-Roman').text(crewDisplay);
+
+      if (primaryOrder.landmark) {
+        doc.font('Times-Bold').fontSize(9.2)
+          .text('Nearest Landmark: ', leftMargin, doc.y + 1, { continued: true })
+          .font('Times-Roman').text(String(primaryOrder.landmark));
+      }
+
+      if (primaryOrder.notes) {
+        doc.font('Times-Bold').fontSize(9.2)
+          .text('Client Notes: ', leftMargin, doc.y + 1, { continued: true })
+          .font('Times-Roman').text(String(primaryOrder.notes), { width: contentWidth });
+      }
+
+      if (locations.length > 0) {
+        doc.moveDown(0.35);
+        const col1W = 24;
+        const col2W = 144;
+        const col3W = contentWidth - col1W - col2W; // 300
+        const tableStartY = doc.y;
+        const headerRowH = 16;
+
+        // Table Header Fill
+        doc.save()
+          .rect(leftMargin, tableStartY, contentWidth, headerRowH)
+          .fill('#F0F0F0')
+          .restore();
+
+        doc.font('Times-Bold').fontSize(9).fillColor('#000000');
+        doc.text('#', leftMargin, tableStartY + 4, { width: col1W, align: 'center' });
+        doc.text(isBizOrder ? 'Building / Contact' : 'Household / Contact', leftMargin + col1W + 6, tableStartY + 4, { width: col2W - 10, align: 'left' });
+        doc.text('Service Address', leftMargin + col1W + col2W + 6, tableStartY + 4, { width: col3W - 10, align: 'left' });
+
+        let curRowY = tableStartY + headerRowH;
+        const rowBordersY = [curRowY];
+
+        locations.forEach((loc, idx) => {
+          const rawLocName = loc.name || clientDisplay;
+          const locName = (idx === 0 && isBizOrder && companyName && !rawLocName.toLowerCase().includes(companyName.toLowerCase()))
+            ? `${rawLocName} (${companyName})`
+            : rawLocName;
+          const roleTag = idx === 0 ? (isBizOrder ? ' (Primary)' : ' (Lead)') : '';
+          const fullCol2Text = `${locName}${roleTag}`;
+          const fullCol3Text = loc.address || 'N/A';
+
+          doc.font('Times-Roman').fontSize(8.8);
+          const nameH = doc.heightOfString(fullCol2Text, { width: col2W - 12 });
+          const addrH = doc.heightOfString(fullCol3Text, { width: col3W - 12 });
+          const rowH = Math.max(nameH, addrH, 11) + 7;
+
+          doc.font('Times-Bold').fontSize(8.8).fillColor('#000000')
+            .text(String(idx + 1), leftMargin, curRowY + 3.5, { width: col1W, align: 'center' });
+          doc.font('Times-Roman').fontSize(8.8)
+            .text(fullCol2Text, leftMargin + col1W + 6, curRowY + 3.5, { width: col2W - 12, align: 'left' });
+          doc.font('Times-Roman').fontSize(8.8)
+            .text(fullCol3Text, leftMargin + col1W + col2W + 6, curRowY + 3.5, { width: col3W - 12, align: 'left' });
+
+          curRowY += rowH;
+          rowBordersY.push(curRowY);
+        });
+
+        // Single-pass crisp table borders
+        const totalTableH = curRowY - tableStartY;
+        doc.save()
+          .lineWidth(0.65)
+          .strokeColor('#000000')
+          .rect(leftMargin, tableStartY, contentWidth, totalTableH);
+        rowBordersY.slice(0, -1).forEach((yPos) => {
+          doc.moveTo(leftMargin, yPos).lineTo(leftMargin + contentWidth, yPos);
+        });
+        doc.moveTo(leftMargin + col1W, tableStartY).lineTo(leftMargin + col1W, curRowY)
+          .moveTo(leftMargin + col1W + col2W, tableStartY).lineTo(leftMargin + col1W + col2W, curRowY)
+          .stroke()
+          .restore();
+
+        doc.x = leftMargin;
+        doc.y = curRowY + 9;
+      } else {
+        doc.moveDown(0.7);
+      }
+    } else {
+      doc.moveDown(1.4);
+    }
 
     const rightEdge = leftMargin + contentWidth; // 540
+    const lineStep = primaryOrder ? 13.5 : 16;
 
     // Draws a label followed by crisp horizontal line(s) extending uniformly to rightEdge
     const drawFillLine = (label, x = leftMargin, fontName = 'Times-Roman', fontSize = 10.5, linesCount = 1) => {
@@ -361,7 +535,7 @@ router.get('/inspection-list', async (req, res) => {
           .restore();
       }
       for (let i = 1; i < linesCount; i++) {
-        baselineY += 16;
+        baselineY += lineStep;
         doc.save()
           .strokeColor('#000000')
           .lineWidth(0.6)
@@ -371,12 +545,12 @@ router.get('/inspection-list', async (req, res) => {
           .restore();
       }
       doc.x = leftMargin;
-      doc.y = baselineY + 6;
+      doc.y = baselineY + (primaryOrder ? 4.5 : 6);
     };
 
     // Draws a clean horizontal divider line between factors/sections
     const drawFactorDivider = (xStart = leftMargin) => {
-      const dividerY = doc.y + 5;
+      const dividerY = doc.y + (primaryOrder ? 3.5 : 5);
       doc.save()
         .strokeColor('#CCCCCC')
         .lineWidth(0.6)
@@ -384,7 +558,7 @@ router.get('/inspection-list', async (req, res) => {
         .lineTo(rightEdge, dividerY)
         .stroke()
         .restore();
-      doc.y = dividerY + 11;
+      doc.y = dividerY + (primaryOrder ? 7.5 : 11);
     };
 
     // -- CENTERED DOCUMENT TITLE --
@@ -396,7 +570,7 @@ router.get('/inspection-list', async (req, res) => {
       align: 'center'
     });
 
-    doc.moveDown(1.2);
+    doc.moveDown(primaryOrder ? 0.65 : 1.2);
 
     if (services.length === 0) {
       doc.font('Times-Roman').fontSize(10.5).text('No services matched the selected criteria.', leftMargin, doc.y, {
@@ -412,7 +586,7 @@ router.get('/inspection-list', async (req, res) => {
           align: 'justify',
           lineGap: 1.5
         });
-        doc.moveDown(0.5);
+        doc.moveDown(primaryOrder ? 0.3 : 0.5);
         drawFactorDivider(leftMargin);
       }
 
@@ -430,7 +604,7 @@ router.get('/inspection-list', async (req, res) => {
       } else {
         fields.forEach((field, fIdx) => {
           const options = Array.isArray(field.options) ? field.options : [];
-          ensureSpace(80 + options.length * 18);
+          ensureSpace(52 + options.length * 14);
 
           // Numbered factor heading matching sample PDF ("1.   Factor Name")
           doc.font('Times-Bold').fontSize(10.5).fillColor('#000000').text(
@@ -439,24 +613,24 @@ router.get('/inspection-list', async (req, res) => {
             doc.y,
             { width: contentWidth - 18, align: 'left' }
           );
-          doc.moveDown(0.35);
+          doc.moveDown(primaryOrder ? 0.25 : 0.35);
 
           if (field.type === 'number') {
             drawFillLine('Recorded Quantity / Count:', leftMargin);
-            doc.moveDown(0.2);
+            doc.moveDown(0.15);
             drawFillLine('Inspector Remarks:', leftMargin, 'Times-Roman', 10.5, 2);
           } else if (options.length > 0) {
             options.forEach((opt) => {
-              ensureSpace(20);
+              ensureSpace(16);
               doc.font('Times-Roman').fontSize(10.5).fillColor('#000000').text(
                 `[   ]  ${opt.label}`,
                 leftMargin,
                 doc.y,
                 { width: contentWidth }
               );
-              doc.moveDown(0.15);
+              doc.moveDown(0.12);
             });
-            doc.moveDown(0.2);
+            doc.moveDown(0.15);
             drawFillLine('Inspector Remarks:', leftMargin, 'Times-Roman', 10.5, 2);
           }
 
@@ -466,7 +640,7 @@ router.get('/inspection-list', async (req, res) => {
     } else {
       // All-services layout: numbered services (1., 2., 3.) with clean factor checklists underneath
       services.forEach((service, sIdx) => {
-        ensureSpace(105);
+        ensureSpace(75);
 
         // Indented numbered service title (matching "1.   Services Provided" in sample PDF)
         doc.font('Times-Bold').fontSize(10.5).fillColor('#000000').text(
@@ -483,18 +657,18 @@ router.get('/inspection-list', async (req, res) => {
             align: 'justify',
             lineGap: 1.5
           });
-          doc.moveDown(0.45);
+          doc.moveDown(0.35);
         }
 
         const fields = Array.isArray(service.fields) ? service.fields : [];
         if (fields.length === 0) {
-          ensureSpace(55);
+          ensureSpace(45);
           drawFillLine('Inspector Remarks:', leftMargin + 18, 'Times-Roman', 10.5, 2);
           drawFactorDivider(leftMargin);
         } else {
           fields.forEach((field) => {
             const options = Array.isArray(field.options) ? field.options : [];
-            ensureSpace(75 + options.length * 18);
+            ensureSpace(50 + options.length * 14);
 
             // Clean Factor Heading without formula/pricing jargon
             doc.font('Times-Bold').fontSize(10.5).fillColor('#000000').text(
@@ -503,24 +677,24 @@ router.get('/inspection-list', async (req, res) => {
               doc.y,
               { width: contentWidth - 18, align: 'left' }
             );
-            doc.moveDown(0.25);
+            doc.moveDown(0.2);
 
             if (field.type === 'number') {
               drawFillLine('Recorded Quantity / Count:', leftMargin + 30);
-              doc.moveDown(0.15);
+              doc.moveDown(0.12);
               drawFillLine('Inspector Remarks:', leftMargin + 30, 'Times-Roman', 10.5, 2);
             } else if (options.length > 0) {
               options.forEach((opt) => {
-                ensureSpace(20);
+                ensureSpace(16);
                 doc.font('Times-Roman').fontSize(10.5).fillColor('#000000').text(
                   `[   ]  ${opt.label}`,
                   leftMargin + 30,
                   doc.y,
                   { width: contentWidth - 30 }
                 );
-                doc.moveDown(0.15);
+                doc.moveDown(0.12);
               });
-              doc.moveDown(0.15);
+              doc.moveDown(0.12);
               drawFillLine('Inspector Remarks:', leftMargin + 30, 'Times-Roman', 10.5, 2);
             }
 
@@ -528,20 +702,20 @@ router.get('/inspection-list', async (req, res) => {
           });
         }
 
-        doc.moveDown(0.35);
+        doc.moveDown(0.25);
       });
     }
 
     if (services.length > 0) {
-      ensureSpace(65);
-      doc.moveDown(0.4);
+      ensureSpace(42);
+      doc.moveDown(primaryOrder ? 0.25 : 0.4);
       doc.font('Times-Bold').fontSize(10.5).fillColor('#000000').text(
         'Inspected By (Name & Signature):',
         leftMargin,
         doc.y,
         { width: contentWidth, align: 'left' }
       );
-      doc.moveDown(0.6);
+      doc.moveDown(primaryOrder ? 0.45 : 0.6);
       doc.font('Times-Bold').fontSize(10.5).fillColor('#000000').text(
         'Date:',
         leftMargin,

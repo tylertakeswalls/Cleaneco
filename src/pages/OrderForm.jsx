@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import '../assets/styles/orderform.css';
 import carousel4 from '../assets/styles/images/carousel4.webp';
@@ -55,8 +55,10 @@ function OrderForm() {
     const [households, setHouseholds] = useState([
         { name: '', address: '' }
     ]);
+    const [reorderRef, setReorderRef] = useState('');
 
     const navigate = useNavigate();
+    const location = useLocation();
 
     const showAlert = (title, message, type = 'info') => {
         setModalConfig({ isOpen: true, title, message, type });
@@ -85,10 +87,92 @@ function OrderForm() {
             return;
         }
 
+        // Restore unsubmitted booking draft or "Book Again" prefill from sessionStorage / location.state
+        let parsedDraft = location.state?.reorderDraft || null;
+        if (!parsedDraft) {
+            try {
+                const savedDraft = sessionStorage.getItem('cleaneco_booking_draft_v1');
+                if (savedDraft) {
+                    parsedDraft = JSON.parse(savedDraft);
+                }
+            } catch (err) {
+                console.error('Failed to restore booking draft:', err);
+            }
+        }
+
+        if (parsedDraft) {
+            if (parsedDraft.reorderFromOrderRef) {
+                setReorderRef(parsedDraft.reorderFromOrderRef);
+            }
+            if (parsedDraft.formData) {
+                const draftAddress = parsedDraft.formData.address || '';
+                const draftRegion = parsedDraft.formData.region || '';
+                const detectedFromDraft = detectRegionFromAddress(draftAddress);
+                const finalRegion = (detectedFromDraft === 'CALABARZON' && draftRegion === 'NCR') ? 'CALABARZON' : (draftRegion || detectedFromDraft);
+
+                setFormData(prev => ({
+                    ...prev,
+                    ...parsedDraft.formData,
+                    region: finalRegion || prev.region
+                }));
+            }
+            if (parsedDraft.estimateInputs) {
+                setEstimateInputs(parsedDraft.estimateInputs);
+            }
+            if (parsedDraft.households && Array.isArray(parsedDraft.households) && parsedDraft.households.length > 0) {
+                setHouseholds(parsedDraft.households.slice(0, 3));
+            }
+        }
+
         const fetchServices = async () => {
             try {
                 const response = await api.get('/services');
-                setServices(response.data);
+                const loadedServices = Array.isArray(response.data) ? response.data : [];
+                setServices(loadedServices);
+
+                if (parsedDraft && loadedServices.length > 0) {
+                    const draftIds = Array.isArray(parsedDraft.formData?.service_ids) ? [...parsedDraft.formData.service_ids] : [];
+                    const draftNames = Array.isArray(parsedDraft.service_names) ? parsedDraft.service_names : [];
+                    const normalizedIds = [];
+
+                    draftIds.forEach(dId => {
+                        const match = loadedServices.find(s => String(s.id || s._id) === String(dId));
+                        if (match) {
+                            const canonicalId = match.id || match._id;
+                            if (!normalizedIds.includes(canonicalId)) normalizedIds.push(canonicalId);
+                        }
+                    });
+
+                    draftNames.forEach(dName => {
+                        const match = loadedServices.find(s => String(s.name || '').trim().toLowerCase() === String(dName || '').trim().toLowerCase());
+                        if (match) {
+                            const canonicalId = match.id || match._id;
+                            if (!normalizedIds.includes(canonicalId)) normalizedIds.push(canonicalId);
+                        }
+                    });
+
+                    if (normalizedIds.length > 0) {
+                        setFormData(prev => ({ ...prev, service_ids: normalizedIds }));
+                        setEstimateInputs(prev => {
+                            const nextInputs = { ...prev };
+                            normalizedIds.forEach(sId => {
+                                if (!nextInputs[sId]) {
+                                    const srv = loadedServices.find(s => (s.id || s._id) === sId);
+                                    if (srv && Array.isArray(srv.fields)) {
+                                        const defaults = {};
+                                        srv.fields.forEach(f => {
+                                            if (f.default !== undefined) defaults[f.key] = f.default;
+                                            else if (f.options?.[0]) defaults[f.key] = f.options[0].value;
+                                            else if (f.type === 'number') defaults[f.key] = f.min || 1;
+                                        });
+                                        nextInputs[sId] = defaults;
+                                    }
+                                }
+                            });
+                            return nextInputs;
+                        });
+                    }
+                }
             } catch (error) {
                 console.error('Error fetching services:', error);
                 showAlert("Error", "Failed to load services", "error");
@@ -110,17 +194,24 @@ function OrderForm() {
                         const resolvedAddress = userAddress || formatFullAddress(response.data);
                         const detectedRegion = detectRegionFromAddress(resolvedAddress, userProvince);
 
-                        setFormData(prev => ({
-                            ...prev,
-                            firstName: response.data.first_name || '',
-                            lastName: response.data.last_name || '',
-                            email: response.data.email || userEmail,
-                            phone: formatPhoneNumber(response.data.phone || ''),
-                            address: resolvedAddress,
-                            region: detectedRegion,
-                            clientType: response.data.clientType || 'residential',
-                            companyName: response.data.companyName || ''
-                        }));
+                        setFormData(prev => {
+                            const keepDraftAddress = Boolean(prev.address && prev.address.trim());
+                            const finalAddress = keepDraftAddress ? prev.address : resolvedAddress;
+                            const finalRegion = keepDraftAddress
+                                ? (prev.region || detectRegionFromAddress(prev.address, userProvince))
+                                : detectedRegion;
+                            return {
+                                ...prev,
+                                firstName: response.data.first_name || '',
+                                lastName: response.data.last_name || '',
+                                email: response.data.email || userEmail,
+                                phone: formatPhoneNumber(response.data.phone || ''),
+                                address: finalAddress,
+                                region: finalRegion,
+                                clientType: response.data.clientType || 'residential',
+                                companyName: response.data.companyName || ''
+                            };
+                        });
                         return;
                     }
                 } catch {
@@ -142,35 +233,7 @@ function OrderForm() {
 
         fetchServices();
         fetchUserData();
-
-        // Restore unsubmitted booking draft from sessionStorage if available
-        try {
-            const savedDraft = sessionStorage.getItem('cleaneco_booking_draft_v1');
-            if (savedDraft) {
-                const parsed = JSON.parse(savedDraft);
-                if (parsed.formData) {
-                    const draftAddress = parsed.formData.address || '';
-                    const draftRegion = parsed.formData.region || '';
-                    const detectedFromDraft = detectRegionFromAddress(draftAddress);
-                    const finalRegion = (detectedFromDraft === 'CALABARZON' && draftRegion === 'NCR') ? 'CALABARZON' : (draftRegion || detectedFromDraft);
-
-                    setFormData(prev => ({
-                        ...prev,
-                        ...parsed.formData,
-                        region: finalRegion || prev.region
-                    }));
-                }
-                if (parsed.estimateInputs) {
-                    setEstimateInputs(parsed.estimateInputs);
-                }
-                if (parsed.households && Array.isArray(parsed.households) && parsed.households.length > 0) {
-                    setHouseholds(parsed.households.slice(0, 3));
-                }
-            }
-        } catch (err) {
-            console.error('Failed to restore booking draft:', err);
-        }
-    }, [loggedInUser, navigate, userId, userDob]);
+    }, [loggedInUser, navigate, userId, userDob, location.state]);
 
     // Autosave booking draft in sessionStorage
     useEffect(() => {
@@ -277,7 +340,7 @@ function OrderForm() {
         setHouseholds(prev => {
             const updated = prev && prev.length > 0 ? [...prev] : [{ name: '', address: '' }];
             updated[0] = {
-                name: leadName || updated[0]?.name || '',
+                name: updated[0]?.name || leadName || '',
                 address: leadAddress || updated[0]?.address || ''
             };
             return updated;
@@ -649,6 +712,26 @@ function OrderForm() {
 
             <div className="form-section">
                 <h2 className="form-title">Cleaneco's Order Form</h2>
+
+                {reorderRef && (
+                    <div
+                        className="alert d-flex align-items-start justify-content-between gap-2 mb-4 py-2 px-3 rounded-3 shadow-sm"
+                        style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', color: '#166534' }}
+                        role="status"
+                    >
+                        <div className="small">
+                            <i className="fas fa-redo-alt me-2 text-success"></i>
+                            <strong>Re-booking from Order #{reorderRef}:</strong> Your previous services, locations, and site details have been pre-filled. Please select your preferred inspection date and time below.
+                        </div>
+                        <button
+                            type="button"
+                            className="btn-close btn-sm"
+                            style={{ fontSize: '0.65rem' }}
+                            onClick={() => setReorderRef('')}
+                            aria-label="Dismiss notice"
+                        ></button>
+                    </div>
+                )}
 
                 <form onSubmit={handleInitialSubmit}>
                     <div className="name-row">

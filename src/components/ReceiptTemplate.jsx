@@ -22,6 +22,23 @@ const ReceiptTemplate = ({ receiptOrder, services = [] }) => {
     ? receiptOrder.service_names.join(', ')
     : (receiptOrder.service_name || receiptOrder.service_type);
 
+  const isBizOrder = ['commercial', 'industrial'].includes(
+    String(receiptOrder.client_type || receiptOrder.user_clientType || '').toLowerCase()
+  );
+  const fullName = [
+    receiptOrder.first_name || sessionStorage.getItem('userName') || '',
+    receiptOrder.middle_name || '',
+    receiptOrder.last_name || ''
+  ].filter(Boolean).join(' ').trim();
+  const companyName = (receiptOrder.company_name || '').trim();
+  const issuedToLabel = isBizOrder && companyName && !fullName.toLowerCase().includes(companyName.toLowerCase())
+    ? `${fullName} (${companyName})`
+    : fullName;
+
+  const coveredLocations = (Array.isArray(receiptOrder.households) && receiptOrder.households.length > 0)
+    ? receiptOrder.households
+    : (receiptOrder.address ? [{ name: issuedToLabel || 'Primary Location', address: receiptOrder.address }] : []);
+
   return (
     <div id="print-receipt" style={{ padding: '16pt 36pt', fontFamily: '"Times New Roman", Times, serif', color: 'black', fontSize: '10.5pt' }}>
       <div style={{ textAlign: 'left', marginBottom: '10pt', fontFamily: 'Arial, Helvetica, sans-serif' }}>
@@ -36,8 +53,13 @@ const ReceiptTemplate = ({ receiptOrder, services = [] }) => {
 
       <div style={{ margin: '10pt 0 8pt 0', lineHeight: '1.25' }}>
         <div style={{ marginBottom: '6pt' }}>Date: {new Date().toLocaleDateString('en-US')}</div>
-        <div style={{ fontWeight: 'bold' }}>ISSUED TO: {receiptOrder.first_name || sessionStorage.getItem('userName')} {receiptOrder.last_name || ''}</div>
-        {receiptOrder.address && <div>{receiptOrder.address}</div>}
+        <div style={{ fontWeight: 'bold' }}>ISSUED TO: {issuedToLabel}</div>
+        {(receiptOrder.address || (coveredLocations[0] && coveredLocations[0].address)) && (
+          <div>{receiptOrder.address || coveredLocations[0].address}</div>
+        )}
+        {receiptOrder.landmark && (
+          <div style={{ fontSize: '9.5pt', color: '#333' }}>Nearest Landmark: {receiptOrder.landmark}</div>
+        )}
       </div>
 
       <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '12.5pt', margin: '10pt 0', textTransform: 'uppercase' }}>OFFICIAL RECEIPT</div>
@@ -48,6 +70,43 @@ const ReceiptTemplate = ({ receiptOrder, services = [] }) => {
         <div>
           Execution Date: {formatDate(receiptOrder.service_execution_date || receiptOrder.date)}{receiptOrder.service_execution_time_slot || receiptOrder.time_slot ? ` (${receiptOrder.service_execution_time_slot || receiptOrder.time_slot})` : ''}
         </div>
+        {coveredLocations.length > 1 && (
+          <div style={{ marginTop: '6pt' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '2pt' }}>
+              {isBizOrder
+                ? `Covered Service Locations / Buildings (${coveredLocations.length}):`
+                : `Participating Households (${coveredLocations.length}):`}
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt', marginTop: '2pt' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '3pt 6pt', border: '1px solid #000', backgroundColor: '#f0f0f0', width: '28px', textAlign: 'center' }}>#</th>
+                  <th style={{ padding: '3pt 6pt', border: '1px solid #000', backgroundColor: '#f0f0f0', textAlign: 'left', width: '35%' }}>
+                    {isBizOrder ? 'Building / Contact' : 'Household / Contact'}
+                  </th>
+                  <th style={{ padding: '3pt 6pt', border: '1px solid #000', backgroundColor: '#f0f0f0', textAlign: 'left' }}>Address</th>
+                </tr>
+              </thead>
+              <tbody>
+                {coveredLocations.map((loc, idx) => {
+                  const rawName = loc.name || '';
+                  const locName = (idx === 0 && isBizOrder && companyName && !rawName.toLowerCase().includes(companyName.toLowerCase()))
+                    ? `${rawName} (${companyName})`
+                    : rawName;
+                  return (
+                    <tr key={idx}>
+                      <td style={{ padding: '3pt 6pt', border: '1px solid #000', textAlign: 'center', fontWeight: 'bold' }}>{idx + 1}</td>
+                      <td style={{ padding: '3pt 6pt', border: '1px solid #000' }}>
+                        <strong>{locName}</strong> {idx === 0 ? `(${isBizOrder ? 'Primary' : 'Lead'})` : ''}
+                      </td>
+                      <td style={{ padding: '3pt 6pt', border: '1px solid #000' }}>{loc.address}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '6pt', marginBottom: '10pt', fontSize: '10pt' }}>
