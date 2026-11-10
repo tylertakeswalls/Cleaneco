@@ -528,6 +528,28 @@ Comprehensive resolution of all findings from the 13-page DLSU-D Capstone UI/UX 
   - Refines `OrderDatabase.jsx` and `src/assets/styles/orderdatabase.css` side-drawer responsiveness by scoping the mobile `min-width: 900px` table rule strictly to `.table-container .table`, enforcing `table-layout: fixed` with multi-line wrapping on the drawer location table and **Site Accessibility Details** condition badge, keeping the `Details | Quotation | Scheduling | Documents` drawer tabs on a single non-wrapping line across desktop and mobile viewports, and aligning the mobile drawer footer action buttons (`50% / 50%` for **Cancel** and **Save Changes**).
   - Scopes `ServiceManagement.jsx` (**"Services & Inspection Checklists"**) to read-only catalog viewing and **"Generate Inspection Report List"** PDF export without add, edit, status-toggle, or delete controls, and expands the automated backend test suites (`orderLifecycle.test.js`, `securityAudit.test.js`, `addressHandling.test.js`) to verify grouped order metadata preservation, Sub-Admin RBAC scope isolation, and the 3-location booking limit.
 
+## 53. Operations Enhancements: Multi-Site PDF Invoices, Pre-Filled Inspection Sheets, One-Click Navigation, Quick Re-Order & Unified Segmented Filtering
+- **Multi-Building / Household Coverage & Company Metadata on Billing & Receipts (`BillingTemplate.jsx`, `ReceiptTemplate.jsx`, `OngoingOrders.jsx`)**:
+  - Integrated `middle_name`, `(Company Name)` for commercial and industrial clients, and `Nearest Landmark` directly into `BILLED TO:` and `ISSUED TO:` header blocks.
+  - Dynamically renders a bordered **Covered Service Locations / Buildings** (or **Participating Households**) table whenever an order covers multiple sites (`2–3` locations), listing site number, unit/contact name with primary badge, and physical address.
+- **Order-Specific Pre-Filled Inspection Sheet PDF (`backend/routes/reports.js`, `OrderDatabase.jsx`)**:
+  - Enhanced `GET /api/reports/inspection-list?orderId=<order_id>` to generate an on-demand, order-specific on-site assessment sheet.
+  - Pre-populates client name, company, contact number, confirmed inspection date and time slot, assigned truck crew, and a 3-column table of all booked locations (`#`, `Building / Contact`, `Service Address`).
+  - Scopes assessment factors strictly to the order's booked services, optimized with compact spacing so single-service orders with up to 3 locations fit onto Page 1.
+  - Added a **"Print Inspection Sheet"** action button in the Order Details side drawer accessible to both Full Admins and Sub-Admins.
+- **One-Click Google Maps Navigation Links (`OrderDatabase.jsx`, `AdminCalendar.jsx`)**:
+  - Added an **"Open in Maps"** button pill with an external-link indicator inside each location row of the **Service Locations / Buildings** table in the Admin/Sub-Admin order drawer.
+  - Integrated the same direct navigation link and address preview into each scheduled booking card within the Operations Calendar date drawer (`AdminCalendar.jsx`), allowing truck crews and dispatchers to launch directions in one tap.
+- **"Book Again" Quick Re-Order Workflow (`OngoingOrders.jsx`, `OrderForm.jsx`)**:
+  - Added a **"Book Again"** button on every `Completed` order card in **My Ongoing Orders**.
+  - Automatically captures the completed order's services, pricing configuration inputs, up to 3 locations, service address, region, landmark, and notes, storing them in a draft and pre-populating the Order Form with a dismissible notification banner (`Re-booking from Order #CLN-...`).
+- **Unified Segmented Filter Bar Across Client & Admin Portals (`OngoingOrders.jsx`, `OrderDatabase.jsx`, `ServiceManagement.jsx`, `AdminUsers.jsx`, `ongoingorders.css`, `orderdatabase.css`)**:
+  - Replaced disparate search inputs and native browser `<select>` boxes with a unified, keyboard-accessible segmented toolbar across the Client Portal (`/orders`) and all Admin views (`/admin/orders`, `/admin/services`, `/admin/users`).
+  - Features real-time search with clear buttons, custom popover dropdown menus with active checkmark indicators and escape/click-outside listeners, date filtering, and a contextual **"Reset"** button that only displays when active filters are engaged.
+- **Order Details Drawer Design System Standardization (`OrderDatabase.jsx`, `orderdatabase.css`)**:
+  - Unified typography hierarchy and font sizing (`0.95rem` bold muted labels) across all drawer tabs (**Details**, **Quotation**, **Scheduling**, **Documents**).
+  - Cleaned up container cards, moved the document helper banner to the top of the **Documents** tab, and restyled high-capacity truck selection cards with readable mint-green surfaces (`#f0fdf4`) and high-contrast deep green text (`#166534`).
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
