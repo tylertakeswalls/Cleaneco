@@ -903,24 +903,24 @@ function ServiceManagement() {
 
                                                 <div className="mt-3 pt-3 border-top">
                                                     <label className="form-label fw-bold small text-dark mb-1">
-                                                        <i className="fas fa-history me-1 text-success"></i>Recommended Service Interval (Recurring Reminders)
+                                                        <i className="fas fa-history me-1 text-success"></i>Recommended Service Interval
                                                     </label>
                                                     <select
                                                         className="form-select"
                                                         value={formService.recommended_interval_months ?? 0}
                                                         onChange={(e) => setFormService({ ...formService, recommended_interval_months: parseInt(e.target.value, 10) || 0 })}
                                                     >
-                                                        <option value={0}>None / One-Off Service (No Recurring Reminder)</option>
-                                                        <option value={1}>Every 1 Month (High-Volume Grease Trap / Kitchen)</option>
-                                                        <option value={3}>Every 3 Months (Quarterly Commercial Grease Trap)</option>
-                                                        <option value={6}>Every 6 Months (Semi-Annual Maintenance)</option>
-                                                        <option value={12}>Every 1 Year (Annual Plumbing / Maintenance)</option>
-                                                        <option value={24}>Every 2 Years (Bi-Annual Septic Inspection)</option>
-                                                        <option value={36}>Every 3 Years (Standard Septic Desludging Cycle)</option>
-                                                        <option value={60}>Every 5 Years (Large Septic Tank Capacity)</option>
+                                                        <option value={0}>One-Off (No Reminder)</option>
+                                                        <option value={1}>Every 1 Month</option>
+                                                        <option value={3}>Every 3 Months</option>
+                                                        <option value={6}>Every 6 Months</option>
+                                                        <option value={12}>Every 1 Year</option>
+                                                        <option value={24}>Every 2 Years</option>
+                                                        <option value={36}>Every 3 Years</option>
+                                                        <option value={60}>Every 5 Years</option>
                                                     </select>
                                                     <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                                                        When an order is completed, Cleaneco uses this cycle to compute the client's "Next Service Due" badge and automatically dispatch recurring reminders.
+                                                        When an order is completed, Cleaneco uses this cycle to compute the client's next recommended service date and send automated reminders.
                                                     </small>
                                                 </div>
                                             </div>

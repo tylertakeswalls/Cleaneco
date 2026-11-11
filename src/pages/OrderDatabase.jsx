@@ -1122,7 +1122,7 @@ function OrderDatabase() {
                         {order.estimate_inputs && (order.estimate_inputs.accessibility === 'difficult' || Object.values(order.estimate_inputs).some(v => v && typeof v === 'object' && v.accessibility === 'difficult')) && (
                           <div className="mt-1">
                             <span 
-                              className="fw-semibold d-inline-block text-nowrap"
+                              className="fw-semibold d-inline-flex align-items-center text-nowrap"
                               style={{ 
                                 backgroundColor: '#fee2e2', 
                                 color: '#991b1b', 
@@ -1133,6 +1133,7 @@ function OrderDatabase() {
                                 letterSpacing: '0.2px' 
                               }}
                             >
+                              <i className="fas fa-exclamation-triangle me-1" style={{ fontSize: '0.68rem' }}></i>
                               Requires Extension Hoses
                             </span>
                           </div>
@@ -1480,12 +1481,12 @@ function OrderDatabase() {
 
                         return (
                           <div className="form-group mb-3">
-                            <label className="form-label fw-bold small text-muted">Final Balance & Settlement</label>
-                            <div className={`card border-0 shadow-sm p-3 ${isPaid ? 'bg-light' : 'bg-light border border-danger-subtle'}`}>
-                              <div className="d-flex justify-content-between align-items-center mb-2">
-                                <span className="small fw-semibold text-muted">Settlement Status:</span>
+                            <label className="form-label fw-bold text-dark" style={{ fontSize: '0.9rem' }}>Final Balance & Settlement</label>
+                            <div className={`card border shadow-sm p-3 rounded-3 ${isPaid ? 'bg-light' : 'bg-light border-danger-subtle'}`}>
+                              <div className="d-flex justify-content-between align-items-center mb-2 pb-1">
+                                <span className="fw-medium text-secondary" style={{ fontSize: '0.9rem' }}>Settlement Status:</span>
                                 {isPaid ? (
-                                  <span className="badge bg-success small">
+                                  <span className="badge bg-success" style={{ fontSize: '0.85rem', padding: '5px 12px', borderRadius: '999px' }}>
                                     <i className="fas fa-check-circle me-1"></i>Fully Paid
                                   </span>
                                 ) : (
@@ -1496,11 +1497,11 @@ function OrderDatabase() {
                                       color: '#991b1b',
                                       border: '1px solid #fecaca',
                                       borderRadius: '999px',
-                                      padding: '2px 8px',
-                                      fontSize: '0.75rem'
+                                      padding: '4px 12px',
+                                      fontSize: '0.85rem'
                                     }}
                                   >
-                                    <i className="fas fa-exclamation-circle me-1" style={{ fontSize: '0.7rem' }}></i>
+                                    <i className="fas fa-exclamation-circle me-1" style={{ fontSize: '0.78rem' }}></i>
                                     Unpaid (₱{outstandingBal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                                   </span>
                                 )}
@@ -1508,22 +1509,31 @@ function OrderDatabase() {
 
                               {!isPaid && (
                                 <>
-                                  <div className="small mb-1 text-muted">
-                                    <span className="fw-semibold text-muted">Overdue Period:</span>
-                                    <span className="text-dark ms-1">{overdueDays} day{overdueDays === 1 ? '' : 's'} since service completion</span>
+                                  <div className="d-flex justify-content-between align-items-center mb-2 pb-1">
+                                    <span className="fw-medium text-secondary" style={{ fontSize: '0.9rem' }}>Overdue Period:</span>
+                                    <span className="text-dark fw-semibold" style={{ fontSize: '0.9rem' }}>
+                                      {overdueDays} day{overdueDays === 1 ? '' : 's'} <span className="text-muted fw-normal" style={{ fontSize: '0.82rem' }}>(since completion)</span>
+                                    </span>
                                   </div>
-                                  <div className="small mb-2 text-muted">
-                                    <span className="fw-semibold text-muted">Reminder History:</span>
-                                    <span className="text-dark ms-1">{lastReminder 
-                                      ? `${reminderCount} reminder${reminderCount === 1 ? '' : 's'} sent (Latest: ${formatDate(lastReminder)})` 
-                                      : 'No reminder sent yet'}</span>
+                                  <div className="d-flex justify-content-between align-items-center mb-2 pb-1">
+                                    <span className="fw-medium text-secondary" style={{ fontSize: '0.9rem' }}>Reminder History:</span>
+                                    <span className="text-dark fw-semibold" style={{ fontSize: '0.9rem' }}>
+                                      {lastReminder 
+                                        ? `${reminderCount} sent (${formatDate(lastReminder)})` 
+                                        : 'No reminder sent yet'}
+                                    </span>
                                   </div>
 
-                                  <div className="pt-2 border-top">
+                                  <div className="pt-2 mt-1 border-top">
                                     <button
                                       type="button"
-                                      className={`btn btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-2 ${isThrottled ? 'btn-secondary text-white' : 'btn-danger text-white'}`}
-                                      style={isThrottled ? { opacity: 0.75 } : {}}
+                                      className={`btn w-100 fw-bold d-flex align-items-center justify-content-center gap-2 ${isThrottled ? 'btn-secondary text-white' : 'btn-danger text-white'}`}
+                                      style={{
+                                        padding: '9px 16px',
+                                        fontSize: '0.9rem',
+                                        borderRadius: '8px',
+                                        opacity: isThrottled ? 0.8 : 1
+                                      }}
                                       onClick={handleSendPaymentReminder}
                                       disabled={isSendingReminder || isThrottled}
                                       title={isThrottled ? `A reminder was sent recently. You can send another in ${hoursRemaining}h.` : 'Send in-app and email reminder to client'}
@@ -1536,7 +1546,7 @@ function OrderDatabase() {
                                       ) : isThrottled ? (
                                         <>
                                           <i className="fas fa-clock"></i>
-                                          <span>Reminder Sent (Available in {hoursRemaining}h)</span>
+                                          <span>Reminder Sent (Available In {hoursRemaining}h)</span>
                                         </>
                                       ) : (
                                         <>
@@ -1560,23 +1570,23 @@ function OrderDatabase() {
 
                         return (
                           <div className="form-group mb-3">
-                            <label className="form-label fw-bold small text-muted">Recurring Maintenance Cycle</label>
-                            <div className="card border-0 shadow-sm p-3 bg-light">
-                              <div className="d-flex justify-content-between align-items-center mb-2">
-                                <span className="small fw-semibold text-muted">Recommended Frequency:</span>
-                                <span className="badge bg-light text-dark border small fw-semibold" style={{ fontSize: '0.75rem', padding: '3px 8px' }}>
+                            <label className="form-label fw-bold text-dark" style={{ fontSize: '0.9rem' }}>Recurring Maintenance Cycle</label>
+                            <div className="card border shadow-sm p-3 rounded-3 bg-light">
+                              <div className="d-flex justify-content-between align-items-center mb-2 pb-1">
+                                <span className="fw-medium text-secondary" style={{ fontSize: '0.9rem' }}>Recommended Frequency:</span>
+                                <span className="badge bg-white text-dark border fw-semibold" style={{ fontSize: '0.85rem', padding: '5px 12px', borderRadius: '8px' }}>
                                   {intervalMonths > 0 ? (intervalMonths >= 12 && intervalMonths % 12 === 0 ? `Every ${intervalMonths / 12} Year${intervalMonths > 12 ? 's' : ''}` : `Every ${intervalMonths} Months`) : 'One-Off / Standard'}
                                 </span>
                               </div>
-                              <div className="d-flex justify-content-between align-items-center mb-2">
-                                <span className="small fw-semibold text-muted">Next Service Due:</span>
-                                <span className="small fw-bold text-dark">
+                              <div className="d-flex justify-content-between align-items-center mb-2 pb-1">
+                                <span className="fw-medium text-secondary" style={{ fontSize: '0.9rem' }}>Next Service Due:</span>
+                                <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
                                   {nextDue ? nextDue.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not Scheduled'}
                                 </span>
                               </div>
-                              <div className="small text-muted pt-2 border-top">
-                                <span className="fw-semibold text-muted">Automated Alert Status:</span>
-                                <span className="text-secondary ms-1">
+                              <div className="d-flex justify-content-between align-items-center pt-2 mt-1 border-top">
+                                <span className="fw-medium text-secondary" style={{ fontSize: '0.88rem' }}>Automated Alert Status:</span>
+                                <span className="text-dark fw-semibold" style={{ fontSize: '0.88rem' }}>
                                   {reminderSent ? `Reminder sent on ${formatDate(reminderSent)}` : (nextDue ? 'Scheduled 30 days prior to due date' : 'None')}
                                 </span>
                               </div>

@@ -1,4 +1,4 @@
-import { formatOrderReference, previewPdfBlob, resolveOrderSchedule } from '../utils/helpers';
+import { formatOrderReference, previewPdfBlob, resolveOrderSchedule, formatPhoneNumber } from '../utils/helpers';
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ export default function AdminCalendar({ orders = [] }) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [isDrawerClosing, setIsDrawerClosing] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [dispatchFilter, setDispatchFilter] = useState('all'); // 'all' | 'truck' | 'inspection'
     const drawerOpenedAt = useRef(0);
 
     const navigate = useNavigate();
@@ -118,8 +119,42 @@ export default function AdminCalendar({ orders = [] }) {
 
     const selectedDayOrders = selectedDate ? (ordersByDate[selectedDate] || []) : [];
 
-    const handlePrintDispatchSheet = async () => {
-        if (!selectedDate || selectedDayOrders.length === 0) return;
+    // Reset filter to 'all' whenever a new date is selected
+    useEffect(() => {
+        setDispatchFilter('all');
+    }, [selectedDate]);
+
+    const isInspectionJob = (o) => {
+        const phase = o._schedule?.phase;
+        if (phase === 'inspection' || phase === 'pref_inspection') return true;
+        if (phase === 'execution' || phase === 'completed') return false;
+        return !o.service_execution_date && !o.has_final_price && o.status !== 'Completed';
+    };
+
+    const isExecutionJob = (o) => {
+        const phase = o._schedule?.phase;
+        if (phase === 'execution' || phase === 'completed') return true;
+        if (phase === 'inspection' || phase === 'pref_inspection') return false;
+        return Boolean(o.service_execution_date) || o.status === 'Completed';
+    };
+
+    const truckOrders = selectedDayOrders.filter(isExecutionJob);
+    const inspectionOrders = selectedDayOrders.filter(isInspectionJob);
+
+    const activeOrders = dispatchFilter === 'truck'
+        ? truckOrders
+        : dispatchFilter === 'inspection'
+            ? inspectionOrders
+            : selectedDayOrders;
+
+    const handlePrintDispatchSheet = async (targetMode = dispatchFilter) => {
+        const targetList = targetMode === 'truck'
+            ? truckOrders
+            : targetMode === 'inspection'
+                ? inspectionOrders
+                : selectedDayOrders;
+
+        if (!selectedDate || targetList.length === 0) return;
         setIsGeneratingPdf(true);
         try {
             const doc = new jsPDF('portrait', 'mm', 'a4');
@@ -145,20 +180,46 @@ export default function AdminCalendar({ orders = [] }) {
                 day: 'numeric'
             });
 
+            const isInspectionMode = targetMode === 'inspection';
+            const isTruckMode = targetMode === 'truck';
+
+            let docTitle = "DAILY DISPATCH RUN SHEET (ALL JOBS)";
+            let dateSubtitle = `Service Execution & Inspection Date: ${formattedDateStr}`;
+            let jobsSubtitle = `Total Assigned Jobs: ${targetList.length} Stop${targetList.length === 1 ? '' : 's'}`;
+            let filename = `Cleaneco_Dispatch_Sheet_${selectedDate}.pdf`;
+
+            if (isInspectionMode) {
+                docTitle = "DAILY INSPECTION DISPATCH RUN SHEET";
+                dateSubtitle = `Site Inspection Date: ${formattedDateStr}`;
+                jobsSubtitle = `Total Assigned Inspections: ${targetList.length} Site Visit${targetList.length === 1 ? '' : 's'}`;
+                filename = `Cleaneco_Inspection_Dispatch_${selectedDate}.pdf`;
+            } else if (isTruckMode) {
+                docTitle = "DAILY TRUCK DISPATCH RUN SHEET";
+                dateSubtitle = `Service Execution Date: ${formattedDateStr}`;
+                jobsSubtitle = `Total Assigned Jobs: ${targetList.length} Truck Stop${targetList.length === 1 ? '' : 's'}`;
+                filename = `Cleaneco_Truck_Dispatch_${selectedDate}.pdf`;
+            }
+
+            // Centered Document Header matching Cleaneco Monthly/Quarterly Reports, Final Billing & Receipts
             doc.setFont("times", "bold");
-            doc.setFontSize(12);
-            doc.text("Daily Dispatch Run Sheet", 14, 75);
+            doc.setFontSize(12.5);
+            doc.setTextColor(0, 0, 0);
+            doc.text(docTitle, 105, 75, { align: "center" });
 
             doc.setFont("times", "normal");
-            doc.setFontSize(10);
-            doc.text(`Service Execution Date: ${formattedDateStr}`, 14, 81);
-            doc.text(`Total Assigned Jobs: ${selectedDayOrders.length}  |  Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 14, 87);
+            doc.setFontSize(9.5);
+            doc.setTextColor(40, 40, 40);
+            doc.text(dateSubtitle, 105, 81, { align: "center" });
 
-            // Group and sort orders by assigned truck team, then time slot
+            doc.setFontSize(8.5);
+            doc.setTextColor(80, 80, 80);
+            doc.text(`${jobsSubtitle}   |   Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 105, 86, { align: "center" });
+
+            // Group and sort orders by assigned truck team / inspector, then time slot
             const slotOrder = { 'Morning': 1, 'Afternoon': 2, 'Evening': 3 };
-            const sortedOrders = [...selectedDayOrders].sort((a, b) => {
-                const teamA = (a.truck_team || '').trim() || 'Unassigned Fleet';
-                const teamB = (b.truck_team || '').trim() || 'Unassigned Fleet';
+            const sortedOrders = [...targetList].sort((a, b) => {
+                const teamA = (a.truck_team || '').trim() || (isInspectionMode ? 'Inspection Team' : 'Unassigned Fleet');
+                const teamB = (b.truck_team || '').trim() || (isInspectionMode ? 'Inspection Team' : 'Unassigned Fleet');
                 const isUnassignedA = teamA.toLowerCase().includes('unassigned');
                 const isUnassignedB = teamB.toLowerCase().includes('unassigned');
                 if (isUnassignedA && !isUnassignedB) return 1;
@@ -172,45 +233,77 @@ export default function AdminCalendar({ orders = [] }) {
             });
 
             const tableColumn = [
-                "Stop",
-                "Team / Crew",
+                "#",
+                isInspectionMode ? "Assigned Inspector" : "Team / Crew",
                 "Time Slot",
                 "Order & Client",
-                "Service & Scope",
-                "Destination Address & Landmark",
-                "Remarks & Sign-off"
+                isInspectionMode ? "Target Services" : "Service & Scope",
+                isInspectionMode ? "Inspection Address & Landmark" : "Destination Address & Landmark",
+                isInspectionMode ? "Inspection Notes" : "Field Notes & Remarks"
             ];
 
             const tableRows = sortedOrders.map((o, idx) => {
                 const stopNumber = String(idx + 1);
-                const teamText = (o.truck_team || '').trim() || 'Unassigned';
-                const slotText = `${o._schedule?.activeSlot || o.time_slot || 'Standard'}\n(${o._schedule?.label || 'Scheduled'})`;
+                const defaultTeamLabel = isInspectionMode ? 'Inspection Team' : 'Unassigned';
+                const teamText = (o.truck_team || '').trim() || defaultTeamLabel;
+                const rawSlot = o._schedule?.activeSlot || o.time_slot || 'Standard';
+                const rawLabel = o._schedule?.shortPhaseTag || o._schedule?.label || 'Scheduled';
+                const phaseLabel = rawLabel
+                    .replace('Pref. Inspection', 'Pref. Insp')
+                    .replace('Service Execution', 'Execution')
+                    .replace('Site Inspection', 'Inspection');
+                const slotText = `${rawSlot}\n(${phaseLabel})`;
                 
                 const clientName = formatName(o);
-                const phoneText = o.phone ? `\nTel: ${o.phone}` : '';
+                const formattedPhone = o.phone ? formatPhoneNumber(o.phone) : '';
+                const phoneText = formattedPhone ? `\nMobile: ${formattedPhone}` : '';
                 const orderRef = o.order_id ? `#${formatOrderReference(o.order_id)}` : 'N/A';
                 const orderClientText = `${orderRef}\n${clientName}${phoneText}`;
 
-                const serviceName = o.service_name || o.service_type || 'Sanitation Service';
-                const tripsText = (o.total_trips && o.total_trips > 1) ? `\n(${o.total_trips} trips required)` : '';
-                const serviceScopeText = `${serviceName}${tripsText}`;
+                // Parse multi-service bookings cleanly so each service gets its own distinct bullet
+                let rawServices = [];
+                if (Array.isArray(o.service_names) && o.service_names.length > 0) {
+                    rawServices = o.service_names;
+                } else if (Array.isArray(o.services) && o.services.length > 0) {
+                    rawServices = o.services.map(s => s.service_name || s.service_type).filter(Boolean);
+                } else if (o.service_name || o.service_type) {
+                    rawServices = (o.service_name || o.service_type).split(/,\s*/);
+                }
 
-                const addressText = o.address || 'Address on record';
-                const landmarkText = o.landmark ? `\nLandmark: ${o.landmark}` : '';
+                const uniqueServices = [...new Set(rawServices.map(s => (s || '').trim()).filter(Boolean))];
+                let serviceScopeText = '';
+                if (uniqueServices.length > 1) {
+                    serviceScopeText = uniqueServices.map(s => `• ${s}`).join('\n');
+                } else if (uniqueServices.length === 1) {
+                    serviceScopeText = uniqueServices[0];
+                } else {
+                    serviceScopeText = 'Sanitation Service';
+                }
+
+                if (!isInspectionMode && o.total_trips && o.total_trips > 1) {
+                    serviceScopeText += `\n(${o.total_trips} trips required)`;
+                }
+
+                const addressText = (o.address || 'Address on record').replace(/\s+,/g, ',');
+                const landmarkText = o.landmark ? `\nLandmark: ${o.landmark.trim()}` : '';
                 const addressLandmarkText = `${addressText}${landmarkText}`;
 
                 const notesList = [];
                 if (o.site_photo_url) {
                     notesList.push("• Difficult Site Access");
                 }
-                if (o.notes) {
-                    notesList.push(`• Client: ${o.notes.slice(0, 80)}`);
+                if (o.notes && o.notes.trim()) {
+                    notesList.push(`• Client: ${o.notes.trim().slice(0, 80)}`);
                 }
-                if (o.internal_notes) {
-                    notesList.push(`• Dispatch: ${o.internal_notes.slice(0, 80)}`);
+                if (o.internal_notes && o.internal_notes.trim()) {
+                    notesList.push(`• Dispatch: ${o.internal_notes.trim().slice(0, 80)}`);
                 }
-                notesList.push("[ ] Completed  Sign: ____________");
-                const crewNotesText = notesList.join('\n');
+
+                const signAction = isInspectionMode ? "[ ] Inspected" : "[ ] Completed";
+                const signBlock = `${signAction}\nSign: ________`;
+                const crewNotesText = notesList.length > 0
+                    ? `${notesList.join('\n')}\n\n${signBlock}`
+                    : signBlock;
 
                 return [
                     stopNumber,
@@ -223,50 +316,65 @@ export default function AdminCalendar({ orders = [] }) {
                 ];
             });
 
+            // Table with #F0F0F0 gray header and crisp black borders matching Cleaneco Reports, Billing & Receipts
             autoTable(doc, {
                 head: [tableColumn],
                 body: tableRows,
-                startY: 93,
+                startY: 92,
+                margin: { left: 10, right: 10 },
+                theme: 'grid',
                 styles: { 
+                    font: 'times', 
                     fontSize: 8, 
-                    cellPadding: 2.5, 
+                    textColor: [0, 0, 0],
+                    cellPadding: 2, 
                     overflow: 'linebreak',
-                    valign: 'top'
+                    valign: 'top',
+                    lineWidth: 0.2,
+                    lineColor: [0, 0, 0]
                 },
                 headStyles: { 
-                    fillColor: '#0D8D1E', 
-                    textColor: [255, 255, 255], 
+                    fillColor: [240, 240, 240], // Official Cleaneco #F0F0F0 header fill
+                    textColor: [0, 0, 0],       // Black text
                     fontStyle: 'bold',
-                    fontSize: 8.5
+                    fontSize: 8.5,
+                    lineWidth: 0.2,
+                    lineColor: [0, 0, 0]
                 },
-                alternateRowStyles: {
-                    fillColor: [248, 249, 250]
+                bodyStyles: {
+                    fillColor: [255, 255, 255],
+                    textColor: [0, 0, 0],
+                    lineWidth: 0.2,
+                    lineColor: [0, 0, 0]
                 },
                 columnStyles: {
-                    0: { cellWidth: 12, halign: 'center' },
-                    1: { cellWidth: 26, fontStyle: 'bold' },
-                    2: { cellWidth: 22 },
-                    3: { cellWidth: 32 },
-                    4: { cellWidth: 30 },
-                    5: { cellWidth: 36 },
-                    6: { cellWidth: 24 }
+                    0: { cellWidth: 7, halign: 'center' },
+                    1: { cellWidth: 21, fontStyle: 'bold' },
+                    2: { cellWidth: 20 },
+                    3: { cellWidth: 38 },
+                    4: { cellWidth: 35 },
+                    5: { cellWidth: 40 },
+                    6: { cellWidth: 29 }
                 }
             });
 
-            const totalPages = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= totalPages; i++) {
-                doc.setPage(i);
-                doc.setFont("times", "normal");
-                doc.setFontSize(8);
-                doc.setTextColor(130, 130, 130);
-                doc.text(
-                    `Cleaneco Waste Management Services • Daily Dispatch Run Sheet • Page ${i} of ${totalPages}`,
-                    14,
-                    290
-                );
+            // Sign-off / Verification section matching Cleaneco operational manifest standards
+            let finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 220;
+            if (finalY > 255) {
+                doc.addPage();
+                finalY = 25;
             }
 
-            const filename = `Cleaneco_Dispatch_Sheet_${selectedDate}.pdf`;
+            doc.setFont("times", "normal");
+            doc.setFontSize(8.5);
+            doc.setTextColor(0, 0, 0);
+
+            const ackHeader = isInspectionMode
+                ? "Inspection Manifest Acknowledged by:"
+                : "Acknowledged by:";
+            doc.text(ackHeader, 125, finalY);
+            doc.text("Name & Signature: ____________________________", 125, finalY + 7);
+
             previewPdfBlob(doc.output('blob'), filename);
         } catch (pdfErr) {
             console.error('Error generating dispatch sheet:', pdfErr);
@@ -362,42 +470,113 @@ export default function AdminCalendar({ orders = [] }) {
                     </div>
 
                     {selectedDayOrders.length > 0 && (
-                        <div className="calendar-drawer-toolbar d-flex align-items-center justify-content-between">
-                            <span className="small text-muted fw-semibold">
-                                Dispatch Schedule:
-                            </span>
-                            <button
-                                type="button"
-                                className="btn btn-sm btn-solid-primary d-inline-flex align-items-center gap-2 fw-bold"
-                                style={{ fontSize: '0.8rem', padding: '4px 12px' }}
-                                onClick={handlePrintDispatchSheet}
-                                disabled={isGeneratingPdf}
-                                title="Generate printable Daily Dispatch Run Sheet for truck teams"
-                            >
-                                {isGeneratingPdf ? (
-                                    <>
-                                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                        <span>Generating...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="fas fa-file-pdf"></i>
-                                        <span>Print Dispatch Sheet</span>
-                                    </>
-                                )}
-                            </button>
+                        <div className="calendar-drawer-toolbar">
+                            <div className="d-flex align-items-center justify-content-between mb-2">
+                                <span className="small text-muted fw-semibold">
+                                    Dispatch Schedule:
+                                </span>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-solid-primary d-inline-flex align-items-center gap-2 fw-bold"
+                                    style={{ fontSize: '0.8rem', padding: '4px 12px' }}
+                                    onClick={() => handlePrintDispatchSheet(dispatchFilter)}
+                                    disabled={isGeneratingPdf || activeOrders.length === 0}
+                                    title={
+                                        dispatchFilter === 'inspection'
+                                            ? "Generate printable Dedicated Inspection Dispatch Sheet"
+                                            : dispatchFilter === 'truck'
+                                                ? "Generate printable Dedicated Truck Fleet Dispatch Sheet"
+                                                : "Generate printable Master Dispatch Run Sheet"
+                                    }
+                                >
+                                    {isGeneratingPdf ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                            <span>Generating...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="fas fa-file-pdf"></i>
+                                            <span>
+                                                {dispatchFilter === 'inspection'
+                                                    ? 'Print Inspection Sheet'
+                                                    : dispatchFilter === 'truck'
+                                                        ? 'Print Truck Dispatch'
+                                                        : 'Print Dispatch Sheet'}
+                                            </span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Filter Segmented Control */}
+                            <div className="d-flex gap-1 p-1 bg-white border rounded-2">
+                                <button
+                                    type="button"
+                                    className="btn btn-sm flex-fill py-1 px-2 fw-semibold border-0"
+                                    style={{
+                                        fontSize: '0.74rem',
+                                        borderRadius: '4px',
+                                        backgroundColor: dispatchFilter === 'all' ? '#0D8D1E' : 'transparent',
+                                        color: dispatchFilter === 'all' ? '#ffffff' : '#64748b',
+                                        boxShadow: dispatchFilter === 'all' ? '0 1px 3px rgba(13, 141, 30, 0.3)' : 'none',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onClick={() => setDispatchFilter('all')}
+                                >
+                                    All ({selectedDayOrders.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm flex-fill py-1 px-2 fw-semibold border-0"
+                                    style={{
+                                        fontSize: '0.74rem',
+                                        borderRadius: '4px',
+                                        backgroundColor: dispatchFilter === 'truck' ? '#0D8D1E' : 'transparent',
+                                        color: dispatchFilter === 'truck' ? '#ffffff' : '#64748b',
+                                        boxShadow: dispatchFilter === 'truck' ? '0 1px 3px rgba(13, 141, 30, 0.3)' : 'none',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onClick={() => setDispatchFilter('truck')}
+                                    title="Show only Service Execution orders assigned to truck teams"
+                                >
+                                    <i className="fas fa-truck me-1"></i>Trucks ({truckOrders.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm flex-fill py-1 px-2 fw-semibold border-0"
+                                    style={{
+                                        fontSize: '0.74rem',
+                                        borderRadius: '4px',
+                                        backgroundColor: dispatchFilter === 'inspection' ? '#0D8D1E' : 'transparent',
+                                        color: dispatchFilter === 'inspection' ? '#ffffff' : '#64748b',
+                                        boxShadow: dispatchFilter === 'inspection' ? '0 1px 3px rgba(13, 141, 30, 0.3)' : 'none',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onClick={() => setDispatchFilter('inspection')}
+                                    title="Show only Site Inspection visits for field inspectors"
+                                >
+                                    <i className="fas fa-clipboard-check me-1"></i>Inspections ({inspectionOrders.length})
+                                </button>
+                            </div>
                         </div>
                     )}
 
                     <div className="calendar-drawer-body">
-                        {selectedDayOrders.length === 0 ? (
+                        {activeOrders.length === 0 ? (
                             <div className="text-center text-muted py-5">
-                                <i className="fas fa-calendar-check fs-2 text-secondary mb-2 opacity-50 d-block"></i>
-                                <p className="mb-0 fw-semibold">No orders scheduled on this date.</p>
+                                <i className={`fas ${dispatchFilter === 'inspection' ? 'fa-clipboard-check' : dispatchFilter === 'truck' ? 'fa-truck' : 'fa-calendar-check'} fs-2 text-secondary mb-2 opacity-50 d-block`}></i>
+                                <p className="mb-0 fw-semibold">
+                                    {dispatchFilter === 'inspection'
+                                        ? 'No site inspections scheduled on this date.'
+                                        : dispatchFilter === 'truck'
+                                            ? 'No truck service executions scheduled on this date.'
+                                            : 'No orders scheduled on this date.'}
+                                </p>
                             </div>
                         ) : (
                             <div className="d-flex flex-column gap-2">
-                                {selectedDayOrders.map((o, idx) => (
+                                {activeOrders.map((o, idx) => (
                                     <div
                                         key={o.order_id || o.id || idx}
                                         className="p-3 rounded border bg-light calendar-order-card"
