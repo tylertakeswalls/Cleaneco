@@ -4,7 +4,8 @@ const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
 const { calculateOrderTotals, calculateStartingPrice, groupOrdersByOrderId, calculateOrderCollectedRevenue } = require('../utils/pricing');
-const { sendConfirmationEmail, sendRescheduleEmail } = require('../utils/emailHelper');
+const { sendConfirmationEmail, sendRescheduleEmail, sendPaymentReminderEmail } = require('../utils/emailHelper');
+const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -695,6 +696,10 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot edit a cancelled order.' });
     }
 
+    if (updateData.status === 'Completed' && !oldOrder.completed_at) {
+      updateData.completed_at = new Date();
+    }
+
     if (updateData.request_type === 'Reschedule Requested' && oldOrder.request_type !== 'Reschedule Requested') {
       const isExecution = (updateData.reschedule_target === 'execution') || (oldOrder.service_execution_date && !oldOrder.reschedule_target);
       const targetDateToCheck = (isExecution && oldOrder.service_execution_date)
@@ -1255,6 +1260,116 @@ router.post('/:id/verify-cheque', async (req, res) => {
     res.json({ success: true, message: `Cheque ${action}d successfully` });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Verification failed: ' + error.message });
+  }
+});
+
+router.post('/:id/send-payment-reminder', async (req, res) => {
+  try {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      const token = req.headers.authorization.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+        if (decoded.role !== 'admin') {
+          return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+        }
+        if (decoded.admin_scope === 'sub_admin') {
+          return res.status(403).json({ success: false, message: 'Forbidden: Sub-Admins cannot trigger payment reminders' });
+        }
+      } catch (authErr) {
+        return res.status(401).json({ success: false, message: 'Invalid or expired authorization token' });
+      }
+    }
+
+    const { id } = req.params;
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (order.status !== 'Completed') {
+      return res.status(400).json({ success: false, message: 'Payment reminders can only be sent for completed services.' });
+    }
+
+    if (order.final_payment_status === 'Paid') {
+      return res.status(400).json({ success: false, message: 'This order is already fully paid.' });
+    }
+
+    let balanceDue = 0;
+    if (order.has_final_price) {
+      const finalPrice = parseFloat(order.final_price) || 0;
+      balanceDue = Math.max(0, (finalPrice * 1.10) - 1100);
+    } else {
+      const legacyTotal = (parseFloat(order.price) || 0) + (parseFloat(order.tax_amount) || 0);
+      balanceDue = legacyTotal > 1100 ? legacyTotal - 1100 : legacyTotal;
+    }
+
+    if (balanceDue <= 0) {
+      return res.status(400).json({ success: false, message: 'This order has no outstanding balance.' });
+    }
+
+    if (order.last_payment_reminder_sent_at) {
+      const msSinceLast = Date.now() - new Date(order.last_payment_reminder_sent_at).getTime();
+      const hoursSinceLast = msSinceLast / (1000 * 60 * 60);
+      if (hoursSinceLast < 24) {
+        const remainingHours = Math.ceil(24 - hoursSinceLast);
+        return res.status(429).json({
+          success: false,
+          message: `A payment reminder was already sent within the last 24 hours. You can send another reminder in ${remainingHours} hour${remainingHours === 1 ? '' : 's'}.`,
+          hoursRemaining: remainingHours
+        });
+      }
+    }
+
+    const completedDate = new Date(order.completed_at || order.service_execution_date || order.updated_at || order.date);
+    const daysOverdue = Math.max(0, Math.floor((Date.now() - completedDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+    const now = new Date();
+    await Order.updateMany(
+      { order_id: order.order_id },
+      { 
+        $set: { last_payment_reminder_sent_at: now },
+        $inc: { payment_reminder_count: 1 }
+      }
+    );
+
+    if (order.user_id) {
+      await new Notification({
+        user_id: order.user_id,
+        order_id: order.order_id,
+        message: `Payment Reminder: Order #${order.order_id}`,
+        details: `Your service is completed with an outstanding final balance of ₱${balanceDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Please settle the remaining balance in Ongoing Orders.`,
+        type: 'payment_reminder',
+        link: '/ongoing-orders'
+      }).save();
+    }
+
+    const clientInfo = {
+      firstName: order.first_name,
+      lastName: order.last_name,
+      email: order.email,
+      phone: order.phone,
+      address: order.address,
+      serviceType: order.service_type
+    };
+
+    try {
+      await sendPaymentReminderEmail(order.order_id, clientInfo, balanceDue, daysOverdue);
+    } catch (emailErr) {
+      console.warn('Payment reminder email failed to send (non-blocking):', emailErr.message || emailErr);
+    }
+
+    invalidateOrdersCache();
+
+    return res.json({
+      success: true,
+      message: `Payment reminder sent successfully to ${order.first_name} ${order.last_name}.`,
+      last_payment_reminder_sent_at: now,
+      payment_reminder_count: (order.payment_reminder_count || 0) + 1,
+      balance_due: balanceDue
+    });
+  } catch (err) {
+    console.error('Error sending payment reminder:', err);
+    return res.status(500).json({ success: false, message: 'Server error while sending payment reminder: ' + err.message });
   }
 });
 

@@ -13,7 +13,7 @@ import autoTable from 'jspdf-autotable';
 import reportHeaderImg from '../assets/styles/images/report_header.png';
 import { formatName } from '../utils/formatName';
 import ServicePricingFields from '../components/ServicePricingFields';
-import { calculateOrderTotals, groupOrdersByOrderId, calculateOrderCollectedRevenue, parseNumericAmount } from '../utils/pricing';
+import { calculateOrderTotals, groupOrdersByOrderId, calculateOrderCollectedRevenue, calculateOrderOutstandingBalance, calculateDaysOverdue, parseNumericAmount } from '../utils/pricing';
 
 const processGroupedOrders = (rawOrders) => groupOrdersByOrderId(rawOrders);
 
@@ -46,6 +46,7 @@ function OrderDatabase() {
   const [services, setServices] = useState([]);
   const [truckTeams, setTruckTeams] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReasonText, setRejectReasonText] = useState('');
   const [isGeneratingInspectionSheet, setIsGeneratingInspectionSheet] = useState(false);
@@ -584,6 +585,59 @@ function OrderDatabase() {
     }
   };
 
+  const handleSendPaymentReminder = async () => {
+    const targetOrder = editModal.order;
+    const orderIdToUse = targetOrder?.id || targetOrder?._id;
+    if (!orderIdToUse) return;
+
+    const formattedRef = formatOrderReference(targetOrder.order_id);
+    const clientName = `${targetOrder.first_name || ''} ${targetOrder.last_name || ''}`.trim() || 'the client';
+    const balance = calculateOrderOutstandingBalance(targetOrder);
+
+    const isConfirmed = await confirm({
+      title: "Send Payment Reminder",
+      text: `Send a payment reminder notification and email to ${clientName} for ${formattedRef}?`,
+      description: `Outstanding balance: ₱${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. The client will receive an urgent in-app alert and Cleaneco invoice email to settle their account.`,
+      confirmLabel: "Send Reminder",
+      confirmVariant: "primary"
+    });
+
+    if (!isConfirmed) return;
+
+    setIsSendingReminder(true);
+    try {
+      const response = await api.post(`/orders/${orderIdToUse}/send-payment-reminder`);
+      if (response.data.success) {
+        showAlert("Success", response.data.message || "Payment reminder sent successfully.", "success");
+        const updatedSentAt = response.data.last_payment_reminder_sent_at;
+        const updatedCount = response.data.payment_reminder_count;
+
+        setEditModal(prev => ({
+          ...prev,
+          order: prev.order ? {
+            ...prev.order,
+            last_payment_reminder_sent_at: updatedSentAt,
+            payment_reminder_count: updatedCount
+          } : null
+        }));
+
+        setOrders(prevOrders => prevOrders.map(o => 
+          (o.id === orderIdToUse || o.order_id === targetOrder.order_id)
+            ? { ...o, last_payment_reminder_sent_at: updatedSentAt, payment_reminder_count: updatedCount }
+            : o
+        ));
+      } else {
+        showAlert("Warning", response.data.message || "Could not send payment reminder.", "warning");
+      }
+    } catch (error) {
+      console.error("Error sending payment reminder:", error);
+      const errMsg = error.response?.data?.message || "Failed to send payment reminder.";
+      showAlert("Error", errMsg, "error");
+    } finally {
+      setIsSendingReminder(false);
+    }
+  };
+
   if (loading) {
     return (
     <div ref={container}>
@@ -637,7 +691,12 @@ function OrderDatabase() {
     })();
 
     const matchType = filterType === '' || (Array.isArray(order.service_names) && order.service_names.includes(filterType)) || order.service_name === filterType;
-    const matchStatus = filterStatus === '' || order.status === filterStatus;
+    const matchStatus = filterStatus === '' || (() => {
+      if (filterStatus === 'unpaid_balance') {
+        return order.status === 'Completed' && order.final_payment_status !== 'Paid';
+      }
+      return order.status === filterStatus;
+    })();
     const matchDate = filterDate === '' || resolveOrderSchedule(order).filterDateKey === filterDate;
     return matchesSearch && matchType && matchStatus && matchDate;
   });
@@ -646,8 +705,12 @@ function OrderDatabase() {
   const currentGrossSales = isFiltered
     ? filteredOrders.reduce((sum, order) => sum + calculateOrderCollectedRevenue(order), 0)
     : totalRevenue;
+  const currentOutstandingBalance = isFiltered
+    ? filteredOrders.reduce((sum, order) => sum + calculateOrderOutstandingBalance(order), 0)
+    : orders.reduce((sum, order) => sum + calculateOrderOutstandingBalance(order), 0);
   const totalBookingsCount = orders.length;
   const completedOrdersCount = orders.filter(o => o.status === 'Completed').length;
+  const unpaidCompletedOrdersCount = orders.filter(o => o.status === 'Completed' && o.final_payment_status !== 'Paid').length;
   const pendingOrdersCount = orders.filter(o => o.status === 'Pending').length;
   const inProgressOrdersCount = orders.filter(o => o.status === 'In Progress').length;
   const activeOrdersCount = pendingOrdersCount + inProgressOrdersCount;
@@ -727,8 +790,8 @@ function OrderDatabase() {
 
           {/* Executive KPI Metric Cards */}
           <div className="row g-3 mb-4">
-            <div className="col-12 col-sm-6 col-xl-3">
-              {isSubAdmin ? (
+            {isSubAdmin ? (
+              <div className="col-12 col-sm-6 col-xl-3">
                 <div className="db-kpi-card">
                   <div className="d-flex align-items-center justify-content-between">
                     <span className="db-kpi-label">In Progress</span>
@@ -743,25 +806,51 @@ function OrderDatabase() {
                     Active Dispatch & Execution
                   </p>
                 </div>
-              ) : (
-                <div className="db-kpi-card">
-                  <div className="d-flex align-items-center justify-content-between">
-                    <span className="db-kpi-label">Gross Sales</span>
-                    <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(13, 141, 30, 0.12)', color: '#0D8D1E' }}>
-                      <i className="fas fa-coins"></i>
+              </div>
+            ) : (
+              <>
+                <div className="col-12 col-sm-6 col-md-4 col-xl">
+                  <div className="db-kpi-card">
+                    <div className="d-flex align-items-center justify-content-between">
+                      <span className="db-kpi-label">Gross Sales</span>
+                      <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(13, 141, 30, 0.12)', color: '#0D8D1E' }}>
+                        <i className="fas fa-coins"></i>
+                      </div>
                     </div>
+                    <div className="db-kpi-value text-success">
+                      ₱{currentGrossSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <p className="db-kpi-subtext">
+                      {isFiltered ? 'Filtered Total Collected' : 'All-Time Total Collected'}
+                    </p>
                   </div>
-                  <div className="db-kpi-value text-success">
-                    ₱{currentGrossSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                  <p className="db-kpi-subtext">
-                    {isFiltered ? 'Filtered Total Collected' : 'All-Time Total Collected'}
-                  </p>
                 </div>
-              )}
-            </div>
 
-            <div className="col-12 col-sm-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-4 col-xl">
+                  <div 
+                    className={`db-kpi-card ${filterStatus === 'unpaid_balance' ? 'border border-danger' : ''}`}
+                    style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                    onClick={() => setFilterStatus(filterStatus === 'unpaid_balance' ? '' : 'unpaid_balance')}
+                    title="Click to toggle filter for completed orders with unpaid balance"
+                  >
+                    <div className="d-flex align-items-center justify-content-between">
+                      <span className="db-kpi-label">Outstanding Balance</span>
+                      <div className="db-kpi-icon" style={{ backgroundColor: 'rgba(220, 38, 38, 0.12)', color: '#dc2626' }}>
+                        <i className="fas fa-file-invoice-dollar"></i>
+                      </div>
+                    </div>
+                    <div className="db-kpi-value text-danger">
+                      ₱{currentOutstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <p className="db-kpi-subtext">
+                      {unpaidCompletedOrdersCount} Completed Pending Settlement
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className={isSubAdmin ? "col-12 col-sm-6 col-xl-3" : "col-12 col-sm-6 col-md-4 col-xl"}>
               <div className="db-kpi-card">
                 <div className="d-flex align-items-center justify-content-between">
                   <span className="db-kpi-label">Total Bookings</span>
@@ -778,7 +867,7 @@ function OrderDatabase() {
               </div>
             </div>
 
-            <div className="col-12 col-sm-6 col-xl-3">
+            <div className={isSubAdmin ? "col-12 col-sm-6 col-xl-3" : "col-12 col-sm-6 col-md-4 col-xl"}>
               <div className="db-kpi-card">
                 <div className="d-flex align-items-center justify-content-between">
                   <span className="db-kpi-label">Completed Services</span>
@@ -795,7 +884,7 @@ function OrderDatabase() {
               </div>
             </div>
 
-            <div className="col-12 col-sm-6 col-xl-3">
+            <div className={isSubAdmin ? "col-12 col-sm-6 col-xl-3" : "col-12 col-sm-6 col-md-4 col-xl"}>
               <div className="db-kpi-card">
                 <div className="d-flex align-items-center justify-content-between">
                   <span className="db-kpi-label">Active & Pending</span>
@@ -896,7 +985,9 @@ function OrderDatabase() {
                 >
                   <span className="d-flex align-items-center gap-2 text-truncate">
                     <i className="fas fa-filter client-filter-icon" aria-hidden="true"></i>
-                    <span className="text-truncate">{filterStatus || 'All Statuses'}</span>
+                    <span className="text-truncate">
+                      {filterStatus === 'unpaid_balance' ? 'Unpaid Balance' : (filterStatus || 'All Statuses')}
+                    </span>
                   </span>
                   <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'status' ? 'open' : ''}`} aria-hidden="true"></i>
                 </button>
@@ -907,6 +998,7 @@ function OrderDatabase() {
                       { value: 'Pending', label: 'Pending' },
                       { value: 'In Progress', label: 'In Progress' },
                       { value: 'Completed', label: 'Completed' },
+                      { value: 'unpaid_balance', label: 'Unpaid Balance' },
                       { value: 'Cancelled', label: 'Cancelled' }
                     ].map((opt) => (
                       <li key={opt.value || 'all'}>
@@ -1064,6 +1156,21 @@ function OrderDatabase() {
                       </td>
                       <td className={`status-cell text-nowrap ${getStatusClass(order.status)}`} style={{ minWidth: '120px', whiteSpace: 'nowrap' }}>
                         {order.status}
+                        {order.status === 'Completed' && order.final_payment_status !== 'Paid' && (() => {
+                          const overdue = calculateDaysOverdue(order);
+                          return (
+                            <div className="mt-1">
+                              <span 
+                                className="badge bg-danger text-white fw-semibold" 
+                                style={{ fontSize: '0.68rem', letterSpacing: '0.2px', padding: '2px 6px' }}
+                                title={`${overdue} day${overdue === 1 ? '' : 's'} since service completion without final payment`}
+                              >
+                                <i className="fas fa-exclamation-circle me-1"></i>
+                                Unpaid • {overdue}d
+                              </span>
+                            </div>
+                          );
+                        })()}
                         {order.request_type && (
                           <div className="small text-warning fw-bold mt-1">{order.request_type}</div>
                         )}
@@ -1323,6 +1430,86 @@ function OrderDatabase() {
                           </div>
                         </div>
                       )}
+
+                      {!isSubAdmin && editModal.order.status === 'Completed' && (() => {
+                        const isPaid = editModal.order.final_payment_status === 'Paid';
+                        const outstandingBal = calculateOrderOutstandingBalance(editModal.order);
+                        const overdueDays = calculateDaysOverdue(editModal.order);
+                        const lastReminder = editModal.order.last_payment_reminder_sent_at;
+                        const reminderCount = editModal.order.payment_reminder_count || 0;
+
+                        let isThrottled = false;
+                        let hoursRemaining = 0;
+                        if (lastReminder) {
+                          const hoursSince = (Date.now() - new Date(lastReminder).getTime()) / (1000 * 60 * 60);
+                          if (hoursSince < 24) {
+                            isThrottled = true;
+                            hoursRemaining = Math.ceil(24 - hoursSince);
+                          }
+                        }
+
+                        return (
+                          <div className="form-group mb-3">
+                            <label className="form-label fw-bold small text-muted">Final Balance & Settlement</label>
+                            <div className={`card border-0 shadow-sm p-3 ${isPaid ? 'bg-light' : 'bg-light border border-danger-subtle'}`}>
+                              <div className="d-flex justify-content-between align-items-center mb-2">
+                                <span className="small fw-semibold text-muted">Settlement Status:</span>
+                                {isPaid ? (
+                                  <span className="badge bg-success">
+                                    <i className="fas fa-check-circle me-1"></i>Fully Paid
+                                  </span>
+                                ) : (
+                                  <span className="badge bg-danger">
+                                    <i className="fas fa-exclamation-circle me-1"></i>Unpaid (₱{outstandingBal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                  </span>
+                                )}
+                              </div>
+
+                              {!isPaid && (
+                                <>
+                                  <div className="small mb-1 text-muted">
+                                    <i className="fas fa-calendar-times me-1 text-danger"></i>
+                                    <strong>Overdue Period:</strong> {overdueDays} day{overdueDays === 1 ? '' : 's'} since service completion
+                                  </div>
+                                  <div className="small mb-2 text-muted">
+                                    <i className="fas fa-bell me-1 text-primary"></i>
+                                    <strong>Reminder History:</strong> {lastReminder 
+                                      ? `${reminderCount} reminder${reminderCount === 1 ? '' : 's'} sent (Latest: ${formatDate(lastReminder)})` 
+                                      : 'No reminder sent yet'}
+                                  </div>
+
+                                  <div className="pt-2 border-top">
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-danger w-100 fw-bold d-flex align-items-center justify-content-center gap-2"
+                                      onClick={handleSendPaymentReminder}
+                                      disabled={isSendingReminder || isThrottled}
+                                      title={isThrottled ? `A reminder was sent recently. You can send another in ${hoursRemaining}h.` : 'Send in-app and email reminder to client'}
+                                    >
+                                      {isSendingReminder ? (
+                                        <>
+                                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                          <span>Sending Reminder...</span>
+                                        </>
+                                      ) : isThrottled ? (
+                                        <>
+                                          <i className="fas fa-clock"></i>
+                                          <span>Reminder Sent (Available in {hoursRemaining}h)</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <i className="fas fa-paper-plane"></i>
+                                          <span>Send Payment Reminder (Email & In-App)</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {(() => {
                         const isBizOrder = ['commercial', 'industrial'].includes(String(editModal.order.user_clientType || '').toLowerCase());

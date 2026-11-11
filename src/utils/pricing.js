@@ -274,6 +274,50 @@ export function calculateOrderCollectedRevenue(order) {
 }
 
 /**
+ * Calculate the outstanding / unpaid final balance for an order.
+ * Applies when an order is Completed and final_payment_status !== 'Paid'.
+ * 
+ * @param {Object} order
+ * @returns {Number} Outstanding balance in PHP
+ */
+export function calculateOrderOutstandingBalance(order) {
+  if (!order || order.status !== 'Completed' || order.final_payment_status === 'Paid') {
+    return 0;
+  }
+
+  if (order.has_final_price) {
+    const finalPrice = parseNumericAmount(order.final_price);
+    const totalWithTax = finalPrice * 1.10;
+    return Math.max(0, totalWithTax - 1100);
+  }
+
+  const legacyTotal = parseNumericAmount(order.price) + parseNumericAmount(order.tax_amount);
+  if (legacyTotal > 1100) {
+    return legacyTotal - 1100;
+  }
+
+  return Math.max(0, legacyTotal);
+}
+
+/**
+ * Calculate the days elapsed since service completion for an unpaid completed order.
+ *
+ * @param {Object} order
+ * @returns {Number} Days overdue (integer >= 0)
+ */
+export function calculateDaysOverdue(order) {
+  if (!order || order.status !== 'Completed' || order.final_payment_status === 'Paid') {
+    return 0;
+  }
+  const completedDate = new Date(order.completed_at || order.service_execution_date || order.updated_at || order.date);
+  if (isNaN(completedDate.getTime())) return 0;
+  const now = new Date();
+  const diffTime = now.getTime() - completedDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
+/**
  * Build an itemized per-field PHP breakdown for a single service so every row shows
  * an exact Peso contribution and all rows sum exactly to the service subtotal.
  */

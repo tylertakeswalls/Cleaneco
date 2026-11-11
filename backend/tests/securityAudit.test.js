@@ -126,7 +126,66 @@ assert.strictEqual(requireFullAdminScope(adminToken).status, 200, 'Full Admin al
 console.log('  ✔ Sub-Admin preserves 2-role model (role = admin, admin_scope = sub_admin)');
 console.log('  ✔ Sub-Admin allowed on read-only operational routes and blocked (403) on Full-Admin write routes');
 
+// TEST 6: Payment Reminder Authorization & 24-Hour Rate Limiting
+console.log('\nTEST 6: Payment Reminder Authorization & 24-Hour Rate Limiting (/api/orders/:id/send-payment-reminder)');
+
+function simulatePaymentReminderEndpoint(token, order) {
+  const res = verifyAdminRole(token);
+  if (res.status !== 200) return res;
+  if (res.user.admin_scope === 'sub_admin') {
+    return { status: 403, error: 'Forbidden: Sub-Admins cannot trigger payment reminders' };
+  }
+  
+  if (order.status !== 'Completed') {
+    return { status: 400, error: 'Payment reminders can only be sent for completed services.' };
+  }
+  if (order.final_payment_status === 'Paid') {
+    return { status: 400, error: 'This order is already fully paid.' };
+  }
+  
+  if (order.last_payment_reminder_sent_at) {
+    const hoursSince = (Date.now() - new Date(order.last_payment_reminder_sent_at).getTime()) / (1000 * 60 * 60);
+    if (hoursSince < 24) {
+      return { status: 429, error: 'A payment reminder was already sent within the last 24 hours.' };
+    }
+  }
+
+  return { status: 200, success: true, message: 'Payment reminder sent successfully.' };
+}
+
+const testUnpaidOrder = {
+  order_id: 'ORD_UNPAID_001',
+  status: 'Completed',
+  final_payment_status: 'Pending',
+  final_price: 25000,
+  has_final_price: true
+};
+
+assert.strictEqual(simulatePaymentReminderEndpoint(clientToken, testUnpaidOrder).status, 403);
+console.log('  ✔ Client attempting to trigger payment reminder strictly blocked (status 403)');
+
+assert.strictEqual(simulatePaymentReminderEndpoint(subAdminToken, testUnpaidOrder).status, 403);
+console.log('  ✔ Sub-Admin attempting payment reminder strictly blocked (status 403)');
+
+assert.strictEqual(simulatePaymentReminderEndpoint(adminToken, testUnpaidOrder).status, 200);
+console.log('  ✔ Full Admin sending payment reminder succeeds (status 200)');
+
+const testPaidOrder = { ...testUnpaidOrder, final_payment_status: 'Paid' };
+assert.strictEqual(simulatePaymentReminderEndpoint(adminToken, testPaidOrder).status, 400);
+console.log('  ✔ Payment reminder rejected for already paid order (status 400)');
+
+const testPendingOrder = { ...testUnpaidOrder, status: 'In Progress' };
+assert.strictEqual(simulatePaymentReminderEndpoint(adminToken, testPendingOrder).status, 400);
+console.log('  ✔ Payment reminder rejected for non-completed order (status 400)');
+
+const recentlyRemindedOrder = {
+  ...testUnpaidOrder,
+  last_payment_reminder_sent_at: new Date(Date.now() - (2 * 60 * 60 * 1000))
+};
+assert.strictEqual(simulatePaymentReminderEndpoint(adminToken, recentlyRemindedOrder).status, 429);
+console.log('  ✔ Payment reminder 24-hour rate limit enforced (status 429)');
+
 console.log('\n====================================================');
-console.log('ALL SECURITY & ISOLATION AUDITS PASSED (5/5)');
+console.log('ALL SECURITY & ISOLATION AUDITS PASSED (6/6)');
 console.log('====================================================');
 

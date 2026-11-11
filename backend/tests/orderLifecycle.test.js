@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { calculateServiceEstimate, calculateOrderTotals, calculateStartingPrice, groupOrdersByOrderId } = require('../utils/pricing');
+const { calculateServiceEstimate, calculateOrderTotals, calculateStartingPrice, groupOrdersByOrderId, calculateOrderOutstandingBalance, calculateDaysOverdue } = require('../utils/pricing');
 
 console.log('====================================================');
 console.log('RUNNING CLEANECO ORDER LIFECYCLE INTEGRATION TESTS');
@@ -223,7 +223,33 @@ assert.strictEqual(multiServiceGrouped[0].company_name, 'Riot Games', 'Company n
 console.log('  ✔ Multi-service order grouping preserves all 3 locations and company metadata');
 console.log('  ✔ Quick Re-Order ("Book Again") & Pre-Filled Inspection Sheet data contract verified');
 
+// TEST 8: Outstanding Balance & Overdue Calculation Verification
+console.log('\nTEST 8: Outstanding Balance & Overdue Calculation (Feature 5)');
+const mockCompletedUnpaidOrder = {
+  status: 'Completed',
+  has_final_price: true,
+  final_price: 32000,
+  final_payment_status: 'Pending',
+  completed_at: new Date(Date.now() - (5 * 24 * 60 * 60 * 1000))
+};
+
+const unpaidBal = calculateOrderOutstandingBalance(mockCompletedUnpaidOrder);
+assert.strictEqual(unpaidBal, 34100, 'Unpaid balance must equal (final_price * 1.10) - 1,100');
+console.log('  ✔ Correct outstanding balance calculated: ₱34,100.00');
+
+const daysOverdue = calculateDaysOverdue(mockCompletedUnpaidOrder);
+assert.strictEqual(daysOverdue, 5, 'Days overdue must accurately calculate 5 days elapsed');
+console.log('  ✔ Correct days overdue calculated: 5 days');
+
+const mockPaidOrder = {
+  ...mockCompletedUnpaidOrder,
+  final_payment_status: 'Paid'
+};
+assert.strictEqual(calculateOrderOutstandingBalance(mockPaidOrder), 0, 'Fully paid orders must have 0 outstanding balance');
+assert.strictEqual(calculateDaysOverdue(mockPaidOrder), 0, 'Fully paid orders must report 0 days overdue');
+console.log('  ✔ Fully paid order correctly returns ₱0 outstanding and 0 days overdue');
+
 console.log('\n====================================================');
-console.log('ALL ORDER LIFECYCLE TESTS PASSED SUCCESSFULLY (7/7)');
+console.log('ALL ORDER LIFECYCLE TESTS PASSED SUCCESSFULLY (8/8)');
 console.log('====================================================');
 

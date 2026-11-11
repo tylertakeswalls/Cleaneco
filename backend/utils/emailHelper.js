@@ -321,10 +321,70 @@ const sendPasswordResetEmail = async (email, token, firstName) => {
   });
 };
 
+const sendPaymentReminderEmail = async (orderId, clientInfo, balanceDue, daysOverdue = 0) => {
+  const portalLink = `${process.env.CLIENT_URL || 'https://cleaneco-kappa.vercel.app'}/ongoing-orders`;
+  const subject = `Payment Reminder: Outstanding Balance for Cleaneco Order #${orderId}`;
+  const headerSubtitle = "Final Payment Balance Reminder";
+  const formattedBalance = `₱${parseFloat(balanceDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  
+  const contentHtml = `
+      <div class='status-banner' style='border-left: 4px solid #ef4444; background-color: #fef2f2;'>
+          <p style='color: #991b1b; font-weight: 600; font-size: 16px; margin-bottom: 6px;'>
+              Outstanding Balance Notice
+          </p>
+          <p style='color: #4b5563; margin: 0; font-size: 14px;'>
+              Dear ${clientInfo.firstName || 'Valued Client'}, our field operations team has completed your scheduled service for <strong>Order #${orderId}</strong>. Records indicate that the remaining final balance of <strong style='color: #0D8D1E;'>${formattedBalance}</strong> is currently pending settlement.
+          </p>
+      </div>
+
+      <h2 class='section-title'>Order & Account Summary</h2>
+      <div class='grid'>
+          <div class='grid-col'>
+              <p><strong>Order ID:</strong> #${orderId}</p>
+              <p><strong>Service Type:</strong> ${clientInfo.serviceType || 'Sanitation / Desludging'}</p>
+              <p><strong>Service Status:</strong> <span style='color: #0D8D1E; font-weight: bold;'>Completed</span></p>
+              <p><strong>Completed:</strong> ${daysOverdue > 0 ? `${daysOverdue} day${daysOverdue === 1 ? '' : 's'} ago` : 'Recently completed'}</p>
+          </div>
+          <div class='grid-col'>
+              <p><strong>Client Name:</strong> ${clientInfo.firstName} ${clientInfo.lastName}</p>
+              <p><strong>Address:</strong> ${clientInfo.address || 'On Record'}</p>
+              <p><strong>Outstanding Balance:</strong> <span style='color: #ef4444; font-weight: 700; font-size: 16px;'>${formattedBalance}</span></p>
+          </div>
+      </div>
+
+      <div style="text-align: center; margin: 25px 0;">
+          <a href='${portalLink}' class='btn-action' style='color: #ffffff; text-decoration: none;'>View Order & Settle Balance</a>
+          <p style="font-size: 13px; color: #64748b; margin-top: 10px;">
+              You may settle via online payment gateway or upload an official post-dated / manager's cheque directly in your portal.
+          </p>
+      </div>
+
+      <div class="notes-box">
+          <p style="margin: 0; font-size: 13px; color: #64748b;">
+              <strong>Note:</strong> If you have already remitted this payment or submitted a cheque that is currently pending verification, please disregard this reminder. For assistance or questions regarding your invoice, feel free to contact our billing team at cleanecowmss@gmail.com or +63 9216214712.
+          </p>
+      </div>
+  `;
+
+  const htmlMessage = baseEmailTemplate({
+      subject,
+      title: 'Cleaneco Waste Management Services',
+      headerSubtitle,
+      contentHtml
+  });
+
+  await sendEmailJS('template_ns5zlcs', {
+    to_email: clientInfo.email,
+    subject: subject,
+    html_content: htmlMessage
+  });
+};
+
 module.exports = { 
   sendConfirmationEmail, 
   sendVerificationEmail, 
   sendPasswordResetEmail, 
   sendContactEmail, 
-  sendRescheduleEmail 
+  sendRescheduleEmail,
+  sendPaymentReminderEmail
 };
