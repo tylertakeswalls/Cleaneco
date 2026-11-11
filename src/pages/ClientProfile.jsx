@@ -350,7 +350,7 @@ function ClientProfile() {
                   Book a Service
                   <i className="fas fa-chevron-right ms-auto text-muted small"></i>
                 </Link>
-                <Link to="/client/ongoing-orders" className="list-group-item list-group-item-action d-flex align-items-center px-0 py-2 border-0 text-dark small fw-medium">
+                <Link to="/orders" className="list-group-item list-group-item-action d-flex align-items-center px-0 py-2 border-0 text-dark small fw-medium">
                   <i className="fas fa-truck text-success me-3" style={{ width: '16px' }}></i>
                   Ongoing Orders
                   <i className="fas fa-chevron-right ms-auto text-muted small"></i>

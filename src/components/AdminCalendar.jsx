@@ -145,134 +145,112 @@ export default function AdminCalendar({ orders = [] }) {
                 day: 'numeric'
             });
 
-            let currentY = 72;
             doc.setFont("times", "bold");
-            doc.setFontSize(13);
-            doc.setTextColor(20, 20, 20);
-            doc.text("DAILY DISPATCH RUN SHEET", 14, currentY);
+            doc.setFontSize(12);
+            doc.text("Daily Dispatch Run Sheet", 14, 75);
 
-            currentY += 6;
             doc.setFont("times", "normal");
-            doc.setFontSize(9.5);
-            doc.setTextColor(60, 60, 60);
-            doc.text(`Service Execution Date: ${formattedDateStr}`, 14, currentY);
+            doc.setFontSize(10);
+            doc.text(`Service Execution Date: ${formattedDateStr}`, 14, 81);
+            doc.text(`Total Assigned Jobs: ${selectedDayOrders.length}  |  Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 14, 87);
 
-            currentY += 5;
-            doc.setFontSize(8.5);
-            doc.setTextColor(100, 100, 100);
-            doc.text(`Total Assigned Jobs: ${selectedDayOrders.length}  |  Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 14, currentY);
-
-            currentY += 8;
-
-            // Group orders by assigned truck team
-            const teamGroups = {};
-            selectedDayOrders.forEach(order => {
-                const team = (order.truck_team || '').trim() || 'Unassigned Fleet';
-                if (!teamGroups[team]) teamGroups[team] = [];
-                teamGroups[team].push(order);
-            });
-
+            // Group and sort orders by assigned truck team, then time slot
             const slotOrder = { 'Morning': 1, 'Afternoon': 2, 'Evening': 3 };
-            const sortedTeams = Object.keys(teamGroups).sort((a, b) => {
-                if (a.toLowerCase().includes('unassigned')) return 1;
-                if (b.toLowerCase().includes('unassigned')) return -1;
-                return a.localeCompare(b);
+            const sortedOrders = [...selectedDayOrders].sort((a, b) => {
+                const teamA = (a.truck_team || '').trim() || 'Unassigned Fleet';
+                const teamB = (b.truck_team || '').trim() || 'Unassigned Fleet';
+                const isUnassignedA = teamA.toLowerCase().includes('unassigned');
+                const isUnassignedB = teamB.toLowerCase().includes('unassigned');
+                if (isUnassignedA && !isUnassignedB) return 1;
+                if (!isUnassignedA && isUnassignedB) return -1;
+                const teamCompare = teamA.localeCompare(teamB);
+                if (teamCompare !== 0) return teamCompare;
+
+                const slotA = slotOrder[a._schedule?.activeSlot || a.time_slot] || 99;
+                const slotB = slotOrder[b._schedule?.activeSlot || b.time_slot] || 99;
+                return slotA - slotB;
             });
 
-            sortedTeams.forEach((teamName) => {
-                const teamOrders = teamGroups[teamName];
-                teamOrders.sort((a, b) => {
-                    const slotA = slotOrder[a._schedule?.activeSlot || a.time_slot] || 99;
-                    const slotB = slotOrder[b._schedule?.activeSlot || b.time_slot] || 99;
-                    return slotA - slotB;
-                });
+            const tableColumn = [
+                "Stop",
+                "Team / Crew",
+                "Time Slot",
+                "Order & Client",
+                "Service & Scope",
+                "Destination Address & Landmark",
+                "Remarks & Sign-off"
+            ];
 
-                if (currentY > 235) {
-                    doc.addPage();
-                    currentY = 20;
+            const tableRows = sortedOrders.map((o, idx) => {
+                const stopNumber = String(idx + 1);
+                const teamText = (o.truck_team || '').trim() || 'Unassigned';
+                const slotText = `${o._schedule?.activeSlot || o.time_slot || 'Standard'}\n(${o._schedule?.label || 'Scheduled'})`;
+                
+                const clientName = formatName(o);
+                const phoneText = o.phone ? `\nTel: ${o.phone}` : '';
+                const orderRef = o.order_id ? `#${formatOrderReference(o.order_id)}` : 'N/A';
+                const orderClientText = `${orderRef}\n${clientName}${phoneText}`;
+
+                const serviceName = o.service_name || o.service_type || 'Sanitation Service';
+                const tripsText = (o.total_trips && o.total_trips > 1) ? `\n(${o.total_trips} trips required)` : '';
+                const serviceScopeText = `${serviceName}${tripsText}`;
+
+                const addressText = o.address || 'Address on record';
+                const landmarkText = o.landmark ? `\nLandmark: ${o.landmark}` : '';
+                const addressLandmarkText = `${addressText}${landmarkText}`;
+
+                const notesList = [];
+                if (o.site_photo_url) {
+                    notesList.push("• Difficult Site Access");
                 }
+                if (o.notes) {
+                    notesList.push(`• Client: ${o.notes.slice(0, 80)}`);
+                }
+                if (o.internal_notes) {
+                    notesList.push(`• Dispatch: ${o.internal_notes.slice(0, 80)}`);
+                }
+                notesList.push("[ ] Completed  Sign: ____________");
+                const crewNotesText = notesList.join('\n');
 
-                doc.setFont("times", "bold");
-                doc.setFontSize(10.5);
-                doc.setTextColor(13, 141, 30);
-                doc.text(`TRUCK FLEET / CREW: ${teamName.toUpperCase()} (${teamOrders.length} Stop${teamOrders.length === 1 ? '' : 's'})`, 14, currentY);
-                currentY += 4;
+                return [
+                    stopNumber,
+                    teamText,
+                    slotText,
+                    orderClientText,
+                    serviceScopeText,
+                    addressLandmarkText,
+                    crewNotesText
+                ];
+            });
 
-                const tableColumn = ["Stop", "Time Slot", "Order & Client", "Service & Scope", "Destination Address & Landmark", "Field Notes & Remarks"];
-                const tableRows = [];
-
-                teamOrders.forEach((o, oIdx) => {
-                    const stopNumber = String(oIdx + 1);
-                    const slotText = `${o._schedule?.activeSlot || o.time_slot || 'Standard'}\n(${o._schedule?.label || 'Scheduled'})`;
-                    
-                    const clientName = formatName(o);
-                    const phoneText = o.phone ? `\nTel: ${o.phone}` : '';
-                    const orderRef = o.order_id ? `#${formatOrderReference(o.order_id)}` : 'N/A';
-                    const orderClientText = `${orderRef}\n${clientName}${phoneText}`;
-
-                    const serviceName = o.service_name || o.service_type || 'Sanitation Service';
-                    const tripsText = (o.total_trips && o.total_trips > 1) ? `\n(${o.total_trips} trips required)` : '';
-                    const serviceScopeText = `${serviceName}${tripsText}`;
-
-                    const addressText = o.address || 'Address on record';
-                    const landmarkText = o.landmark ? `\nLandmark: ${o.landmark}` : '';
-                    const addressLandmarkText = `${addressText}${landmarkText}`;
-
-                    const notesList = [];
-                    if (o.site_photo_url) {
-                        notesList.push("• Difficult Site Access (Photo on file)");
-                    }
-                    if (o.notes) {
-                        notesList.push(`• Client: ${o.notes.slice(0, 100)}`);
-                    }
-                    if (o.internal_notes) {
-                        notesList.push(`• Dispatch: ${o.internal_notes.slice(0, 100)}`);
-                    }
-                    notesList.push("[ ] Completed  Sign: ____________");
-                    const crewNotesText = notesList.join('\n');
-
-                    tableRows.push([
-                        stopNumber,
-                        slotText,
-                        orderClientText,
-                        serviceScopeText,
-                        addressLandmarkText,
-                        crewNotesText
-                    ]);
-                });
-
-                autoTable(doc, {
-                    head: [tableColumn],
-                    body: tableRows,
-                    startY: currentY,
-                    theme: 'grid',
-                    styles: { 
-                        font: 'times', 
-                        fontSize: 8, 
-                        cellPadding: 2.5, 
-                        overflow: 'linebreak',
-                        valign: 'top'
-                    },
-                    headStyles: { 
-                        fillColor: [13, 141, 30], 
-                        textColor: 255, 
-                        fontStyle: 'bold',
-                        fontSize: 8.5
-                    },
-                    columnStyles: {
-                        0: { cellWidth: 12, halign: 'center' },
-                        1: { cellWidth: 26 },
-                        2: { cellWidth: 38 },
-                        3: { cellWidth: 36 },
-                        4: { cellWidth: 46 },
-                        5: { cellWidth: 32 }
-                    },
-                    didDrawPage: (data) => {
-                        currentY = data.cursor.y + 10;
-                    }
-                });
-
-                currentY = doc.lastAutoTable.finalY + 8;
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 93,
+                styles: { 
+                    fontSize: 8, 
+                    cellPadding: 2.5, 
+                    overflow: 'linebreak',
+                    valign: 'top'
+                },
+                headStyles: { 
+                    fillColor: '#0D8D1E', 
+                    textColor: [255, 255, 255], 
+                    fontStyle: 'bold',
+                    fontSize: 8.5
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 249, 250]
+                },
+                columnStyles: {
+                    0: { cellWidth: 12, halign: 'center' },
+                    1: { cellWidth: 26, fontStyle: 'bold' },
+                    2: { cellWidth: 22 },
+                    3: { cellWidth: 32 },
+                    4: { cellWidth: 30 },
+                    5: { cellWidth: 36 },
+                    6: { cellWidth: 24 }
+                }
             });
 
             const totalPages = doc.internal.getNumberOfPages();

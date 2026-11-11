@@ -641,14 +641,14 @@ function ServiceManagement() {
                             <table className="table table-bordered text-center align-middle mb-0">
                                 <thead className="thead-light">
                                     <tr>
-                                        <th style={{ whiteSpace: 'nowrap' }}>ID</th>
-                                        <th style={{ whiteSpace: 'nowrap' }}>Name</th>
-                                        <th style={{ whiteSpace: 'nowrap' }}>Description</th>
+                                        <th style={{ width: '85px', whiteSpace: 'nowrap' }}>ID</th>
+                                        <th style={{ minWidth: '150px', whiteSpace: 'nowrap' }}>Name</th>
+                                        <th style={{ minWidth: '180px', maxWidth: '240px' }}>Description</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Pricing Setup</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Maintenance Cycle</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Starting At</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Status</th>
-                                        {!isSubAdmin && <th style={{ whiteSpace: 'nowrap' }}>Actions</th>}
+                                        {!isSubAdmin && <th style={{ minWidth: '210px', whiteSpace: 'nowrap' }}>Actions</th>}
                                     </tr>
                                 </thead>
                                         <tbody>
@@ -664,61 +664,83 @@ function ServiceManagement() {
 
                                                     return (
                                                         <tr key={service.id || service._id}>
-                                                            <td className="small text-muted font-monospace">{service.id || service._id}</td>
-                                                            <td className="fw-bold text-dark">{service.name}</td>
-                                                            <td className="small text-secondary" style={{ maxWidth: '280px' }}>
-                                                                {service.description || '-'}
+                                                            <td className="small text-muted font-monospace text-nowrap" title={service.id || service._id} style={{ width: '85px' }}>
+                                                                #{String(service.id || service._id || '').slice(-6)}
                                                             </td>
-                                                            <td>
+                                                            <td className="fw-bold text-dark text-nowrap" style={{ minWidth: '150px' }}>
+                                                                {service.name}
+                                                            </td>
+                                                            <td style={{ minWidth: '180px', maxWidth: '240px' }}>
+                                                                <div 
+                                                                    className="small text-secondary" 
+                                                                    title={service.description || '-'}
+                                                                    style={{
+                                                                        display: '-webkit-box',
+                                                                        WebkitLineClamp: 2,
+                                                                        WebkitBoxOrient: 'vertical',
+                                                                        overflow: 'hidden',
+                                                                        textOverflow: 'ellipsis',
+                                                                        lineHeight: '1.35',
+                                                                        fontSize: '0.8rem'
+                                                                    }}
+                                                                >
+                                                                    {service.description || '-'}
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ whiteSpace: 'nowrap' }}>
                                                                 <div className="small">
                                                                     <span className="fw-bold text-success">Rate: ₱{parseFloat(service.rate || 0).toLocaleString()}</span>
-                                                                    {service.fixed_fee > 0 && <span className="text-muted ms-1">+ ₱{parseFloat(service.fixed_fee).toLocaleString()} fee</span>}
-                                                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                    {service.fixed_fee > 0 && <span className="text-muted ms-1">+ ₱{parseFloat(service.fixed_fee).toLocaleString()}</span>}
+                                                                    <div className="text-muted" style={{ fontSize: '0.72rem' }}>
                                                                         {(service.fields || []).length} dynamic factor{(service.fields || []).length === 1 ? '' : 's'}
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            <td>
+                                                            <td style={{ whiteSpace: 'nowrap' }}>
                                                                 {(() => {
                                                                     const months = service.recommended_interval_months || 0;
                                                                     if (!months) return <span className="text-muted small">One-Off</span>;
                                                                     if (months >= 12 && months % 12 === 0) {
                                                                         const yrs = months / 12;
-                                                                        return <span className="badge bg-success-subtle text-success border border-success-subtle fw-semibold">Every {yrs} {yrs === 1 ? 'Year' : 'Years'}</span>;
+                                                                        return <span className="badge bg-success-subtle text-success border border-success-subtle fw-semibold text-nowrap">Every {yrs} {yrs === 1 ? 'Year' : 'Years'}</span>;
                                                                     }
-                                                                    return <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-semibold">Every {months} {months === 1 ? 'Month' : 'Months'}</span>;
+                                                                    return <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-semibold text-nowrap">Every {months} {months === 1 ? 'Month' : 'Months'}</span>;
                                                                 })()}
                                                             </td>
-                                                            <td className="fw-bold">
+                                                            <td className="fw-bold text-nowrap">
                                                                 <span className="text-success">
                                                                     ₱{parseFloat(displayStartingPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                 </span>
                                                             </td>
-                                                            <td>
-                                                                <span className={`badge ${service.status === 'available' ? 'bg-success' : 'bg-danger'} text-capitalize`}>
+                                                            <td style={{ whiteSpace: 'nowrap' }}>
+                                                                <span className={`badge ${service.status === 'available' ? 'bg-success' : 'bg-danger'} text-capitalize text-nowrap`}>
                                                                     {service.status ? service.status.charAt(0).toUpperCase() + service.status.slice(1) : 'Available'}
                                                                 </span>
                                                             </td>
                                                             {!isSubAdmin && (
-                                                                <td>
-                                                                    <div className="d-flex gap-2 justify-content-center align-items-center">
+                                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                                    <div className="d-flex gap-1 justify-content-center align-items-center">
                                                                         <button
-                                                                            className="btn btn-sm btn-primary text-nowrap"
+                                                                            className="btn btn-sm btn-primary py-1 px-2 text-nowrap"
                                                                             onClick={() => openEditModal(service)}
+                                                                            title="Edit service details"
                                                                         >
                                                                             <i className="fas fa-edit me-1"></i>Edit
                                                                         </button>
 
                                                                         <button
-                                                                            className={`btn btn-sm text-nowrap ${service.status === 'available' ? 'btn-warning' : 'btn-success'}`}
+                                                                            className={`btn btn-sm py-1 px-2 text-nowrap ${service.status === 'available' ? 'btn-outline-warning text-dark' : 'btn-outline-success'}`}
                                                                             onClick={() => toggleServiceStatus(service)}
+                                                                            title={service.status === 'available' ? 'Disable service from booking catalog' : 'Enable service in booking catalog'}
                                                                         >
-                                                                            {service.status === 'available' ? 'Make Unavailable' : 'Make Available'}
+                                                                            <i className={service.status === 'available' ? 'fas fa-eye-slash me-1' : 'fas fa-eye me-1'}></i>
+                                                                            {service.status === 'available' ? 'Disable' : 'Enable'}
                                                                         </button>
 
                                                                         <button
-                                                                            className="btn btn-sm btn-danger text-nowrap"
+                                                                            className="btn btn-sm btn-outline-danger py-1 px-2 text-nowrap"
                                                                             onClick={() => promptDelete(service.id || service._id)}
+                                                                            title="Delete service"
                                                                         >
                                                                             <i className="fas fa-trash me-1"></i>Delete
                                                                         </button>

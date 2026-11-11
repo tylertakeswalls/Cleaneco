@@ -73,6 +73,9 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/order" element={<OrderForm />} />
           <Route path="/orders" element={<OngoingOrders />} />
+          <Route path="/ongoing-orders" element={<Navigate to="/orders" replace />} />
+          <Route path="/client/orders" element={<Navigate to="/orders" replace />} />
+          <Route path="/client/ongoing-orders" element={<Navigate to="/orders" replace />} />
           <Route path="/messages" element={<ClientMessages />} />
           <Route path="/client/messages" element={<ClientMessages />} />
           <Route path="/thank-you" element={<ThankYou />} />

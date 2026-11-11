@@ -11,6 +11,9 @@ export function getNotificationRoute(notif, isAdmin = false) {
 
   // 1. Explicit link stored directly on notification
   if (notif.link) {
+    if (notif.link === '/ongoing-orders' || notif.link === '/client/ongoing-orders') {
+      return '/orders';
+    }
     return notif.link;
   }
 

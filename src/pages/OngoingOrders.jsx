@@ -1374,7 +1374,23 @@ function OngoingOrders() {
 
                     <div className="d-flex justify-content-between align-items-center border-top pt-3 flex-wrap gap-2">
                       {order.status === 'Completed' && (() => {
-                        const dueDate = order.next_service_due_date ? new Date(order.next_service_due_date) : null;
+                        let dueDate = order.next_service_due_date ? new Date(order.next_service_due_date) : null;
+                        if (!dueDate || isNaN(dueDate.getTime())) {
+                          const type = (order.service_name || order.service_type || '').toLowerCase();
+                          let intervalMonths = order.next_service_interval_months || 0;
+                          if (!intervalMonths) {
+                            if (type.includes('siphon') || type.includes('desludg') || type.includes('septic')) intervalMonths = 36;
+                            else if (type.includes('grease')) intervalMonths = 3;
+                            else if (type.includes('plumb')) intervalMonths = 12;
+                          }
+                          if (intervalMonths > 0) {
+                            const baseline = new Date(order.completed_at || order.service_execution_date || order.date || order.created_at || Date.now());
+                            if (!isNaN(baseline.getTime())) {
+                              dueDate = new Date(baseline);
+                              dueDate.setMonth(dueDate.getMonth() + intervalMonths);
+                            }
+                          }
+                        }
                         if (!dueDate || isNaN(dueDate.getTime())) return <span />;
 
                         const now = new Date();

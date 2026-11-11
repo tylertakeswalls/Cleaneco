@@ -116,6 +116,58 @@ router.put('/:id', async (req, res) => {
     }
 
     await Service.findByIdAndUpdate(id, updateData);
+
+    // Cascading update to all existing completed orders for this service
+    if (updateData.recommended_interval_months !== undefined) {
+      const newInterval = updateData.recommended_interval_months;
+      const serviceName = updateData.name || existing.name;
+
+      const matchingCompletedOrders = await Order.find({
+        status: 'Completed',
+        $or: [
+          { service_id: id },
+          { service_type: existing.name },
+          { service_type: serviceName }
+        ]
+      });
+
+      for (const ord of matchingCompletedOrders) {
+        if (newInterval > 0) {
+          const baseline = ord.completed_at || ord.service_execution_date || ord.date || ord.updated_at || ord.created_at || new Date();
+          const nextDueDate = new Date(baseline);
+          nextDueDate.setMonth(nextDueDate.getMonth() + newInterval);
+          await Order.updateOne(
+            { _id: ord._id },
+            {
+              $set: {
+                next_service_due_date: nextDueDate,
+                next_service_interval_months: newInterval
+              }
+            }
+          );
+        } else {
+          await Order.updateOne(
+            { _id: ord._id },
+            {
+              $set: {
+                next_service_due_date: null,
+                next_service_interval_months: 0
+              }
+            }
+          );
+        }
+      }
+
+      try {
+        const ordersRoute = require('./orders');
+        if (typeof ordersRoute.invalidateOrdersCache === 'function') {
+          ordersRoute.invalidateOrdersCache();
+        }
+      } catch (cacheErr) {
+        // ignore
+      }
+    }
+
     res.json({ success: true, message: 'Service updated successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update service: ' + error.message });

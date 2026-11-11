@@ -322,7 +322,7 @@ const sendPasswordResetEmail = async (email, token, firstName) => {
 };
 
 const sendPaymentReminderEmail = async (orderId, clientInfo, balanceDue, daysOverdue = 0) => {
-  const portalLink = `${process.env.CLIENT_URL || 'https://cleaneco-kappa.vercel.app'}/ongoing-orders`;
+  const portalLink = `${process.env.CLIENT_URL || 'https://cleaneco-kappa.vercel.app'}/orders`;
   const subject = `Payment Reminder: Outstanding Balance for Cleaneco Order #${orderId}`;
   const headerSubtitle = "Final Payment Balance Reminder";
   const formattedBalance = `₱${parseFloat(balanceDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -381,7 +381,7 @@ const sendPaymentReminderEmail = async (orderId, clientInfo, balanceDue, daysOve
 };
 
 const sendServiceDueReminderEmail = async (orderId, clientInfo, dueDate, serviceName) => {
-  const portalLink = `${process.env.CLIENT_URL || 'https://cleaneco-kappa.vercel.app'}/ongoing-orders`;
+  const portalLink = `${process.env.CLIENT_URL || 'https://cleaneco-kappa.vercel.app'}/orders`;
   const subject = `Maintenance Due: Recommended ${serviceName || 'Service'} Reminder for Order #${orderId}`;
   const headerSubtitle = "Recurring Maintenance Reminder";
   const formattedDueDate = dueDate ? new Date(dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Soon';

@@ -58,15 +58,47 @@ function invalidateAvailabilityCache() {
 }
 router.invalidateOrdersCache = invalidateOrdersCache;
 
-const formatOrder = (o) => ({
-  ...o,
-  id: o._id,
-  user_id: o.user_id ? o.user_id._id || o.user_id : null,
-  user_clientType: o.user_id && o.user_id.clientType ? o.user_id.clientType : null,
-  user_companyName: o.user_id && o.user_id.companyName ? o.user_id.companyName : null,
-  service_id: o.service_id ? o.service_id._id || o.service_id : null,
-  service_name: o.service_id && o.service_id.name ? o.service_id.name : o.service_type
-});
+const formatOrder = (o) => {
+  let nextDue = o.next_service_due_date;
+  let interval = o.next_service_interval_months;
+
+  if (o.status === 'Completed' && !nextDue) {
+    let intervalMonths = 0;
+    if (o.service_id && typeof o.service_id === 'object' && o.service_id.recommended_interval_months > 0) {
+      intervalMonths = o.service_id.recommended_interval_months;
+    }
+    if (!intervalMonths && o.service_type) {
+      const lower = o.service_type.toLowerCase();
+      if (lower.includes('siphon') || lower.includes('desludg') || lower.includes('septic')) {
+        intervalMonths = 36;
+      } else if (lower.includes('grease')) {
+        intervalMonths = 3;
+      } else if (lower.includes('plumb')) {
+        intervalMonths = 12;
+      }
+    }
+
+    if (intervalMonths > 0) {
+      const baseline = o.completed_at || o.service_execution_date || o.date || o.updated_at || o.created_at || new Date();
+      const calcDue = new Date(baseline);
+      calcDue.setMonth(calcDue.getMonth() + intervalMonths);
+      nextDue = calcDue;
+      interval = intervalMonths;
+    }
+  }
+
+  return {
+    ...o,
+    id: o._id,
+    user_id: o.user_id ? o.user_id._id || o.user_id : null,
+    user_clientType: o.user_id && o.user_id.clientType ? o.user_id.clientType : null,
+    user_companyName: o.user_id && o.user_id.companyName ? o.user_id.companyName : null,
+    service_id: o.service_id ? o.service_id._id || o.service_id : null,
+    service_name: o.service_id && o.service_id.name ? o.service_id.name : o.service_type,
+    next_service_due_date: nextDue,
+    next_service_interval_months: interval
+  };
+};
 
 let lastServiceReminderCheck = 0;
 const checkAndSendServiceDueReminders = async () => {
@@ -74,6 +106,52 @@ const checkAndSendServiceDueReminders = async () => {
   lastServiceReminderCheck = Date.now();
 
   try {
+    // Retroactive backfill for existing completed orders missing next_service_due_date in DB
+    try {
+      const completedMissing = await Order.find({
+        status: 'Completed',
+        next_service_due_date: null
+      }).limit(100);
+
+      for (const ord of completedMissing) {
+        let intervalMonths = 0;
+        if (ord.service_id) {
+          const svc = await Service.findById(ord.service_id);
+          if (svc && svc.recommended_interval_months > 0) {
+            intervalMonths = svc.recommended_interval_months;
+          }
+        }
+        if (!intervalMonths && ord.service_type) {
+          const svcByName = await Service.findOne({ name: ord.service_type });
+          if (svcByName && svcByName.recommended_interval_months > 0) {
+            intervalMonths = svcByName.recommended_interval_months;
+          }
+        }
+        if (!intervalMonths && ord.service_type) {
+          const lower = ord.service_type.toLowerCase();
+          if (lower.includes('siphon') || lower.includes('desludg') || lower.includes('septic')) {
+            intervalMonths = 36;
+          } else if (lower.includes('grease')) {
+            intervalMonths = 3;
+          } else if (lower.includes('plumb')) {
+            intervalMonths = 12;
+          }
+        }
+
+        if (intervalMonths > 0) {
+          const baseline = ord.completed_at || ord.service_execution_date || ord.date || ord.updated_at || ord.created_at || new Date();
+          const due = new Date(baseline);
+          due.setMonth(due.getMonth() + intervalMonths);
+          await Order.updateOne(
+            { _id: ord._id },
+            { $set: { next_service_due_date: due, next_service_interval_months: intervalMonths } }
+          );
+        }
+      }
+    } catch (backfillErr) {
+      console.warn('Completed orders maintenance backfill warning:', backfillErr.message);
+    }
+
     const now = new Date();
     const thresholdDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
 
@@ -91,7 +169,7 @@ const checkAndSendServiceDueReminders = async () => {
           message: `Maintenance Reminder: ${order.service_type}`,
           details: `Your recommended maintenance for Order #${order.order_id} is approaching on ${new Date(order.next_service_due_date).toLocaleDateString()}. Use 'Book Again' to schedule your follow-up service.`,
           type: 'service_reminder',
-          link: '/ongoing-orders'
+          link: '/orders'
         }).save();
       }
 
@@ -128,7 +206,7 @@ router.get('/', async (req, res) => {
   try {
     const orders = await Order.find()
       .populate('user_id', 'clientType companyName first_name middle_name last_name email phone')
-      .populate('service_id', 'name')
+      .populate('service_id', 'name recommended_interval_months')
       .sort({ created_at: -1, _id: -1 })
       .batchSize(500)
       .lean();
@@ -1438,7 +1516,7 @@ router.post('/:id/send-payment-reminder', async (req, res) => {
         message: `Payment Reminder: Order #${order.order_id}`,
         details: `Your service is completed with an outstanding final balance of ₱${balanceDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Please settle the remaining balance in Ongoing Orders.`,
         type: 'payment_reminder',
-        link: '/ongoing-orders'
+        link: '/orders'
       }).save();
     }
 
