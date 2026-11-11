@@ -1420,13 +1420,14 @@ function OngoingOrders() {
                           );
                         } else {
                           return (
-                            <span 
-                              className="badge bg-light text-dark border fw-semibold d-inline-flex align-items-center gap-1"
-                              style={{ fontSize: '0.8rem', padding: '6px 12px', borderRadius: '999px' }}
+                            <div 
+                              className="d-inline-flex align-items-center gap-1 py-1"
+                              style={{ fontSize: '0.84rem' }}
                             >
-                              <i className="fas fa-calendar-check text-success"></i>
-                              <span>Next Service Recommended: <strong>{formattedDue}</strong></span>
-                            </span>
+                              <i className="far fa-calendar-alt text-success me-1" style={{ fontSize: '0.9rem' }}></i>
+                              <span style={{ color: '#6B7280' }} className="fst-italic">Next Service Recommended:</span>
+                              <span className="fw-semibold text-dark ms-1">{formattedDue}</span>
+                            </div>
                           );
                         }
                       })()}

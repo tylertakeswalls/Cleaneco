@@ -364,7 +364,7 @@ export default function AdminCalendar({ orders = [] }) {
                     {selectedDayOrders.length > 0 && (
                         <div className="calendar-drawer-toolbar d-flex align-items-center justify-content-between">
                             <span className="small text-muted fw-semibold">
-                                <i className="fas fa-truck me-1 text-success"></i>Dispatch Schedule
+                                Dispatch Schedule:
                             </span>
                             <button
                                 type="button"

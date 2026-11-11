@@ -1168,11 +1168,19 @@ function OrderDatabase() {
                           return (
                             <div className="mt-1">
                               <span 
-                                className="badge bg-danger text-white fw-semibold" 
-                                style={{ fontSize: '0.68rem', letterSpacing: '0.2px', padding: '2px 6px' }}
+                                className="fw-semibold d-inline-flex align-items-center" 
+                                style={{ 
+                                  backgroundColor: '#fee2e2', 
+                                  color: '#991b1b', 
+                                  border: '1px solid #fecaca', 
+                                  borderRadius: '999px', 
+                                  padding: '2px 8px', 
+                                  fontSize: '0.72rem', 
+                                  letterSpacing: '0.2px' 
+                                }}
                                 title={`${overdue} day${overdue === 1 ? '' : 's'} since service completion without final payment`}
                               >
-                                <i className="fas fa-exclamation-circle me-1"></i>
+                                <i className="fas fa-exclamation-circle me-1" style={{ fontSize: '0.68rem' }}></i>
                                 Unpaid • {overdue}d
                               </span>
                             </div>
@@ -1462,12 +1470,23 @@ function OrderDatabase() {
                               <div className="d-flex justify-content-between align-items-center mb-2">
                                 <span className="small fw-semibold text-muted">Settlement Status:</span>
                                 {isPaid ? (
-                                  <span className="badge bg-success">
+                                  <span className="badge bg-success small">
                                     <i className="fas fa-check-circle me-1"></i>Fully Paid
                                   </span>
                                 ) : (
-                                  <span className="badge bg-danger">
-                                    <i className="fas fa-exclamation-circle me-1"></i>Unpaid (₱{outstandingBal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                  <span 
+                                    className="fw-semibold d-inline-flex align-items-center"
+                                    style={{
+                                      backgroundColor: '#fee2e2',
+                                      color: '#991b1b',
+                                      border: '1px solid #fecaca',
+                                      borderRadius: '999px',
+                                      padding: '2px 8px',
+                                      fontSize: '0.75rem'
+                                    }}
+                                  >
+                                    <i className="fas fa-exclamation-circle me-1" style={{ fontSize: '0.7rem' }}></i>
+                                    Unpaid (₱{outstandingBal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                                   </span>
                                 )}
                               </div>
@@ -1475,20 +1494,21 @@ function OrderDatabase() {
                               {!isPaid && (
                                 <>
                                   <div className="small mb-1 text-muted">
-                                    <i className="fas fa-calendar-times me-1 text-danger"></i>
-                                    <strong>Overdue Period:</strong> {overdueDays} day{overdueDays === 1 ? '' : 's'} since service completion
+                                    <span className="fw-semibold text-muted">Overdue Period:</span>
+                                    <span className="text-dark ms-1">{overdueDays} day{overdueDays === 1 ? '' : 's'} since service completion</span>
                                   </div>
                                   <div className="small mb-2 text-muted">
-                                    <i className="fas fa-bell me-1 text-primary"></i>
-                                    <strong>Reminder History:</strong> {lastReminder 
+                                    <span className="fw-semibold text-muted">Reminder History:</span>
+                                    <span className="text-dark ms-1">{lastReminder 
                                       ? `${reminderCount} reminder${reminderCount === 1 ? '' : 's'} sent (Latest: ${formatDate(lastReminder)})` 
-                                      : 'No reminder sent yet'}
+                                      : 'No reminder sent yet'}</span>
                                   </div>
 
                                   <div className="pt-2 border-top">
                                     <button
                                       type="button"
-                                      className="btn btn-sm btn-outline-danger w-100 fw-bold d-flex align-items-center justify-content-center gap-2"
+                                      className={`btn btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-2 ${isThrottled ? 'btn-secondary text-white' : 'btn-danger text-white'}`}
+                                      style={isThrottled ? { opacity: 0.75 } : {}}
                                       onClick={handleSendPaymentReminder}
                                       disabled={isSendingReminder || isThrottled}
                                       title={isThrottled ? `A reminder was sent recently. You can send another in ${hoursRemaining}h.` : 'Send in-app and email reminder to client'}
@@ -1506,7 +1526,7 @@ function OrderDatabase() {
                                       ) : (
                                         <>
                                           <i className="fas fa-paper-plane"></i>
-                                          <span>Send Payment Reminder (Email & In-App)</span>
+                                          <span>Send Payment Reminder</span>
                                         </>
                                       )}
                                     </button>
@@ -1527,21 +1547,23 @@ function OrderDatabase() {
                           <div className="form-group mb-3">
                             <label className="form-label fw-bold small text-muted">Recurring Maintenance Cycle</label>
                             <div className="card border-0 shadow-sm p-3 bg-light">
-                              <div className="d-flex justify-content-between align-items-center mb-1">
+                              <div className="d-flex justify-content-between align-items-center mb-2">
                                 <span className="small fw-semibold text-muted">Recommended Frequency:</span>
-                                <span className="badge bg-light text-dark border">
+                                <span className="badge bg-light text-dark border small fw-semibold" style={{ fontSize: '0.75rem', padding: '3px 8px' }}>
                                   {intervalMonths > 0 ? (intervalMonths >= 12 && intervalMonths % 12 === 0 ? `Every ${intervalMonths / 12} Year${intervalMonths > 12 ? 's' : ''}` : `Every ${intervalMonths} Months`) : 'One-Off / Standard'}
                                 </span>
                               </div>
-                              <div className="d-flex justify-content-between align-items-center mb-1">
+                              <div className="d-flex justify-content-between align-items-center mb-2">
                                 <span className="small fw-semibold text-muted">Next Service Due:</span>
-                                <span className="fw-bold text-dark">
+                                <span className="small fw-bold text-dark">
                                   {nextDue ? nextDue.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not Scheduled'}
                                 </span>
                               </div>
-                              <div className="small text-muted mt-1">
-                                <i className="fas fa-bell me-1 text-primary"></i>
-                                <strong>Automated Alert Status:</strong> {reminderSent ? `Reminder sent on ${formatDate(reminderSent)}` : (nextDue ? 'Scheduled 30 days prior to due date' : 'None')}
+                              <div className="small text-muted pt-2 border-top">
+                                <span className="fw-semibold text-muted">Automated Alert Status:</span>
+                                <span className="text-secondary ms-1">
+                                  {reminderSent ? `Reminder sent on ${formatDate(reminderSent)}` : (nextDue ? 'Scheduled 30 days prior to due date' : 'None')}
+                                </span>
                               </div>
                             </div>
                           </div>

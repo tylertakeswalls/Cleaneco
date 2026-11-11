@@ -729,7 +729,7 @@ function ServiceManagement() {
                                                                         </button>
 
                                                                         <button
-                                                                            className={`btn btn-sm py-1 px-2 text-nowrap ${service.status === 'available' ? 'btn-outline-warning text-dark' : 'btn-outline-success'}`}
+                                                                            className={`btn btn-sm py-1 px-2 text-nowrap ${service.status === 'available' ? 'btn-warning text-dark' : 'btn-success text-white'}`}
                                                                             onClick={() => toggleServiceStatus(service)}
                                                                             title={service.status === 'available' ? 'Disable service from booking catalog' : 'Enable service in booking catalog'}
                                                                         >
@@ -738,7 +738,7 @@ function ServiceManagement() {
                                                                         </button>
 
                                                                         <button
-                                                                            className="btn btn-sm btn-outline-danger py-1 px-2 text-nowrap"
+                                                                            className="btn btn-sm btn-danger text-white py-1 px-2 text-nowrap"
                                                                             onClick={() => promptDelete(service.id || service._id)}
                                                                             title="Delete service"
                                                                         >
