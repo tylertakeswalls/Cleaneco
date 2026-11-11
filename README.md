@@ -550,6 +550,30 @@ Comprehensive resolution of all findings from the 13-page DLSU-D Capstone UI/UX 
   - Unified typography hierarchy and font sizing (`0.95rem` bold muted labels) across all drawer tabs (**Details**, **Quotation**, **Scheduling**, **Documents**).
   - Cleaned up container cards, moved the document helper banner to the top of the **Documents** tab, and restyled high-capacity truck selection cards with readable mint-green surfaces (`#f0fdf4`) and high-contrast deep green text (`#166534`).
 
+## 54. Financial & Operational Intelligence: Unpaid Balance Tracking, Daily Dispatch Run Sheets & Recurring Maintenance Reminders
+- **Unpaid Final Balance Tracking & One-Click Payment Reminders (`OrderDatabase.jsx`, `orderdatabase.css`, `backend/routes/orders.js`, `backend/utils/emailHelper.js`, `backend/models/Order.js`)**:
+  - Added an **"Unpaid Balance"** filter option to the Order Database filter toolbar, enabling administrators to isolate completed orders with outstanding final balances in a single click.
+  - Added an **"Outstanding Balance"** executive KPI card (`₱X Completed Pending Settlement`) with real-time balance aggregation across completed bookings; clicking the card automatically toggles the unpaid balance filter.
+  - Displays a high-visibility overdue badge (`Unpaid • Xd`) directly beneath the `Completed` status in the Order Database table, indicating elapsed days since service execution.
+  - Added a dedicated **Final Balance & Settlement** card in the Order Details side drawer displaying total outstanding peso balance, days overdue, and reminder history.
+  - Integrated a **"Send Payment Reminder"** action button with automated 24-hour rate limiting (`429` throttling guard) that dispatches urgent in-app alerts and official Cleaneco invoice reminder emails with direct client portal settlement links.
+- **Daily Dispatch Run Sheet Printable PDF for Field Truck Crews (`AdminCalendar.jsx`, `adminCalendar.css`)**:
+  - Integrated a **"Print Dispatch Sheet"** action toolbar within the Operations Calendar date drawer (`/admin/calendar`), available whenever orders are scheduled for the selected date.
+  - Generates an official, high-contrast Cleaneco A4 run sheet featuring the company letterhead, execution date, total assigned jobs, and generated timestamp.
+  - Automatically segments and sorts scheduled bookings by assigned truck fleet crew (**Truck Team 1**, **Truck Team 2**, or **Unassigned Fleet**) and chronological time slot (Morning, Afternoon, Evening).
+  - Itemizes each stop with Stop Number, Time Slot, Order Reference, Client Contact Phone, Service Scope & Required Trips, exact Destination Address with Landmarks, site accessibility warnings (difficult access photo on file), dispatch notes, and a physical sign-off completion box (`[ ] Completed Sign: ________`) for field drivers.
+  - Uses `previewPdfBlob` for cross-browser, mobile, and desktop print previews with automatic pagination and page-number footers.
+- **"Next Service Due" Recurring Maintenance Reminders & Catalog Cycles (`ServiceManagement.jsx`, `OngoingOrders.jsx`, `OrderDatabase.jsx`, `backend/models/Service.js`, `backend/models/Order.js`, `backend/routes/orders.js`, `backend/routes/services.js`, `backend/utils/emailHelper.js`)**:
+  - Extended `Service.js` with `recommended_interval_months` and added a **Recommended Service Interval** selector in the Admin Service Catalog Manager modal (`1 Month`, `3 Months`, `6 Months`, `1 Year`, `2 Years`, `3 Years`, `5 Years`, or `One-Off`), alongside a **Maintenance Cycle** badge column in the services catalog table.
+  - Automatically calculates and stores `next_service_due_date` and `next_service_interval_months` on orders upon transition to `status: 'Completed'` (with intelligent environmental fallbacks: 36 months for septic desludging/siphoning, 3 months for grease traps, 12 months for plumbing).
+  - Displays a proactive maintenance badge on completed client order cards in **My Ongoing Orders** next to **"Book Again"**:
+    - **Future Cycle**: `Next Service Recommended: <Month Year>`
+    - **Due Soon (within 30 days)**: `Next Service Due Soon: <Month Year>`
+    - **Overdue**: `Maintenance Overdue (<Month Year>)`
+  - Integrated a non-blocking background reminder evaluator (`checkAndSendServiceDueReminders` throttled to 1-hour intervals) and manual trigger endpoint (`POST /api/orders/check-service-reminders`) that dispatches in-app maintenance alerts and Cleaneco recurring service emails 30 days prior to due dates, providing seamless re-booking continuity even with Render sleep cycles.
+  - Added a **"Service Due Soon"** filter option in the Order Database and rendered a **Recurring Maintenance Cycle** summary card inside the Order Details side drawer.
+  - Expanded automated backend test suites to 21/21 passing tests (`orderLifecycle.test.js`, `securityAudit.test.js`, `addressHandling.test.js`) verifying 24-hour payment reminder rate limits, RBAC authorization, outstanding balance formulas, and recurring maintenance intervals.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:
