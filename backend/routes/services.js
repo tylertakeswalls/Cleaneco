@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, description, rate, fixed_fee, fields, status, base_price } = req.body;
+    const { name, description, rate, fixed_fee, recommended_interval_months, fields, status, base_price } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Service name is required' });
     }
@@ -80,6 +80,7 @@ router.post('/', async (req, res) => {
       pricing_mode: 'calculated',
       rate: Math.max(0, parseFloat(rate)) || 0,
       fixed_fee: Math.max(0, parseFloat(fixed_fee)) || 0,
+      recommended_interval_months: Math.max(0, parseInt(recommended_interval_months, 10)) || 0,
       fields: cleanFields,
       base_price: parseFloat(base_price) || 0,
       status: status === 'unavailable' ? 'unavailable' : 'available'
@@ -106,6 +107,9 @@ router.put('/:id', async (req, res) => {
     if (req.body.status !== undefined) updateData.status = req.body.status;
     if (req.body.rate !== undefined) updateData.rate = Math.max(0, parseFloat(req.body.rate) || 0);
     if (req.body.fixed_fee !== undefined) updateData.fixed_fee = Math.max(0, parseFloat(req.body.fixed_fee) || 0);
+    if (req.body.recommended_interval_months !== undefined) {
+      updateData.recommended_interval_months = Math.max(0, parseInt(req.body.recommended_interval_months, 10)) || 0;
+    }
     if (req.body.base_price !== undefined) updateData.base_price = parseFloat(req.body.base_price) || 0;
     if (req.body.fields !== undefined) {
       updateData.fields = sanitizeFields(req.body.fields);

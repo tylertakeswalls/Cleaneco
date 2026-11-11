@@ -249,7 +249,49 @@ assert.strictEqual(calculateOrderOutstandingBalance(mockPaidOrder), 0, 'Fully pa
 assert.strictEqual(calculateDaysOverdue(mockPaidOrder), 0, 'Fully paid orders must report 0 days overdue');
 console.log('  ✔ Fully paid order correctly returns ₱0 outstanding and 0 days overdue');
 
+// TEST 9: "Next Service Due" Recurring Maintenance Interval Contract (Feature 1)
+console.log('\nTEST 9: "Next Service Due" Recurring Maintenance Interval Contract (Feature 1)');
+
+function calculateNextServiceDue(completedAt, intervalMonths) {
+  if (!intervalMonths || intervalMonths <= 0) return null;
+  const d = new Date(completedAt);
+  d.setMonth(d.getMonth() + intervalMonths);
+  return d;
+}
+
+const baseCompletedDate = new Date('2026-11-11T00:00:00.000Z');
+
+// 1. Septic tank desludging (36 months = 3 years)
+const septicDue = calculateNextServiceDue(baseCompletedDate, 36);
+assert.strictEqual(septicDue.getFullYear(), 2029);
+assert.strictEqual(septicDue.getMonth(), baseCompletedDate.getMonth());
+console.log('  ✔ 36-month septic desludging cycle correctly sets due date to Nov 2029');
+
+// 2. Commercial grease trap (3 months)
+const greaseTrapDue = calculateNextServiceDue(baseCompletedDate, 3);
+assert.strictEqual(greaseTrapDue.getFullYear(), 2027);
+assert.strictEqual(greaseTrapDue.getMonth(), 1); // Feb 2027
+console.log('  ✔ 3-month commercial grease trap cycle correctly sets due date to Feb 2027');
+
+// 3. One-off service (0 months)
+const oneOffDue = calculateNextServiceDue(baseCompletedDate, 0);
+assert.strictEqual(oneOffDue, null);
+console.log('  ✔ One-off service returns null (no recurring maintenance scheduled)');
+
+// 4. "Due Soon" evaluation check (within 30 days)
+function isDueSoon(dueDate) {
+  if (!dueDate) return false;
+  const diffDays = Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  return diffDays <= 30;
+}
+
+const upcomingIn20Days = new Date(Date.now() + (20 * 24 * 60 * 60 * 1000));
+const upcomingIn90Days = new Date(Date.now() + (90 * 24 * 60 * 60 * 1000));
+assert.strictEqual(isDueSoon(upcomingIn20Days), true, 'Service due in 20 days must trigger Due Soon');
+assert.strictEqual(isDueSoon(upcomingIn90Days), false, 'Service due in 90 days must not trigger Due Soon');
+console.log('  ✔ 30-day "Due Soon" threshold accurately isolates approaching services');
+
 console.log('\n====================================================');
-console.log('ALL ORDER LIFECYCLE TESTS PASSED SUCCESSFULLY (8/8)');
+console.log('ALL ORDER LIFECYCLE TESTS PASSED SUCCESSFULLY (9/9)');
 console.log('====================================================');
 

@@ -4,7 +4,7 @@ const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
 const { calculateOrderTotals, calculateStartingPrice, groupOrdersByOrderId, calculateOrderCollectedRevenue } = require('../utils/pricing');
-const { sendConfirmationEmail, sendRescheduleEmail, sendPaymentReminderEmail } = require('../utils/emailHelper');
+const { sendConfirmationEmail, sendRescheduleEmail, sendPaymentReminderEmail, sendServiceDueReminderEmail } = require('../utils/emailHelper');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
@@ -68,9 +68,61 @@ const formatOrder = (o) => ({
   service_name: o.service_id && o.service_id.name ? o.service_id.name : o.service_type
 });
 
+let lastServiceReminderCheck = 0;
+const checkAndSendServiceDueReminders = async () => {
+  if (Date.now() - lastServiceReminderCheck < 60 * 60 * 1000) return;
+  lastServiceReminderCheck = Date.now();
+
+  try {
+    const now = new Date();
+    const thresholdDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+
+    const ordersDue = await Order.find({
+      status: 'Completed',
+      next_service_due_date: { $lte: thresholdDate },
+      next_service_reminder_sent_at: null
+    }).populate('user_id');
+
+    for (const order of ordersDue) {
+      if (order.user_id) {
+        await new Notification({
+          user_id: order.user_id._id || order.user_id,
+          order_id: order.order_id,
+          message: `Maintenance Reminder: ${order.service_type}`,
+          details: `Your recommended maintenance for Order #${order.order_id} is approaching on ${new Date(order.next_service_due_date).toLocaleDateString()}. Use 'Book Again' to schedule your follow-up service.`,
+          type: 'service_reminder',
+          link: '/ongoing-orders'
+        }).save();
+      }
+
+      const clientInfo = {
+        firstName: order.first_name,
+        lastName: order.last_name,
+        email: order.email,
+        phone: order.phone,
+        address: order.address
+      };
+
+      try {
+        await sendServiceDueReminderEmail(order.order_id, clientInfo, order.next_service_due_date, order.service_type);
+      } catch (emailErr) {
+        console.warn(`Service reminder email error for ${order.order_id}:`, emailErr.message);
+      }
+
+      await Order.updateMany(
+        { order_id: order.order_id },
+        { $set: { next_service_reminder_sent_at: now } }
+      );
+    }
+  } catch (err) {
+    console.error('Error in checkAndSendServiceDueReminders:', err.message);
+  }
+};
+
 router.get('/', async (req, res) => {
   const now = Date.now();
   if (ordersCache && (now - ordersCacheTime < ORDERS_TTL_MS)) {
+    checkAndSendServiceDueReminders().catch(() => {});
     return res.json(ordersCache);
   }
   try {
@@ -83,9 +135,20 @@ router.get('/', async (req, res) => {
     const formatted = orders.map(formatOrder);
     ordersCache = formatted;
     ordersCacheTime = Date.now();
+    checkAndSendServiceDueReminders().catch(() => {});
     res.json(formatted);
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch orders' });
+  }
+});
+
+router.post('/check-service-reminders', async (req, res) => {
+  try {
+    lastServiceReminderCheck = 0;
+    await checkAndSendServiceDueReminders();
+    res.json({ success: true, message: 'Service maintenance reminders check executed successfully.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error checking service reminders: ' + err.message });
   }
 });
 
@@ -697,7 +760,43 @@ router.put('/:id', async (req, res) => {
     }
 
     if (updateData.status === 'Completed' && !oldOrder.completed_at) {
-      updateData.completed_at = new Date();
+      const completedAtDate = new Date();
+      updateData.completed_at = completedAtDate;
+
+      try {
+        let intervalMonths = 0;
+        if (oldOrder.service_id) {
+          const svc = await Service.findById(oldOrder.service_id);
+          if (svc && svc.recommended_interval_months > 0) {
+            intervalMonths = svc.recommended_interval_months;
+          }
+        }
+        if (!intervalMonths && oldOrder.service_type) {
+          const svcByName = await Service.findOne({ name: oldOrder.service_type });
+          if (svcByName && svcByName.recommended_interval_months > 0) {
+            intervalMonths = svcByName.recommended_interval_months;
+          }
+        }
+        if (!intervalMonths && oldOrder.service_type) {
+          const lower = oldOrder.service_type.toLowerCase();
+          if (lower.includes('siphon') || lower.includes('desludg') || lower.includes('septic')) {
+            intervalMonths = 36;
+          } else if (lower.includes('grease')) {
+            intervalMonths = 3;
+          } else if (lower.includes('plumb')) {
+            intervalMonths = 12;
+          }
+        }
+
+        if (intervalMonths > 0) {
+          const nextDueDate = new Date(completedAtDate);
+          nextDueDate.setMonth(nextDueDate.getMonth() + intervalMonths);
+          updateData.next_service_due_date = nextDueDate;
+          updateData.next_service_interval_months = intervalMonths;
+        }
+      } catch (calcErr) {
+        console.warn('Next service due calculation error:', calcErr.message);
+      }
     }
 
     if (updateData.request_type === 'Reschedule Requested' && oldOrder.request_type !== 'Reschedule Requested') {

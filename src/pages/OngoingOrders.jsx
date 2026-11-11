@@ -1372,27 +1372,71 @@ function OngoingOrders() {
                       )}
                     </div>
 
-                    <div className="d-flex justify-content-end gap-2 border-top pt-3 flex-wrap">
-                      <button 
-                        className="btn btn-solid-brand rounded-pill fw-bold shadow-sm" 
-                        onClick={() => navigate(`/client/messages?orderId=${order.order_id || order.id}`)}
-                      >
-                        <i className="fas fa-comment-dots me-1"></i> Message Support
-                      </button>
-                      {order.status === 'Completed' && (
-                        <>
-                          <button className="btn btn-cleaneco rounded-pill fw-bold shadow-sm" onClick={() => generateReceipt(order)}>
-                            <i className="fas fa-download me-1"></i> Download Receipt
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-primary-solid rounded-pill fw-bold shadow-sm"
-                            onClick={() => handleBookAgain(order)}
-                          >
-                            <i className="fas fa-redo-alt me-1"></i> Book Again
-                          </button>
-                        </>
-                      )}
+                    <div className="d-flex justify-content-between align-items-center border-top pt-3 flex-wrap gap-2">
+                      {order.status === 'Completed' && (() => {
+                        const dueDate = order.next_service_due_date ? new Date(order.next_service_due_date) : null;
+                        if (!dueDate || isNaN(dueDate.getTime())) return <span />;
+
+                        const now = new Date();
+                        const diffTime = dueDate.getTime() - now.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const formattedDue = dueDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+                        if (diffDays < 0) {
+                          return (
+                            <span 
+                              className="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold d-inline-flex align-items-center gap-1"
+                              style={{ fontSize: '0.8rem', padding: '6px 12px', borderRadius: '999px' }}
+                            >
+                              <i className="fas fa-exclamation-triangle"></i>
+                              <span>Maintenance Overdue ({formattedDue})</span>
+                            </span>
+                          );
+                        } else if (diffDays <= 30) {
+                          return (
+                            <span 
+                              className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold d-inline-flex align-items-center gap-1"
+                              style={{ fontSize: '0.8rem', padding: '6px 12px', borderRadius: '999px' }}
+                            >
+                              <i className="fas fa-clock"></i>
+                              <span>Next Service Due Soon ({formattedDue})</span>
+                            </span>
+                          );
+                        } else {
+                          return (
+                            <span 
+                              className="badge bg-light text-dark border fw-semibold d-inline-flex align-items-center gap-1"
+                              style={{ fontSize: '0.8rem', padding: '6px 12px', borderRadius: '999px' }}
+                            >
+                              <i className="fas fa-calendar-check text-success"></i>
+                              <span>Next Service Recommended: <strong>{formattedDue}</strong></span>
+                            </span>
+                          );
+                        }
+                      })()}
+
+                      <div className="d-flex justify-content-end gap-2 flex-wrap ms-auto">
+                        <button 
+                          className="btn btn-solid-brand rounded-pill fw-bold shadow-sm" 
+                          onClick={() => navigate(`/client/messages?orderId=${order.order_id || order.id}`)}
+                        >
+                          <i className="fas fa-comment-dots me-1"></i> Message Support
+                        </button>
+                        {order.status === 'Completed' && (
+                          <>
+                            <button className="btn btn-cleaneco rounded-pill fw-bold shadow-sm" onClick={() => generateReceipt(order)}>
+                              <i className="fas fa-download me-1"></i> Download Receipt
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-primary-solid rounded-pill fw-bold shadow-sm"
+                              onClick={() => handleBookAgain(order)}
+                            >
+                              <i className="fas fa-redo-alt me-1"></i> Book Again
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                     {order.request_type && (
                       <div className="text-end mt-2 small fw-bold text-warning">

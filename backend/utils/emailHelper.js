@@ -380,11 +380,69 @@ const sendPaymentReminderEmail = async (orderId, clientInfo, balanceDue, daysOve
   });
 };
 
+const sendServiceDueReminderEmail = async (orderId, clientInfo, dueDate, serviceName) => {
+  const portalLink = `${process.env.CLIENT_URL || 'https://cleaneco-kappa.vercel.app'}/ongoing-orders`;
+  const subject = `Maintenance Due: Recommended ${serviceName || 'Service'} Reminder for Order #${orderId}`;
+  const headerSubtitle = "Recurring Maintenance Reminder";
+  const formattedDueDate = dueDate ? new Date(dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Soon';
+
+  const contentHtml = `
+      <div class='status-banner' style='border-left: 4px solid #0D8D1E; background-color: #f0fdf4;'>
+          <p style='color: #065f46; font-weight: 600; font-size: 16px; margin-bottom: 6px;'>
+              Recommended Service Maintenance Due
+          </p>
+          <p style='color: #4b5563; margin: 0; font-size: 14px;'>
+              Dear ${clientInfo.firstName || 'Valued Client'}, based on recommended environmental and sanitation guidelines, your scheduled service for <strong>${serviceName || 'waste management'}</strong> (Order #${orderId}) is approaching its recommended maintenance cycle on <strong>${formattedDueDate}</strong>.
+          </p>
+      </div>
+
+      <h2 class='section-title'>Maintenance Details</h2>
+      <div class='grid'>
+          <div class='grid-col'>
+              <p><strong>Service Type:</strong> ${serviceName || 'Siphoning / Desludging'}</p>
+              <p><strong>Previous Order:</strong> #${orderId}</p>
+              <p><strong>Recommended Due Date:</strong> <span style='color: #0D8D1E; font-weight: bold;'>${formattedDueDate}</span></p>
+          </div>
+          <div class='grid-col'>
+              <p><strong>Client:</strong> ${clientInfo.firstName} ${clientInfo.lastName}</p>
+              <p><strong>Service Address:</strong> ${clientInfo.address || 'Address on record'}</p>
+          </div>
+      </div>
+
+      <div style="text-align: center; margin: 25px 0;">
+          <a href='${portalLink}' class='btn-action' style='color: #ffffff; text-decoration: none;'>Book Again & Reserve Date</a>
+          <p style="font-size: 13px; color: #64748b; margin-top: 10px;">
+              Regular maintenance prevents plumbing emergencies, overflows, and costly system damages.
+          </p>
+      </div>
+
+      <div class="notes-box">
+          <p style="margin: 0; font-size: 13px; color: #64748b;">
+              Need help scheduling or have inquiries regarding your service frequency? Contact our team at cleanecowmss@gmail.com or +63 9216214712.
+          </p>
+      </div>
+  `;
+
+  const htmlMessage = baseEmailTemplate({
+      subject,
+      title: 'Cleaneco Waste Management Services',
+      headerSubtitle,
+      contentHtml
+  });
+
+  await sendEmailJS('template_ns5zlcs', {
+    to_email: clientInfo.email,
+    subject: subject,
+    html_content: htmlMessage
+  });
+};
+
 module.exports = { 
   sendConfirmationEmail, 
   sendVerificationEmail, 
   sendPasswordResetEmail, 
   sendContactEmail, 
   sendRescheduleEmail,
-  sendPaymentReminderEmail
+  sendPaymentReminderEmail,
+  sendServiceDueReminderEmail
 };

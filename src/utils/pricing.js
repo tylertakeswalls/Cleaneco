@@ -223,6 +223,20 @@ export function groupOrdersByOrderId(rawOrders = []) {
         existing.service_execution_date = order.service_execution_date;
         existing.service_execution_time_slot = order.service_execution_time_slot || existing.service_execution_time_slot;
       }
+      if (order.completed_at && !existing.completed_at) {
+        existing.completed_at = order.completed_at;
+      }
+      if (order.next_service_due_date && !existing.next_service_due_date) {
+        existing.next_service_due_date = order.next_service_due_date;
+        existing.next_service_interval_months = order.next_service_interval_months;
+      }
+      if (order.next_service_reminder_sent_at && !existing.next_service_reminder_sent_at) {
+        existing.next_service_reminder_sent_at = order.next_service_reminder_sent_at;
+      }
+      if (order.last_payment_reminder_sent_at && !existing.last_payment_reminder_sent_at) {
+        existing.last_payment_reminder_sent_at = order.last_payment_reminder_sent_at;
+        existing.payment_reminder_count = order.payment_reminder_count;
+      }
       if (order.quotation_status && (!existing.quotation_status || existing.quotation_status === 'Pending Inspection')) {
         existing.quotation_status = order.quotation_status;
       }

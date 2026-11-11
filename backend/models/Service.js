@@ -25,6 +25,7 @@ const serviceSchema = new mongoose.Schema({
   pricing_mode: { type: String, default: 'calculated' },
   rate: { type: Number, default: 0 },
   fixed_fee: { type: Number, default: 0 },
+  recommended_interval_months: { type: Number, default: 0 },
   fields: [pricingFieldSchema],
   status: { type: String, enum: ['available', 'unavailable'], default: 'available' }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });

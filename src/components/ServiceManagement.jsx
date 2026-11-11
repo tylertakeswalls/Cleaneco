@@ -15,6 +15,7 @@ const emptyServiceTemplate = {
     status: 'available',
     rate: '',
     fixed_fee: '',
+    recommended_interval_months: 0,
     fields: []
 };
 
@@ -96,6 +97,7 @@ function ServiceManagement() {
             status: service.status || 'available',
             rate: service.rate !== undefined ? service.rate : (service.base_price || 0),
             fixed_fee: service.fixed_fee || 0,
+            recommended_interval_months: service.recommended_interval_months || 0,
             base_price: service.base_price || 0,
             fields: Array.isArray(service.fields) ? JSON.parse(JSON.stringify(service.fields)) : []
         });
@@ -272,7 +274,8 @@ function ServiceManagement() {
             ...formService,
             fields: cleanFields,
             rate: parseFloat(formService.rate) || 0,
-            fixed_fee: parseFloat(formService.fixed_fee) || 0
+            fixed_fee: parseFloat(formService.fixed_fee) || 0,
+            recommended_interval_months: parseInt(formService.recommended_interval_months, 10) || 0
         };
 
         try {
@@ -642,6 +645,7 @@ function ServiceManagement() {
                                         <th style={{ whiteSpace: 'nowrap' }}>Name</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Description</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Pricing Setup</th>
+                                        <th style={{ whiteSpace: 'nowrap' }}>Maintenance Cycle</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Starting At</th>
                                         <th style={{ whiteSpace: 'nowrap' }}>Status</th>
                                         {!isSubAdmin && <th style={{ whiteSpace: 'nowrap' }}>Actions</th>}
@@ -650,7 +654,7 @@ function ServiceManagement() {
                                         <tbody>
                                             {filteredServices.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={isSubAdmin ? "6" : "7"} className="text-center py-4 text-muted">No services found.</td>
+                                                    <td colSpan={isSubAdmin ? "7" : "8"} className="text-center py-4 text-muted">No services found.</td>
                                                 </tr>
                                             ) : (
                                                 filteredServices.map(service => {
@@ -673,6 +677,17 @@ function ServiceManagement() {
                                                                         {(service.fields || []).length} dynamic factor{(service.fields || []).length === 1 ? '' : 's'}
                                                                     </div>
                                                                 </div>
+                                                            </td>
+                                                            <td>
+                                                                {(() => {
+                                                                    const months = service.recommended_interval_months || 0;
+                                                                    if (!months) return <span className="text-muted small">One-Off</span>;
+                                                                    if (months >= 12 && months % 12 === 0) {
+                                                                        const yrs = months / 12;
+                                                                        return <span className="badge bg-success-subtle text-success border border-success-subtle fw-semibold">Every {yrs} {yrs === 1 ? 'Year' : 'Years'}</span>;
+                                                                    }
+                                                                    return <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-semibold">Every {months} {months === 1 ? 'Month' : 'Months'}</span>;
+                                                                })()}
                                                             </td>
                                                             <td className="fw-bold">
                                                                 <span className="text-success">
@@ -862,6 +877,29 @@ function ServiceManagement() {
                                                             Always added flat (e.g. mobilization or base callout charge).
                                                         </small>
                                                     </div>
+                                                </div>
+
+                                                <div className="mt-3 pt-3 border-top">
+                                                    <label className="form-label fw-bold small text-dark mb-1">
+                                                        <i className="fas fa-history me-1 text-success"></i>Recommended Service Interval (Recurring Reminders)
+                                                    </label>
+                                                    <select
+                                                        className="form-select"
+                                                        value={formService.recommended_interval_months ?? 0}
+                                                        onChange={(e) => setFormService({ ...formService, recommended_interval_months: parseInt(e.target.value, 10) || 0 })}
+                                                    >
+                                                        <option value={0}>None / One-Off Service (No Recurring Reminder)</option>
+                                                        <option value={1}>Every 1 Month (High-Volume Grease Trap / Kitchen)</option>
+                                                        <option value={3}>Every 3 Months (Quarterly Commercial Grease Trap)</option>
+                                                        <option value={6}>Every 6 Months (Semi-Annual Maintenance)</option>
+                                                        <option value={12}>Every 1 Year (Annual Plumbing / Maintenance)</option>
+                                                        <option value={24}>Every 2 Years (Bi-Annual Septic Inspection)</option>
+                                                        <option value={36}>Every 3 Years (Standard Septic Desludging Cycle)</option>
+                                                        <option value={60}>Every 5 Years (Large Septic Tank Capacity)</option>
+                                                    </select>
+                                                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                                        When an order is completed, Cleaneco uses this cycle to compute the client's "Next Service Due" badge and automatically dispatch recurring reminders.
+                                                    </small>
                                                 </div>
                                             </div>
 

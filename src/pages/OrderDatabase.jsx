@@ -695,6 +695,12 @@ function OrderDatabase() {
       if (filterStatus === 'unpaid_balance') {
         return order.status === 'Completed' && order.final_payment_status !== 'Paid';
       }
+      if (filterStatus === 'due_soon') {
+        if (order.status !== 'Completed' || !order.next_service_due_date) return false;
+        const dueDate = new Date(order.next_service_due_date);
+        const diffDays = Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        return diffDays <= 30;
+      }
       return order.status === filterStatus;
     })();
     const matchDate = filterDate === '' || resolveOrderSchedule(order).filterDateKey === filterDate;
@@ -986,7 +992,7 @@ function OrderDatabase() {
                   <span className="d-flex align-items-center gap-2 text-truncate">
                     <i className="fas fa-filter client-filter-icon" aria-hidden="true"></i>
                     <span className="text-truncate">
-                      {filterStatus === 'unpaid_balance' ? 'Unpaid Balance' : (filterStatus || 'All Statuses')}
+                      {filterStatus === 'unpaid_balance' ? 'Unpaid Balance' : filterStatus === 'due_soon' ? 'Service Due Soon' : (filterStatus || 'All Statuses')}
                     </span>
                   </span>
                   <i className={`fas fa-chevron-down client-filter-dropdown-chevron ${openDropdown === 'status' ? 'open' : ''}`} aria-hidden="true"></i>
@@ -999,6 +1005,7 @@ function OrderDatabase() {
                       { value: 'In Progress', label: 'In Progress' },
                       { value: 'Completed', label: 'Completed' },
                       { value: 'unpaid_balance', label: 'Unpaid Balance' },
+                      { value: 'due_soon', label: 'Service Due Soon' },
                       { value: 'Cancelled', label: 'Cancelled' }
                     ].map((opt) => (
                       <li key={opt.value || 'all'}>
@@ -1506,6 +1513,36 @@ function OrderDatabase() {
                                   </div>
                                 </>
                               )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {editModal.order.status === 'Completed' && (() => {
+                        const nextDue = editModal.order.next_service_due_date ? new Date(editModal.order.next_service_due_date) : null;
+                        const intervalMonths = editModal.order.next_service_interval_months || 0;
+                        const reminderSent = editModal.order.next_service_reminder_sent_at ? new Date(editModal.order.next_service_reminder_sent_at) : null;
+
+                        return (
+                          <div className="form-group mb-3">
+                            <label className="form-label fw-bold small text-muted">Recurring Maintenance Cycle</label>
+                            <div className="card border-0 shadow-sm p-3 bg-light">
+                              <div className="d-flex justify-content-between align-items-center mb-1">
+                                <span className="small fw-semibold text-muted">Recommended Frequency:</span>
+                                <span className="badge bg-light text-dark border">
+                                  {intervalMonths > 0 ? (intervalMonths >= 12 && intervalMonths % 12 === 0 ? `Every ${intervalMonths / 12} Year${intervalMonths > 12 ? 's' : ''}` : `Every ${intervalMonths} Months`) : 'One-Off / Standard'}
+                                </span>
+                              </div>
+                              <div className="d-flex justify-content-between align-items-center mb-1">
+                                <span className="small fw-semibold text-muted">Next Service Due:</span>
+                                <span className="fw-bold text-dark">
+                                  {nextDue ? nextDue.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not Scheduled'}
+                                </span>
+                              </div>
+                              <div className="small text-muted mt-1">
+                                <i className="fas fa-bell me-1 text-primary"></i>
+                                <strong>Automated Alert Status:</strong> {reminderSent ? `Reminder sent on ${formatDate(reminderSent)}` : (nextDue ? 'Scheduled 30 days prior to due date' : 'None')}
+                              </div>
                             </div>
                           </div>
                         );
