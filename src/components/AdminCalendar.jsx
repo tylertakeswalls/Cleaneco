@@ -1,10 +1,12 @@
-import { formatOrderReference } from '../utils/helpers';
+import { formatOrderReference, previewPdfBlob, resolveOrderSchedule } from '../utils/helpers';
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import "../assets/styles/adminCalendar.css";
-import { resolveOrderSchedule } from "../utils/helpers";
 import { formatName } from "../utils/formatName";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import reportHeaderImg from '../assets/styles/images/report_header.png';
 
 // ponytail: Custom calendar grid is a known ceiling. Avoid adding complex date-math or timezone logic here.
 // Upgrade path: Swap with 'react-big-calendar' or 'react-calendar' if complex features (like week view or drag-drop) are needed later.
@@ -14,6 +16,7 @@ export default function AdminCalendar({ orders = [] }) {
     const [selectedDate, setSelectedDate] = useState(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [isDrawerClosing, setIsDrawerClosing] = useState(false);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const drawerOpenedAt = useRef(0);
 
     const navigate = useNavigate();
@@ -115,6 +118,186 @@ export default function AdminCalendar({ orders = [] }) {
 
     const selectedDayOrders = selectedDate ? (ordersByDate[selectedDate] || []) : [];
 
+    const handlePrintDispatchSheet = async () => {
+        if (!selectedDate || selectedDayOrders.length === 0) return;
+        setIsGeneratingPdf(true);
+        try {
+            const doc = new jsPDF('portrait', 'mm', 'a4');
+
+            const img = new Image();
+            img.src = reportHeaderImg;
+            await new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve;
+            });
+
+            try {
+                doc.addImage(img, 'PNG', 0, 0, 210, 65);
+            } catch (imgErr) {
+                console.warn('Letterhead image error:', imgErr);
+            }
+
+            const dateObj = new Date(`${selectedDate}T00:00:00`);
+            const formattedDateStr = dateObj.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            let currentY = 72;
+            doc.setFont("times", "bold");
+            doc.setFontSize(13);
+            doc.setTextColor(20, 20, 20);
+            doc.text("DAILY DISPATCH RUN SHEET", 14, currentY);
+
+            currentY += 6;
+            doc.setFont("times", "normal");
+            doc.setFontSize(9.5);
+            doc.setTextColor(60, 60, 60);
+            doc.text(`Service Execution Date: ${formattedDateStr}`, 14, currentY);
+
+            currentY += 5;
+            doc.setFontSize(8.5);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Total Assigned Jobs: ${selectedDayOrders.length}  |  Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 14, currentY);
+
+            currentY += 8;
+
+            // Group orders by assigned truck team
+            const teamGroups = {};
+            selectedDayOrders.forEach(order => {
+                const team = (order.truck_team || '').trim() || 'Unassigned Fleet';
+                if (!teamGroups[team]) teamGroups[team] = [];
+                teamGroups[team].push(order);
+            });
+
+            const slotOrder = { 'Morning': 1, 'Afternoon': 2, 'Evening': 3 };
+            const sortedTeams = Object.keys(teamGroups).sort((a, b) => {
+                if (a.toLowerCase().includes('unassigned')) return 1;
+                if (b.toLowerCase().includes('unassigned')) return -1;
+                return a.localeCompare(b);
+            });
+
+            sortedTeams.forEach((teamName) => {
+                const teamOrders = teamGroups[teamName];
+                teamOrders.sort((a, b) => {
+                    const slotA = slotOrder[a._schedule?.activeSlot || a.time_slot] || 99;
+                    const slotB = slotOrder[b._schedule?.activeSlot || b.time_slot] || 99;
+                    return slotA - slotB;
+                });
+
+                if (currentY > 235) {
+                    doc.addPage();
+                    currentY = 20;
+                }
+
+                doc.setFont("times", "bold");
+                doc.setFontSize(10.5);
+                doc.setTextColor(13, 141, 30);
+                doc.text(`TRUCK FLEET / CREW: ${teamName.toUpperCase()} (${teamOrders.length} Stop${teamOrders.length === 1 ? '' : 's'})`, 14, currentY);
+                currentY += 4;
+
+                const tableColumn = ["Stop", "Time Slot", "Order & Client", "Service & Scope", "Destination Address & Landmark", "Field Notes & Remarks"];
+                const tableRows = [];
+
+                teamOrders.forEach((o, oIdx) => {
+                    const stopNumber = String(oIdx + 1);
+                    const slotText = `${o._schedule?.activeSlot || o.time_slot || 'Standard'}\n(${o._schedule?.label || 'Scheduled'})`;
+                    
+                    const clientName = formatName(o);
+                    const phoneText = o.phone ? `\nTel: ${o.phone}` : '';
+                    const orderRef = o.order_id ? `#${formatOrderReference(o.order_id)}` : 'N/A';
+                    const orderClientText = `${orderRef}\n${clientName}${phoneText}`;
+
+                    const serviceName = o.service_name || o.service_type || 'Sanitation Service';
+                    const tripsText = (o.total_trips && o.total_trips > 1) ? `\n(${o.total_trips} trips required)` : '';
+                    const serviceScopeText = `${serviceName}${tripsText}`;
+
+                    const addressText = o.address || 'Address on record';
+                    const landmarkText = o.landmark ? `\nLandmark: ${o.landmark}` : '';
+                    const addressLandmarkText = `${addressText}${landmarkText}`;
+
+                    const notesList = [];
+                    if (o.site_photo_url) {
+                        notesList.push("• Difficult Site Access (Photo on file)");
+                    }
+                    if (o.notes) {
+                        notesList.push(`• Client: ${o.notes.slice(0, 100)}`);
+                    }
+                    if (o.internal_notes) {
+                        notesList.push(`• Dispatch: ${o.internal_notes.slice(0, 100)}`);
+                    }
+                    notesList.push("[ ] Completed  Sign: ____________");
+                    const crewNotesText = notesList.join('\n');
+
+                    tableRows.push([
+                        stopNumber,
+                        slotText,
+                        orderClientText,
+                        serviceScopeText,
+                        addressLandmarkText,
+                        crewNotesText
+                    ]);
+                });
+
+                autoTable(doc, {
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: currentY,
+                    theme: 'grid',
+                    styles: { 
+                        font: 'times', 
+                        fontSize: 8, 
+                        cellPadding: 2.5, 
+                        overflow: 'linebreak',
+                        valign: 'top'
+                    },
+                    headStyles: { 
+                        fillColor: [13, 141, 30], 
+                        textColor: 255, 
+                        fontStyle: 'bold',
+                        fontSize: 8.5
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 12, halign: 'center' },
+                        1: { cellWidth: 26 },
+                        2: { cellWidth: 38 },
+                        3: { cellWidth: 36 },
+                        4: { cellWidth: 46 },
+                        5: { cellWidth: 32 }
+                    },
+                    didDrawPage: (data) => {
+                        currentY = data.cursor.y + 10;
+                    }
+                });
+
+                currentY = doc.lastAutoTable.finalY + 8;
+            });
+
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFont("times", "normal");
+                doc.setFontSize(8);
+                doc.setTextColor(130, 130, 130);
+                doc.text(
+                    `Cleaneco Waste Management Services • Daily Dispatch Run Sheet • Page ${i} of ${totalPages}`,
+                    14,
+                    290
+                );
+            }
+
+            const filename = `Cleaneco_Dispatch_Sheet_${selectedDate}.pdf`;
+            previewPdfBlob(doc.output('blob'), filename);
+        } catch (pdfErr) {
+            console.error('Error generating dispatch sheet:', pdfErr);
+            alert('Failed to generate dispatch sheet: ' + (pdfErr.message || pdfErr));
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
+
     return (
         <div className="admin-calendar-container">
             <div className="calendar-header">
@@ -199,6 +382,34 @@ export default function AdminCalendar({ orders = [] }) {
                             aria-label="Close"
                         />
                     </div>
+
+                    {selectedDayOrders.length > 0 && (
+                        <div className="calendar-drawer-toolbar d-flex align-items-center justify-content-between">
+                            <span className="small text-muted fw-semibold">
+                                <i className="fas fa-truck me-1 text-success"></i>Dispatch Schedule
+                            </span>
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-solid-primary d-inline-flex align-items-center gap-2 fw-bold"
+                                style={{ fontSize: '0.8rem', padding: '4px 12px' }}
+                                onClick={handlePrintDispatchSheet}
+                                disabled={isGeneratingPdf}
+                                title="Generate printable Daily Dispatch Run Sheet for truck teams"
+                            >
+                                {isGeneratingPdf ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span>Generating...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="fas fa-file-pdf"></i>
+                                        <span>Print Dispatch Sheet</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
 
                     <div className="calendar-drawer-body">
                         {selectedDayOrders.length === 0 ? (
