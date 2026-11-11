@@ -1120,7 +1120,22 @@ function OrderDatabase() {
                           ))}
                         </div>
                         {order.estimate_inputs && (order.estimate_inputs.accessibility === 'difficult' || Object.values(order.estimate_inputs).some(v => v && typeof v === 'object' && v.accessibility === 'difficult')) && (
-                          <div className="badge bg-danger mt-1 d-block"><i className="fas fa-exclamation-triangle me-1"></i>Requires Extension Hoses</div>
+                          <div className="mt-1">
+                            <span 
+                              className="fw-semibold d-inline-block text-nowrap"
+                              style={{ 
+                                backgroundColor: '#fee2e2', 
+                                color: '#991b1b', 
+                                border: '1px solid #fecaca', 
+                                borderRadius: '999px', 
+                                padding: '2px 8px', 
+                                fontSize: '0.72rem', 
+                                letterSpacing: '0.2px' 
+                              }}
+                            >
+                              Requires Extension Hoses
+                            </span>
+                          </div>
                         )}
                       </td>
                       <td style={{ minWidth: '170px' }}>
