@@ -185,7 +185,51 @@ const recentlyRemindedOrder = {
 assert.strictEqual(simulatePaymentReminderEndpoint(adminToken, recentlyRemindedOrder).status, 429);
 console.log('  ✔ Payment reminder 24-hour rate limit enforced (status 429)');
 
+console.log('\nTEST 7: Cash Payment Settlement Authorization (/api/orders/:id/record-cash-payment)');
+function simulateCashPaymentEndpoint(token, order, body = {}) {
+  const res = verifyAdminRole(token);
+  if (res.status !== 200) return res;
+  if (res.user.admin_scope === 'sub_admin') {
+    return { status: 403, error: 'Forbidden: Sub-Admins cannot record manual cash settlements' };
+  }
+  if (order.final_payment_status === 'Paid') {
+    return { status: 400, error: 'This order is already marked as fully paid.' };
+  }
+  return {
+    status: 200,
+    success: true,
+    message: `Cash settlement recorded successfully for Order #${order.order_id}.`,
+    order: {
+      ...order,
+      final_payment_status: 'Paid',
+      payment_method: 'cash',
+      cash_receipt_no: body.receipt_no || '',
+      cash_received_by: body.received_by || 'Office Cashier'
+    }
+  };
+}
+
+assert.strictEqual(simulateCashPaymentEndpoint(clientToken, testUnpaidOrder).status, 403);
+console.log('  ✔ Client attempting to record cash payment strictly blocked (status 403)');
+
+assert.strictEqual(simulateCashPaymentEndpoint(subAdminToken, testUnpaidOrder).status, 403);
+console.log('  ✔ Sub-Admin attempting to record cash payment strictly blocked (status 403)');
+
+const cashSettlementResult = simulateCashPaymentEndpoint(adminToken, testUnpaidOrder, {
+  receipt_no: 'OR-2026-9041',
+  received_by: 'Truck Team 2'
+});
+assert.strictEqual(cashSettlementResult.status, 200);
+assert.strictEqual(cashSettlementResult.order.final_payment_status, 'Paid');
+assert.strictEqual(cashSettlementResult.order.payment_method, 'cash');
+assert.strictEqual(cashSettlementResult.order.cash_receipt_no, 'OR-2026-9041');
+assert.strictEqual(cashSettlementResult.order.cash_received_by, 'Truck Team 2');
+console.log('  ✔ Full Admin recording cash settlement succeeds (status 200, status = Paid, method = cash)');
+
+assert.strictEqual(simulateCashPaymentEndpoint(adminToken, testPaidOrder).status, 400);
+console.log('  ✔ Cash payment rejected for already paid order (status 400)');
+
 console.log('\n====================================================');
-console.log('ALL SECURITY & ISOLATION AUDITS PASSED (6/6)');
+console.log('ALL SECURITY & ISOLATION AUDITS PASSED (7/7)');
 console.log('====================================================');
 

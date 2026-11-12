@@ -49,6 +49,8 @@ function OrderDatabase() {
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReasonText, setRejectReasonText] = useState('');
+  const [cashModalOpen, setCashModalOpen] = useState(false);
+  const [isRecordingCash, setIsRecordingCash] = useState(false);
   const [isGeneratingInspectionSheet, setIsGeneratingInspectionSheet] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const filterBarRef = useRef(null);
@@ -635,6 +637,52 @@ function OrderDatabase() {
       showAlert("Error", errMsg, "error");
     } finally {
       setIsSendingReminder(false);
+    }
+  };
+
+  const openCashModal = () => {
+    if (!editModal.order) return;
+    setCashModalOpen(true);
+  };
+
+  const handleRecordCashPayment = async () => {
+    const targetOrder = editModal.order;
+    const orderIdToUse = targetOrder?.id || targetOrder?._id;
+    if (!orderIdToUse) return;
+
+    setIsRecordingCash(true);
+    try {
+      const response = await api.post(`/orders/${orderIdToUse}/record-cash-payment`, {});
+      if (response.data.success) {
+        showAlert("Success", response.data.message || "Cash payment recorded successfully.", "success");
+        setCashModalOpen(false);
+
+        const updatedFields = response.data.order || {};
+
+        setEditModal(prev => ({
+          ...prev,
+          order: prev.order ? {
+            ...prev.order,
+            final_payment_status: 'Paid',
+            payment_method: 'cash',
+            cash_received_by: updatedFields.cash_received_by || editModal.order.truck_team || 'Office Cashier',
+            cash_received_at: updatedFields.cash_received_at || new Date()
+          } : null
+        }));
+
+        const ordersRes = await api.get('/orders');
+        const groupedOrders = processGroupedOrders(ordersRes.data);
+        setOrders(groupedOrders);
+        calculateRevenue(groupedOrders);
+      } else {
+        showAlert("Warning", response.data.message || "Failed to record cash payment.", "warning");
+      }
+    } catch (error) {
+      console.error("Error recording cash payment:", error);
+      const errMsg = error.response?.data?.message || "Error recording cash payment.";
+      showAlert("Error", errMsg, "error");
+    } finally {
+      setIsRecordingCash(false);
     }
   };
 
@@ -1507,6 +1555,41 @@ function OrderDatabase() {
                                 )}
                               </div>
 
+                              {isPaid && (
+                                <div className="pt-2 mt-1 border-top">
+                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <span className="fw-medium text-secondary" style={{ fontSize: '0.88rem' }}>Payment Method:</span>
+                                    <span className="text-dark fw-semibold" style={{ fontSize: '0.88rem' }}>
+                                      {editModal.order.payment_method === 'cash' ? (
+                                        <><i className="fas fa-money-bill-wave text-success me-1"></i>Cash (On-Site)</>
+                                      ) : editModal.order.payment_method === 'cheque' ? (
+                                        <><i className="fas fa-money-check text-primary me-1"></i>Cheque (Verified)</>
+                                      ) : (
+                                        <><i className="fas fa-globe text-info me-1"></i>Online (PayMongo)</>
+                                      )}
+                                    </span>
+                                  </div>
+
+                                  {editModal.order.payment_method === 'cash' && (
+                                    <>
+                                      {editModal.order.cash_received_at && (
+                                        <div className="d-flex justify-content-between align-items-center mb-1">
+                                          <span className="fw-medium text-secondary" style={{ fontSize: '0.88rem' }}>Settlement Date:</span>
+                                          <span className="text-dark fw-semibold" style={{ fontSize: '0.88rem' }}>{formatDate(editModal.order.cash_received_at)}</span>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+
+                                  {editModal.order.payment_method === 'cheque' && editModal.order.cheque_number && (
+                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                      <span className="fw-medium text-secondary" style={{ fontSize: '0.88rem' }}>Cheque No:</span>
+                                      <span className="text-dark fw-bold" style={{ fontSize: '0.88rem' }}>{editModal.order.cheque_number}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               {!isPaid && (
                                 <>
                                   <div className="d-flex justify-content-between align-items-center mb-2 pb-1">
@@ -1524,10 +1607,27 @@ function OrderDatabase() {
                                     </span>
                                   </div>
 
-                                  <div className="pt-2 mt-1 border-top">
+                                  <div className="pt-2 mt-1 border-top d-flex flex-column gap-2">
                                     <button
                                       type="button"
-                                      className={`btn w-100 fw-bold d-flex align-items-center justify-content-center gap-2 ${isThrottled ? 'btn-secondary text-white' : 'btn-danger text-white'}`}
+                                      className="btn text-white fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                                      style={{
+                                        backgroundColor: '#0D8D1E',
+                                        borderColor: '#0D8D1E',
+                                        padding: '9px 16px',
+                                        fontSize: '0.9rem',
+                                        borderRadius: '8px'
+                                      }}
+                                      onClick={openCashModal}
+                                      title="Record cash paid directly to field crew or office"
+                                    >
+                                      <i className="fas fa-money-bill-wave"></i>
+                                      <span>Record Cash Payment</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className={`btn w-100 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm ${isThrottled ? 'btn-secondary text-white' : 'btn-danger text-white'}`}
                                       style={{
                                         padding: '9px 16px',
                                         fontSize: '0.9rem',
@@ -2238,6 +2338,92 @@ function OrderDatabase() {
                 >
                   Confirm Reject
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+
+      {/* Cash Payment Settlement Modal */}
+      {cashModalOpen && editModal.order && createPortal(
+        <div 
+          className="modal fade show" 
+          style={{ 
+            display: 'block', 
+            zIndex: 1085, 
+            backgroundColor: 'rgba(0, 0, 0, 0.45)', 
+            backdropFilter: 'blur(5px)', 
+            WebkitBackdropFilter: 'blur(5px)' 
+          }} 
+          tabIndex="-1"
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0 rounded-4 overflow-hidden">
+              <div className="modal-header py-3 px-4" style={{ backgroundColor: '#0D8D1E', color: 'white' }}>
+                <h5 className="modal-title text-white fw-bold d-flex align-items-center gap-2 mb-0" style={{ fontSize: '1.1rem' }}>
+                  <i className="fas fa-money-bill-wave"></i>
+                  <span>Record Cash Settlement</span>
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close btn-close-white" 
+                  onClick={() => setCashModalOpen(false)}
+                  disabled={isRecordingCash}
+                ></button>
+              </div>
+
+              <div className="modal-body p-4 text-start">
+                <div className="p-3 mb-3 rounded-3" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <span className="text-muted small">Order Reference:</span>
+                    <strong className="text-dark">{formatOrderReference(editModal.order.order_id)}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <span className="text-muted small">Client:</span>
+                    <strong className="text-dark">{editModal.order.first_name} {editModal.order.last_name}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center pt-2 mt-2 border-top" style={{ borderColor: '#dcfce7' }}>
+                    <span className="fw-semibold text-dark">Amount to Settle:</span>
+                    <span className="fs-5 fw-bold text-success">
+                      ₱{calculateOrderOutstandingBalance(editModal.order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="alert alert-light border small text-muted mb-4 py-2 px-3 rounded-3" style={{ fontSize: '0.82rem' }}>
+                  <i className="fas fa-info-circle text-success me-2"></i>
+                  Confirm that the final remaining balance has been received in cash. This will mark the order as fully settled, update the client portal, and stop overdue payment reminders.
+                </div>
+
+                <div className="d-flex justify-content-end gap-2">
+                  <button 
+                    type="button" 
+                    className="btn btn-light rounded-pill px-4 fw-bold" 
+                    onClick={() => setCashModalOpen(false)}
+                    disabled={isRecordingCash}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn text-white rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2"
+                    style={{ backgroundColor: '#0D8D1E', borderColor: '#0D8D1E' }}
+                    onClick={handleRecordCashPayment}
+                    disabled={isRecordingCash}
+                  >
+                    {isRecordingCash ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span>Recording...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-check-circle"></i>
+                        <span>Confirm & Mark As Paid</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

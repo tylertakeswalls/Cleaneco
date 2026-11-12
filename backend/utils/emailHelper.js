@@ -437,6 +437,68 @@ const sendServiceDueReminderEmail = async (orderId, clientInfo, dueDate, service
   });
 };
 
+const sendCashPaymentSettlementEmail = async (orderId, clientInfo, amountPaid, receiptNo, receivedBy) => {
+  const portalLink = `${process.env.CLIENT_URL || 'https://cleaneco-kappa.vercel.app'}/orders`;
+  const subject = `Official Settlement Receipt: Cash Payment Confirmed for Order #${orderId}`;
+  const headerSubtitle = "Payment Receipt & Settlement Confirmation";
+  const formattedAmount = typeof amountPaid === 'number'
+    ? `₱${amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `₱${amountPaid}`;
+
+  const contentHtml = `
+      <div class='status-banner' style='border-left: 4px solid #0D8D1E; background-color: #f0fdf4;'>
+          <p style='color: #065f46; font-weight: 600; font-size: 16px; margin-bottom: 6px;'>
+              Payment Acknowledged & Settled in Full
+          </p>
+          <p style='color: #4b5563; margin: 0; font-size: 14px;'>
+              Dear ${clientInfo.firstName || 'Valued Client'}, this email confirms that your cash settlement of <strong style='color: #0D8D1E;'>${formattedAmount}</strong> for <strong>Order #${orderId}</strong> has been received, verified, and officially recorded. Your account is now fully settled.
+          </p>
+      </div>
+
+      <h2 class='section-title'>Settlement Summary</h2>
+      <div class='grid'>
+          <div class='grid-col'>
+              <p><strong>Order ID:</strong> #${orderId}</p>
+              <p><strong>Payment Method:</strong> <span style='color: #0D8D1E; font-weight: bold;'>Cash (On-Site)</span></p>
+              <p><strong>Amount Settled:</strong> <span style='font-weight: 700; color: #0D8D1E;'>${formattedAmount}</span></p>
+              ${receiptNo ? `<p><strong>Official Receipt / Ref No:</strong> ${receiptNo}</p>` : ''}
+          </div>
+          <div class='grid-col'>
+              <p><strong>Client Name:</strong> ${clientInfo.firstName} ${clientInfo.lastName}</p>
+              <p><strong>Service Address:</strong> ${clientInfo.address || 'On Record'}</p>
+              <p><strong>Received / Handled By:</strong> ${receivedBy || 'Field Crew / Office Cashier'}</p>
+              <p><strong>Date Settled:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+      </div>
+
+      <div style="text-align: center; margin: 25px 0;">
+          <a href='${portalLink}' class='btn-action' style='color: #ffffff; text-decoration: none;'>View Settled Order</a>
+          <p style="font-size: 13px; color: #64748b; margin-top: 10px;">
+              Thank you for trusting Cleaneco for your sanitation and waste management needs!
+          </p>
+      </div>
+
+      <div class="notes-box">
+          <p style="margin: 0; font-size: 13px; color: #64748b;">
+              <strong>Note:</strong> Please retain this email or your physical collection receipt for your accounting and sanitation compliance records. For billing inquiries, contact us at cleanecowmss@gmail.com or +63 9216214712.
+          </p>
+      </div>
+  `;
+
+  const htmlMessage = baseEmailTemplate({
+      subject,
+      title: 'Cleaneco Waste Management Services',
+      headerSubtitle,
+      contentHtml
+  });
+
+  await sendEmailJS('template_ns5zlcs', {
+    to_email: clientInfo.email,
+    subject: subject,
+    html_content: htmlMessage
+  });
+};
+
 module.exports = { 
   sendConfirmationEmail, 
   sendVerificationEmail, 
@@ -444,5 +506,6 @@ module.exports = {
   sendContactEmail, 
   sendRescheduleEmail,
   sendPaymentReminderEmail,
-  sendServiceDueReminderEmail
+  sendServiceDueReminderEmail,
+  sendCashPaymentSettlementEmail
 };

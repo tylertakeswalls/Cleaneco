@@ -954,13 +954,21 @@ function OngoingOrders() {
 
                                 {order.final_payment_status === 'Paid' ? (
                                   <div className="mt-3 badge bg-success w-100 py-2 fs-6">
-                                    <i className="fas fa-check-circle me-1"></i>Final Payment Paid
+                                    <i className="fas fa-check-circle me-1"></i>
+                                    {order.payment_method === 'cash'
+                                      ? `Final Payment Paid (Cash${order.cash_receipt_no ? ` - OR #${order.cash_receipt_no}` : ''})`
+                                      : 'Final Payment Paid'}
                                   </div>
                                 ) : order.status === 'Completed' && order.status !== 'Cancelled' ? (
                                   !(order.payment_method === 'cheque' && order.cheque_status === 'pending_verification') && (
-                                    <button className="btn btn-success btn-sm fw-bold w-100 rounded-pill shadow-sm mt-3" onClick={() => openFinalPaymentModal(order.order_id)}>
-                                      <i className="fas fa-wallet me-2"></i>Pay Final Amount ({formatCurrency(remainingBalance)})
-                                    </button>
+                                    <>
+                                      <button className="btn btn-success btn-sm fw-bold w-100 rounded-pill shadow-sm mt-3" onClick={() => openFinalPaymentModal(order.order_id)}>
+                                        <i className="fas fa-wallet me-2"></i>Pay Final Amount ({formatCurrency(remainingBalance)})
+                                      </button>
+                                      <div className="text-muted small text-center mt-2" style={{ fontSize: '0.78rem' }}>
+                                        <i className="fas fa-info-circle me-1 text-primary"></i>Paid cash on-site to our crew? It will reflect as Paid once recorded by our office team.
+                                      </div>
+                                    </>
                                   )
                                 ) : (
                                   <div className="mt-2 text-muted small fst-italic text-center" style={{ fontSize: '0.78rem' }}>
@@ -1766,6 +1774,10 @@ function OngoingOrders() {
                 )}
               </div>
               <div className="modal-footer border-0 p-4 pt-0 d-flex flex-column gap-2">
+                <div className="alert alert-light text-muted small border mb-1 text-start w-100" style={{ fontSize: '0.8rem' }}>
+                  <i className="fas fa-money-bill-wave text-success me-2"></i>
+                  <strong>Paying cash on-site?</strong> You can hand cash directly to our field crew upon completion. Your order will be marked as paid once recorded by our office team.
+                </div>
                 <button type="button" className="btn btn-primary w-100 rounded-pill fw-bold shadow-sm" onClick={handleFinalPayment} disabled={isSubmittingPayment}>
                   {paymentMethod === 'paymongo'
                     ? <><i className="fas fa-credit-card me-2"></i>{isSubmittingPayment ? 'Processing...' : 'Proceed to Payment (Cards, GCash, Maya)'}</>

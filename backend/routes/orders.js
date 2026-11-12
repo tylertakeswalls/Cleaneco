@@ -4,7 +4,7 @@ const Order = require('../models/Order');
 const Service = require('../models/Service');
 const Notification = require('../models/Notification');
 const { calculateOrderTotals, calculateStartingPrice, groupOrdersByOrderId, calculateOrderCollectedRevenue } = require('../utils/pricing');
-const { sendConfirmationEmail, sendRescheduleEmail, sendPaymentReminderEmail, sendServiceDueReminderEmail } = require('../utils/emailHelper');
+const { sendConfirmationEmail, sendRescheduleEmail, sendPaymentReminderEmail, sendServiceDueReminderEmail, sendCashPaymentSettlementEmail } = require('../utils/emailHelper');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
@@ -1547,6 +1547,114 @@ router.post('/:id/send-payment-reminder', async (req, res) => {
   } catch (err) {
     console.error('Error sending payment reminder:', err);
     return res.status(500).json({ success: false, message: 'Server error while sending payment reminder: ' + err.message });
+  }
+});
+
+router.post('/:id/record-cash-payment', async (req, res) => {
+  try {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      const token = req.headers.authorization.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+        if (decoded.role !== 'admin') {
+          return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+        }
+        if (decoded.admin_scope === 'sub_admin') {
+          return res.status(403).json({ success: false, message: 'Forbidden: Sub-Admins cannot record manual cash settlements' });
+        }
+      } catch (authErr) {
+        return res.status(401).json({ success: false, message: 'Invalid or expired authorization token' });
+      }
+    }
+
+    const { id } = req.params;
+    const { receipt_no, received_by, notes, collection_date } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (order.final_payment_status === 'Paid') {
+      return res.status(400).json({ success: false, message: 'This order is already marked as fully paid.' });
+    }
+
+    let balanceDue = 0;
+    if (order.has_final_price) {
+      const finalPrice = parseFloat(order.final_price) || 0;
+      balanceDue = Math.max(0, (finalPrice * 1.10) - 1100);
+    } else {
+      const legacyTotal = (parseFloat(order.price) || 0) + (parseFloat(order.tax_amount) || 0);
+      balanceDue = legacyTotal > 1100 ? legacyTotal - 1100 : legacyTotal;
+    }
+
+    const settledDate = collection_date ? new Date(collection_date) : new Date();
+    const collectorName = (received_by && received_by.trim()) || (order.truck_team ? `${order.truck_team} (Field Crew)` : 'Office Cashier');
+    const officialReceipt = receipt_no ? receipt_no.trim().slice(0, 100) : '';
+    const cashNotes = notes ? notes.trim().slice(0, 500) : '';
+
+    const updateFields = {
+      final_payment_status: 'Paid',
+      payment_method: 'cash',
+      cash_receipt_no: officialReceipt,
+      cash_received_by: collectorName,
+      cash_received_at: settledDate,
+      cash_notes: cashNotes
+    };
+
+    if (order.status === 'Pending') {
+      updateFields.status = 'In Progress';
+    }
+
+    await Order.updateMany(
+      { order_id: order.order_id },
+      { $set: updateFields }
+    );
+
+    if (order.user_id) {
+      const refCode = order.order_id.startsWith('CLN-') ? `#${order.order_id}` : `#CLN-${order.order_id}`;
+      await new Notification({
+        user_id: order.user_id,
+        order_id: order.order_id,
+        message: 'Cash Payment Confirmed',
+        details: `Your cash payment for order ${refCode} has been acknowledged and recorded as fully settled. Thank you for choosing Cleaneco!`
+      }).save();
+    }
+
+    if (order.email) {
+      const clientInfo = {
+        firstName: order.first_name,
+        lastName: order.last_name,
+        email: order.email,
+        phone: order.phone,
+        address: order.address,
+        serviceType: order.service_type
+      };
+      try {
+        await sendCashPaymentSettlementEmail(order.order_id, clientInfo, balanceDue, officialReceipt, collectorName);
+      } catch (emailErr) {
+        console.warn('Cash settlement confirmation email failed to send (non-blocking):', emailErr.message || emailErr);
+      }
+    }
+
+    invalidateOrdersCache();
+
+    return res.json({
+      success: true,
+      message: `Cash settlement recorded successfully for Order #${order.order_id}.`,
+      order: {
+        order_id: order.order_id,
+        final_payment_status: 'Paid',
+        payment_method: 'cash',
+        cash_receipt_no: officialReceipt,
+        cash_received_by: collectorName,
+        cash_received_at: settledDate,
+        cash_notes: cashNotes
+      }
+    });
+  } catch (err) {
+    console.error('Error recording cash payment:', err);
+    return res.status(500).json({ success: false, message: 'Server error while recording cash payment: ' + err.message });
   }
 });
 

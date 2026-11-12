@@ -240,6 +240,21 @@ export function groupOrdersByOrderId(rawOrders = []) {
       if (order.quotation_status && (!existing.quotation_status || existing.quotation_status === 'Pending Inspection')) {
         existing.quotation_status = order.quotation_status;
       }
+      if (order.payment_method && (!existing.payment_method || existing.payment_method === 'online')) {
+        existing.payment_method = order.payment_method;
+      }
+      if (order.cash_receipt_no && !existing.cash_receipt_no) {
+        existing.cash_receipt_no = order.cash_receipt_no;
+      }
+      if (order.cash_received_by && !existing.cash_received_by) {
+        existing.cash_received_by = order.cash_received_by;
+      }
+      if (order.cash_received_at && !existing.cash_received_at) {
+        existing.cash_received_at = order.cash_received_at;
+      }
+      if (order.cash_notes && !existing.cash_notes) {
+        existing.cash_notes = order.cash_notes;
+      }
     }
   });
 
