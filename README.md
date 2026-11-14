@@ -574,6 +574,14 @@ Comprehensive resolution of all findings from the 13-page DLSU-D Capstone UI/UX 
   - Added a **"Service Due Soon"** filter option in the Order Database and rendered a **Recurring Maintenance Cycle** summary card inside the Order Details side drawer.
   - Expanded automated backend test suites to 21/21 passing tests (`orderLifecycle.test.js`, `securityAudit.test.js`, `addressHandling.test.js`) verifying 24-hour payment reminder rate limits, RBAC authorization, outstanding balance formulas, and recurring maintenance intervals.
 
+## 55. Mobile & iOS Cross-Platform PDF Generation & Print Lifecycle Fix
+- **Client-Side Official Receipt & Final Billing Report (`OngoingOrders.jsx`, `ongoingorders.css`)**:
+  - Resolved an iOS WebKit / mobile browser issue where non-blocking `window.print()` execution caused `setReceiptOrder(null)` and `setSelectedBillingOrder(null)` to immediately unmount `<ReceiptTemplate />` and `<BillingTemplate />` before the mobile print snapshot completed.
+  - Positioned `#print-receipt` and `#print-billing` off-screen (`position: fixed; left: -9999px; opacity: 0; pointer-events: none;`) on `@media screen` so printable templates remain mounted and pre-rendered without affecting viewport layout or scroll height.
+  - Replaced `body * { visibility: hidden; }` inside `@media print` with strict `display: none !important` rules on `#root > *:not(.ongoing-orders-print-wrapper)` and `.d-print-none`, eliminating multi-page blank gray backgrounds, header strips, and floating chat widget artifacts on mobile and desktop PDFs.
+- **Admin & Sub-Admin PDF Export Compatibility (`src/utils/helpers.js`)**:
+  - Enhanced `previewPdfBlob()` with mobile/iOS device detection (`iPhone`, `iPad`, `iPod`, `Android`, and touch-enabled iPadOS) to trigger a direct native `<a href={blobUrl} download={safeFileName}>` PDF download instead of a hidden `1px × 1px` iframe print call, ensuring all 6 Admin and Sub-Admin PDF exports (Sales Reports, Order Reports, Inspection Sheets, Service Factor Checklists, Dispatch Run Sheets, and User Reports) download reliably on smartphones while preserving the desktop print preview dialog on PC.
+
 ## Prerequisites & Installation Dependencies
 
 Before running the project, please ensure you have the following installed on your system:

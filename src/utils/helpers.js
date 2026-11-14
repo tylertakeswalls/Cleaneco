@@ -353,6 +353,28 @@ export const previewPdfBlob = (blobData, fileName = 'Report.pdf') => {
     ? blobData
     : new Blob([blobData], { type: 'application/pdf' });
   const blobUrl = window.URL.createObjectURL(blob);
+  const safeFileName = String(fileName || 'Report.pdf').endsWith('.pdf')
+    ? String(fileName)
+    : `${fileName}.pdf`;
+
+  const isMobileDevice =
+    typeof navigator !== 'undefined' &&
+    (/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent || '') ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+  if (isMobileDevice) {
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = safeFileName;
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => {
+      window.URL.revokeObjectURL(blobUrl);
+    }, 60000);
+    return;
+  }
 
   const existingFrame = document.getElementById('cleaneco-pdf-print-frame');
   if (existingFrame) {

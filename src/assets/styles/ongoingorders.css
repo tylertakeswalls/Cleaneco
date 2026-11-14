@@ -170,7 +170,52 @@
     border-color: #0A6F17 !important;
     color: white !important;
 }
-@media print { body * { visibility: hidden; } #print-receipt, #print-receipt *, #print-billing, #print-billing * { visibility: visible; } #print-receipt, #print-billing { position: absolute; left: 0; top: 0; width: 100%; } }
+#print-receipt,
+#print-billing {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 210mm;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+}
+
+@media print {
+    html,
+    body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    #root > *:not(.ongoing-orders-print-wrapper),
+    .d-print-none {
+        display: none !important;
+    }
+
+    .ongoing-orders-print-wrapper {
+        background: #ffffff !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    #print-receipt,
+    #print-billing {
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        width: 100% !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        z-index: auto !important;
+        background: #ffffff !important;
+    }
+}
 
 .glass-modal {
     background-color: transparent !important;

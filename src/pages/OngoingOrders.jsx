@@ -388,6 +388,7 @@ function OngoingOrders() {
   }, [showConfirmModal, showResultModal, showPaymentModal, showReservationPaymentModal]);
 
   const generateReceipt = (order) => {
+    setSelectedBillingOrder(null);
     setReceiptOrder({
       ...order,
       client_type: order.client_type || order.user_clientType || clientType,
@@ -395,11 +396,11 @@ function OngoingOrders() {
     });
     setTimeout(() => {
       window.print();
-      setReceiptOrder(null);
-    }, 1000);
+    }, 500);
   };
 
   const generateBilling = (order) => {
+    setReceiptOrder(null);
     setSelectedBillingOrder({
       ...order,
       client_type: order.client_type || order.user_clientType || clientType,
@@ -407,8 +408,7 @@ function OngoingOrders() {
     });
     setTimeout(() => {
       window.print();
-      setSelectedBillingOrder(null);
-    }, 1000);
+    }, 500);
   };
 
   const handleBookAgain = (order) => {
@@ -555,7 +555,7 @@ function OngoingOrders() {
   }
 
   return (
-    <div className="bg-light" style={{ minHeight: '100vh', paddingBottom: '3rem' }}>
+    <div className="bg-light ongoing-orders-print-wrapper" style={{ minHeight: '100vh', paddingBottom: '3rem' }}>
       <div className="d-print-none">
         <img src={carousel6} alt="Banner" className="img-fluid banner-img w-100" />
 
