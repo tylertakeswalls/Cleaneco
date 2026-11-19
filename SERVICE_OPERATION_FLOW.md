@@ -8,23 +8,21 @@ This document details the complete, end-to-end service lifecycle and operational
 
 ```mermaid
 flowchart TD
-    S0["Admin Configures Services & Dynamic Pricing Factors (/admin/services)"] --> A
-    A["Client Submits Booking Request (/order)<br/>Residential: Solo or Group Sharing | Multi-Service Snapshot Captured"] --> B["Pay Upfront Reservation Fee ₱1,100 (₱1,000 + 10% Tax)<br/>PayMongo Instant Checkout OR Commercial/Industrial Cheque"]
-    B -->|PayMongo Paid OR Admin Approves Cheque| C["Order Status: In Progress<br/>Admin Confirms Inspection Schedule & Assigns Recon Team"]
-    B -->|Unpaid / Cheque Rejected| B1["Order Status: Pending<br/>Client Dashboard Shows 'Pay Reservation' / 'Retry Payment'"]
+    A["Client Submits Booking Request<br/>Selects Service, Details & Preferred Inspection Date"] --> B["Client Pays ₱1,100 Reservation Fee<br/>Online (PayMongo) or Cheque"]
+    B -->|Unpaid or Cheque Rejected| B1["Order Status: Pending<br/>Client Prompted to Complete or Retry Payment"]
     B1 --> B
-    C --> D["Physical On-Site Inspection Conducted"]
-    D --> E["Admin Adjusts Inspection Factors, Justifications & Discount<br/>Auto-Calculates Total Trips & Quotation (/admin/orders)"]
-    E --> F{"Client Reviews Quotation (/orders)<br/>Status: Pending Client Approval"}
-    F -->|Click 'Clarify'| G["Quotation Status: Clarification Requested<br/>Admin Alerted & Real-Time Messaging Negotiation (/messages)"]
+    B -->|Payment Confirmed| C["Order Status: In Progress<br/>Admin Confirms Inspection Schedule"]
+    C --> D["On-Site Inspection Conducted"]
+    D --> E["Admin Prepares & Sends Final Quotation"]
+    E --> F{"Client Reviews Quotation"}
+    F -->|Requests Clarification| G["Client & Admin Discuss via In-App Chat"]
     G --> E
-    F -->|Direct Call to Dispatch 046-447-03-54| H["Admin Marks Order Cancelled<br/>Releases Calendar Holds & Locks Record from Further Edits"]
-    F -->|Click 'I Agree, Proceed'| I["Quotation Status: Approved<br/>Client Selects Execution Date on Inline Calendar"]
-    I --> J["Service Execution Auto-Confirmed<br/>1–4 Trips: 1 Slot & 1 Truck | 5+ Trips: Whole-Day Lock & 2 Trucks Auto-Paired"]
-    J --> K["Physical Fleet Deployment & Waste Management Operations"]
-    K --> L["Admin Uploads Signed Service Report PDF to MongoDB GridFS<br/>Order Auto-Transitions to Completed & Notifies Client"]
-    L --> M["Client Prints Final Billing Statement (@media print)<br/>Settles Remaining Balance: (Quotation × 1.10) - ₱1,100"]
-    M -->|PayMongo Webhook OR Final Cheque Approved| N["Final Payment Status: Paid<br/>Client Prints Official Receipt"]
+    F -->|Approves Quotation| I["Client Selects Service Execution Date"]
+    I --> J["Service Schedule Confirmed & Truck Team Assigned"]
+    J --> K["Field Crew Performs Service On-Site"]
+    K --> L["Admin Uploads Signed Service Report<br/>Order Marked as Completed"]
+    L --> M["Client Views Final Billing Statement & Pays Remaining Balance"]
+    M -->|Online, Cheque, or Cash Payment Confirmed| N["Payment Status: Paid<br/>Client Downloads Official Receipt"]
 ```
 
 ---
